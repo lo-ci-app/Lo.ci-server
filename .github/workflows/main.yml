@@ -23,13 +23,6 @@ jobs:
           chmod +x ./gradlew
           ./gradlew build
 
-      - name: Debug build output and secrets
-        run: |
-          echo "--- 1. build/libs 폴더 내용물 ---"
-          ls -l build/libs/
-          echo "--- 2. Secret (JAR_FILE_NAME) 값 ---"
-          echo "Secret 값: [${{ secrets.JAR_FILE_NAME }}]"
-
       # 4. .jar 파일 원본 이름 그대로 EC2로 전송
       - name: Deploy to EC2
         uses: appleboy/scp-action@master
@@ -37,8 +30,8 @@ jobs:
           host: ${{ secrets.HOST_IP }}
           username: ${{ secrets.HOST_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "build/libs/${{ secrets.JAR_FILE_NAME }}"  # (중요) 원본 파일
-          target: "~/fiv5"                                  # (중요) 'rename' 옵션 완전 삭제
+          source: "build/libs/fiv5-0.0.1-SNAPSHOT.jar"
+          target: "~/fiv5"
 
       # 5. EC2에서 배포 스크립트 실행 (JAR 파일 이름을 인자로 전달)
       - name: Execute Deploy Script
@@ -48,4 +41,4 @@ jobs:
           username: ${{ secrets.HOST_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            bash ~/deploy.sh ${{ secrets.JAR_FILE_NAME }} # (중요) 파일 이름을 인자로 전달
+            bash ~/deploy.sh fiv5-0.0.1-SNAPSHOT.jar
