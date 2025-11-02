@@ -23,18 +23,22 @@ jobs:
           chmod +x ./gradlew
           ./gradlew build
 
-      # 4. EC2로 배포 (SCP로 .jar 파일 전송)
+      # 4. .jar 파일 이름을 'app.jar'로 변경
+      - name: Rename JAR file
+        run: |
+          mv build/libs/${{ secrets.JAR_FILE_NAME }} build/libs/app.jar
+
+      # 5. 'app.jar' 파일을 EC2로 전송 (rename 옵션 제거)
       - name: Deploy to EC2
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST_IP }}
           username: ${{ secrets.HOST_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "build/libs/${{ secrets.JAR_FILE_NAME }}" 
-          target: "~/fiv5"
-          rename: "app.jar"
+          source: "build/libs/app.jar"  # <-- 이름을 바꾼 app.jar를 복사
+          target: "~/fiv5"            # <-- rename 옵션 제거
 
-      # 5. EC2에서 배포 스크립트 실행
+      # 6. EC2에서 배포 스크립트 실행
       - name: Execute Deploy Script
         uses: appleboy/ssh-action@master
         with:
