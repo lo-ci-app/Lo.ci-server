@@ -47,6 +47,7 @@ mvnw.cmd
 .env
 
 # .yml 파일들을 확실히 무시하도록 수정
+/src/main/resources/application-local.yml
 application-local.yml
 application-dev.yml
 application-prod.yml

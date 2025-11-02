@@ -12,3 +12,12 @@ spring:
   h2:
     console:
       enabled: true
+
+jwt:
+  secret-key: TestSecretKeyForJwtTokenProvider1234567890
+  access-token-validity-seconds: 3600
+
+apple:
+  audience: com.test.bundle.id
+  iss: https://appleid.apple.com
+  keys-url: https://appleid.apple.com/auth/keys
