@@ -38,7 +38,6 @@ mvnw.cmd
 # ==================================
 
 # Firebase Admin SDK Service Account Key
-# (Firebase 콘솔에서 다운받은 JSON 키 파일)
 *.json
 
 # AWS Credentials
@@ -49,7 +48,7 @@ config
 # Environment variables
 .env
 
-# Application properties (local, dev 등 민감 정보 포함)
+# .yml 파일들을 확실히 무시하도록 수정
 application-local.yml
 application-dev.yml
 application-prod.yml
