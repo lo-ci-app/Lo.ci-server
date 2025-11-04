@@ -1,5 +1,7 @@
 package com.teamfiv5.fiv5.config;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.servers.Server;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -9,6 +11,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@OpenAPIDefinition(servers = {
+        @Server(url = "https://api-dev.fiv5.app", description = "Development Server (HTTPS)"),
+        @Server(url = "http://localhost:8080", description = "Local Development Server (HTTP)")
+})
 public class SwaggerConfig {
 
     @Bean
