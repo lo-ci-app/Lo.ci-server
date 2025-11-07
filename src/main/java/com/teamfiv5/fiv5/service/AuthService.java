@@ -8,6 +8,7 @@ import com.teamfiv5.fiv5.dto.AuthResponse;
 import com.teamfiv5.fiv5.dto.TokenResponse;
 import com.teamfiv5.fiv5.global.exception.CustomException;
 import com.teamfiv5.fiv5.global.exception.code.ErrorCode;
+import com.teamfiv5.fiv5.global.util.RandomNicknameGenerator;
 import com.teamfiv5.fiv5.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -34,35 +35,41 @@ public class AuthService {
         }
 
         boolean isNewUser = false;
+
         User user = userRepository.findByProviderIdAndProvider(providerId, APPLE_PROVIDER)
                 .orElseGet(() -> {
-                    // 8. 신규 사용자일 경우 (orElseGet 실행됨)
-                    String email = request.getEmail(); // (nullable)
-                    String nickname = (request.getFullName() != null) ? request.getFullName() : "user_" + providerId;
+                    String email = request.getEmail();
+                    String nickname;
 
-                    // (닉네임 중복 체크 로직 필요)
+                    if (StringUtils.hasText(request.getFullName())) {
+                        nickname = request.getFullName();
+                    } else {
+                        // 이름이 없으면 랜덤 닉네임 생성
+                        nickname = RandomNicknameGenerator.generate();
+                    }
+
+                    // (필수) 랜덤 닉네임 중복 시 임시 처리
+                    if (userRepository.existsByNickname(nickname)) {
+                        nickname = nickname + "_" + providerId.substring(0, 4);
+                    }
 
                     return userRepository.save(
                             User.builder()
-                                    .email(email) // ◀◀ email 저장
-                                    .nickname(nickname) // ◀◀ fullName을 nickname으로 저장
+                                    .email(email)
+                                    .nickname(nickname)
                                     .provider(APPLE_PROVIDER)
                                     .providerId(providerId)
                                     .build()
                     );
                 });
 
-        // 9. DB에서 찾았는데 닉네임이 임시값이면 신규 유저로 판단
-        // (Apple은 fullName을 안 줄 수도 있으므로 임시 닉네임 기준)
-        if (("user_" + providerId).equals(user.getNickname())) {
+        // Apple은 fullName을 안 줄 수 있으므로, 임시 닉네임 형태인지도 검사
+        if (user.getNickname().startsWith("user_") || user.getNickname().startsWith("행복한 ") || user.getNickname().startsWith("즐거운 ")) {
             isNewUser = true;
         }
 
-        // 10. 우리 서비스의 JWT 생성
         String accessToken = jwtTokenProvider.createAccessToken(user);
-        // (AuthResponse는 RefreshToken이 없으므로 생성 안 함)
-
-        return new AuthResponse(accessToken, isNewUser); // ◀◀ 11. AuthResponse 반환
+        return new AuthResponse(accessToken, isNewUser);
     }
 
 //    @Transactional(readOnly = true)
