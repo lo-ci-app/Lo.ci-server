@@ -5,6 +5,15 @@ spring:
     username: sa
     password: "" # 비밀번호 없음
 
+  cloud:
+    aws:
+      s3:
+        enabled: false 
+      stack:
+        auto: false
+      region:
+        static: ap-northeast-2
+
   # (선택 사항) JPA를 사용하는 경우, H2 콘솔 활성화
   jpa:
     hibernate:
