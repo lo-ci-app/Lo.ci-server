@@ -1,3 +1,4 @@
+// 경로: src/main/java/com/teamfiv5/fiv5/domain/User.java
 package com.teamfiv5.fiv5.domain;
 
 import jakarta.persistence.*;
@@ -8,14 +9,13 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"provider", "providerId"}), // (provider, providerId) 조합이 고유해야 함
-        @UniqueConstraint(columnNames = {"nickname"}) // 닉네임도 고유해야 함
+        @UniqueConstraint(columnNames = {"provider", "providerId"}),
+        @UniqueConstraint(columnNames = {"nickname"})
 })
 public class User {
 
@@ -23,7 +23,6 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Apple 로그인은 이메일을 숨길 수 있으므로 nullable = true
     @Column(nullable = true)
     private String email;
 
@@ -33,11 +32,18 @@ public class User {
     @Column(nullable = true)
     private String profileUrl;
 
-    @Column(nullable = false)
-    private String provider; // "apple"
+    @Column(nullable = true, length = 255)
+    private String bio;
 
     @Column(nullable = false)
-    private String providerId; // Apple에서 제공하는 고유 sub (subject)
+    private String provider;
+
+    @Column(nullable = false)
+    private String providerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -50,13 +56,25 @@ public class User {
         this.profileUrl = profileUrl;
         this.provider = provider;
         this.providerId = providerId;
+        this.status = UserStatus.ACTIVE;
+        this.bio = null;
     }
 
-    // (참고) Apple은 최초 로그인 시에만 이메일, 이름을 제공합니다.
-    // 최초 가입 시 닉네임을 설정하는 로직이 필요합니다.
-    // 여기서는 providerId를 임시 닉네임으로 사용합니다.
-    public User updateNickname(String nickname) {
+    public void updateProfile(String nickname, String bio) {
         this.nickname = nickname;
-        return this;
+        this.bio = bio;
+    }
+
+    public void updateProfileUrl(String profileUrl) {
+        this.profileUrl = profileUrl;
+    }
+
+    public void withdraw() {
+        this.email = null;
+        this.nickname = "탈퇴한사용자_" + this.id;
+        this.profileUrl = null;
+        this.bio = null; // ◀◀ (추가)
+        this.providerId = "DELETED_" + this.providerId; // (필수) providerId 중복 방지
+        this.status = UserStatus.DELETED;
     }
 }
