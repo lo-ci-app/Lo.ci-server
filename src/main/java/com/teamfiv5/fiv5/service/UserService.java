@@ -55,32 +55,38 @@ public class UserService {
         return UserDto.UserResponse.from(user); // 수정된 유저 정보 반환
     }
 
-    // 기능 2: 프로필 사진 변경/삭제 (fetchProfile)
+    /**
+     * [파일]을 직접 받아 S3 업로드/변경/삭제 (MultipartFile)
+     * S3UploadService의 공통 로직 호출
+     */
     @Transactional
     public UserDto.UserResponse updateProfileUrl(Long userId, MultipartFile profileImage) {
         User user = findUserById(userId);
+
+        String newFileUrl = s3UploadService.uploadAndReplace(
+                profileImage,         // 새 파일
+                user.getProfileUrl(), // 기존 URL
+                "profiles"            // S3 디렉토리
+        );
+
+        user.updateProfileUrl(newFileUrl); // DB 업데이트
+        return UserDto.UserResponse.from(user);
+    }
+
+    /**
+     * 기능 2-1: S3 https://namu.wiki/w/%EB%AC%B8%EC%9E%90%EC%97%B4을 받아 DB에 저장/변경/삭제
+     * S3UploadService의 공통 로직 호출
+     */
+    @Transactional
+    public UserDto.UserResponse updateProfileUrl(Long userId, UserDto.ProfileUrlUpdateRequest request) {
+        User user = findUserById(userId);
         String oldFileUrl = user.getProfileUrl();
-        String newFileUrl = null;
+        String newFileUrl = request.getProfileUrl();
 
-        // 1. (변경) 새 파일이 (profileImage) 들어온 경우
-        if (profileImage != null && !profileImage.isEmpty()) {
-            // S3에 업로드하고 새 URL을 받음
-            newFileUrl = s3UploadService.upload(profileImage, "profiles");
-        }
-        // 2. (삭제) 파일이 안 들어온 경우 (요청에 파일이 없음) -> null로 설정
-        else {
-            newFileUrl = null;
-        }
+        s3UploadService.replaceUrl(newFileUrl, oldFileUrl);
 
-        // 3. DB에 새 URL 저장 (null일 수도 있음)
-        user.updateProfileUrl(newFileUrl);
-
-        // 4. (중요) 기존 파일이 있었고, 새 파일로 변경되거나 삭제되는 경우
-        if (oldFileUrl != null && (newFileUrl == null || !oldFileUrl.equals(newFileUrl))) {
-            s3UploadService.delete(oldFileUrl);
-        }
-
-        return UserDto.UserResponse.from(user); // 수정된 유저 정보 반환
+        user.updateProfileUrl(newFileUrl); // DB 업데이트
+        return UserDto.UserResponse.from(user);
     }
 
     // 기능 3: 회원 탈퇴 (Soft Delete)

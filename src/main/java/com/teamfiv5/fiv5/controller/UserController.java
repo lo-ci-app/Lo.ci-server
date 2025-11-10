@@ -169,6 +169,45 @@ public class UserController {
     }
 
     /**
+     * (신규) 4. 프로필 사진 [URL] 변경/삭제 (JSON)
+     */
+    @Operation(summary = "프로필 사진 [URL] 변경/삭제 (신규 방식)",
+            description = "클라이언트가 S3에 직접 업로드한 후, 그 S3 URL 문자열만 서버로 전송합니다. **URL로 null이나 빈 문자열(\"\")을 보내면** 기존 사진이 **삭제**됩니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "URL 변경/삭제 성공",
+                    content = @Content(schema = @Schema(implementation = CustomResponse.class),
+                            examples = @ExampleObject(value = """
+                             {
+                               "timestamp": "2025-11-10T21:00:00.123456",
+                               "isSuccess": true,
+                               "code": "COMMON200",
+                               "message": "성공적으로 요청을 수행했습니다.",
+                               "result": {
+                                 "id": 1,
+                                 "profileUrl": "https://fiv5-assets.s3.ap-northeast-2.amazonaws.com/profiles/new-image-url.png",
+                                 ...
+                               }
+                             }
+                             """))),
+            @ApiResponse(responseCode = "401", description = "(COMMON401) 인증되지 않은 사용자", content = @Content)
+    })
+    @PatchMapping(value = "/me/profileUrl", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CustomResponse<UserDto.UserResponse>> updateProfileUrlString(
+            @AuthenticationPrincipal AuthenticatedUser user,
+
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "S3에 업로드된 새 프로필 URL. null 또는 빈 문자열 전송 시 기존 사진 삭제.",
+                    required = true,
+                    content = @Content(examples = @ExampleObject(value = "{\"profileUrl\": \"https.../new-image.png\"}"))
+            )
+            @Valid @RequestBody UserDto.ProfileUrlUpdateRequest request
+    ) {
+        Long userId = getUserId(user);
+        UserDto.UserResponse updatedUser = userService.updateProfileUrl(userId, request);
+        return ResponseEntity.ok(CustomResponse.ok(updatedUser));
+    }
+
+    /**
      * 회원 탈퇴 (Soft Delete)
      */
     @Operation(summary = "회원 탈퇴 (Soft Delete)", description = "현재 로그인한 사용자의 계정을 탈퇴 처리(Soft Delete)합니다.")
