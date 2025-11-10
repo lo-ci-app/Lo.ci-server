@@ -1,4 +1,3 @@
-// 경로: src/main/java/com/teamfiv5/fiv5/domain/User.java
 package com.teamfiv5.fiv5.domain;
 
 import jakarta.persistence.*;
@@ -41,6 +40,11 @@ public class User {
     @Column(nullable = false)
     private String providerId;
 
+    // (복구 1) UserStatus 필드 복구
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status;
+
     @Column(name = "bluetooth_token", unique = true)
     private String bluetoothToken;
 
@@ -55,6 +59,7 @@ public class User {
         this.profileUrl = profileUrl;
         this.provider = provider;
         this.providerId = providerId;
+        this.status = UserStatus.ACTIVE; // (복구 2) status 초기화
         this.bio = null;
     }
 
@@ -69,5 +74,16 @@ public class User {
 
     public void updateBluetoothToken(String bluetoothToken) {
         this.bluetoothToken = bluetoothToken;
+    }
+
+    // (복구 3) 소프트 딜리트 메서드 원상복구
+    public void withdraw() {
+        this.email = null;
+        this.nickname = "탈퇴한사용자_" + this.id;
+        this.profileUrl = null;
+        this.bio = null;
+        this.providerId = "DELETED_" + this.providerId; // (필수) providerId 중복 방지
+        this.status = UserStatus.DELETED;
+        this.bluetoothToken = null; // (추가) 토큰도 초기화
     }
 }

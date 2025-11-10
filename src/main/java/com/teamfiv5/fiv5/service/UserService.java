@@ -89,11 +89,15 @@ public class UserService {
         return UserDto.UserResponse.from(user);
     }
 
-    // 하드 딜리트
+    /**
+     * 기능 3: 회원 탈퇴 (Hard Delete -> Soft Delete)
+     * (수정) userRepository.delete() 대신 user.withdraw() 호출
+     */
     @Transactional
     public void withdrawUser(Long userId) {
         User user = findUserById(userId);
 
-        userRepository.delete(user);
+        // (복구) 소프트 딜리트 로직으로 원상복구
+        user.withdraw();
     }
 }
