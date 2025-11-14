@@ -30,7 +30,6 @@ public class FriendController {
 
     private final FriendService friendService;
 
-    // 공통: 사용자 ID 가져오기
     private Long getUserId(AuthenticatedUser user) {
         if (user == null) {
             throw new CustomException(ErrorCode.UNAUTHORIZED);
@@ -38,45 +37,27 @@ public class FriendController {
         return user.getUserId();
     }
 
-    // --- 1. 블루투스 친구 찾기 ---
 
-    @Operation(summary = "[친구] 1. 친구 찾기 시작 (토큰 발급)",
-            description = "친구 찾기 기능을 켤 때 호출. 8바이트의 일회용 랜덤 토큰을 발급받습니다.")
+    @Operation(summary = "[친구] 1. 내 고정 블루투스 토큰 조회",
+            description = "친구 찾기에 사용될 사용자의 고정 블루투스 토큰(4-byte Hex)을 조회합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "토큰 발급/갱신 성공",
+            @ApiResponse(responseCode = "200", description = "토큰 조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
-                            { "code": "COMMON200", "result": { "bluetoothToken": "gA_j3q-v-m8" } }
+                            { "code": "COMMON200", "result": { "bluetoothToken": "a1b2c3d4" } }
                             """))),
-            @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content)
+            @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content),
+            @ApiResponse(responseCode = "404", description = "(USER404_1) 유저를 찾을 수 없음 (토큰이 없음)", content = @Content)
     })
-    @PatchMapping("/discovery/start")
-    public ResponseEntity<CustomResponse<FriendDto.DiscoveryTokenResponse>> startFriendDiscovery(
-            @AuthenticationPrincipal AuthenticatedUser user
+    @GetMapping("/discovery/token")
+    public ResponseEntity<CustomResponse<FriendDto.DiscoveryTokenResponse>> getMyDiscoveryToken(
+        @AuthenticationPrincipal AuthenticatedUser user
     ) {
         Long myUserId = getUserId(user);
-        FriendDto.DiscoveryTokenResponse response = friendService.refreshBluetoothToken(myUserId);
+        FriendDto.DiscoveryTokenResponse response = friendService.getBluetoothToken(myUserId);
         return ResponseEntity.ok(CustomResponse.ok(response));
     }
 
-    @Operation(summary = "[친구] 2. 친구 찾기 중지 (토큰 만료)",
-            description = "친구 찾기 기능을 끌 때 호출. 발급받았던 토큰을 즉시 만료시킵니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "토큰 만료 성공",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "COMMON200", "result": null }
-                            """))),
-            @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content)
-    })
-    @PatchMapping("/discovery/stop")
-    public ResponseEntity<CustomResponse<Void>> stopFriendDiscovery(
-            @AuthenticationPrincipal AuthenticatedUser user
-    ) {
-        Long myUserId = getUserId(user);
-        friendService.stopBluetoothToken(myUserId);
-        return ResponseEntity.ok(CustomResponse.ok(null));
-    }
-
-    @Operation(summary = "[친구] 3. 스캔한 토큰으로 사용자 목록 조회",
+    @Operation(summary = "[친구] 2. 스캔한 토큰으로 사용자 목록 조회",
             description = "주변에서 스캔한 토큰 리스트를 전송하여, 각 사용자의 프로필과 나와의 친구 상태를 조회합니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "스캔한 토큰 문자열 목록", required = true,
@@ -117,9 +98,7 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(users));
     }
 
-    // --- 2. 친구 요청/수락 ---
-
-    @Operation(summary = "[친구] 4. 친구 요청 (ID 사용)", // (토큰 사용 -> ID 사용)
+    @Operation(summary = "[친구] 3. 친구 요청 (ID 사용)",
             description = "특정 사용자의 ID(id)를 사용해 친구 요청을 보냅니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "조회 API에서 얻은 상대방의 `id`", required = true,
@@ -137,11 +116,10 @@ public class FriendController {
             @Valid @RequestBody FriendDto.FriendManageByIdRequest request
     ) {
         Long myUserId = getUserId(user);
-        // (Service 호출 수정) 토큰이 아닌 ID를 전달
         friendService.requestFriend(myUserId, request.getTargetUserId());
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
-    @Operation(summary = "[친구] 5. 친구 수락 (ID 사용)",
+    @Operation(summary = "[친구] 4. 친구 수락 (ID 사용)",
             description = "나에게 온 친구 요청을 수락합니다. (알림 등에서 받은 요청자의 ID 사용)")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "요청을 보낸 사람의 `id`", required = true,
@@ -154,17 +132,14 @@ public class FriendController {
     @PatchMapping("/accept")
     public ResponseEntity<CustomResponse<Void>> acceptFriend(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Valid @RequestBody FriendDto.FriendManageByIdRequest request // (DTO 수정)
+            @Valid @RequestBody FriendDto.FriendManageByIdRequest request
     ) {
-        Long myUserId = getUserId(user); // 나는 수신자
-        friendService.acceptFriend(myUserId, request.getTargetUserId()); // 상대는 요청자
+        Long myUserId = getUserId(user);
+        friendService.acceptFriend(myUserId, request.getTargetUserId());
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 
-    /**
-     * (신규 API 6) 내가 받은 친구 요청 목록 조회
-     */
-    @Operation(summary = "[친구] 6. 내가 받은 친구 요청 목록 조회",
+    @Operation(summary = "[친구] 5. 내가 받은 친구 요청 목록 조회",
             description = "나에게 친구 요청을 보냈지만 아직 수락/거절하지 않은 (PENDING) 사용자 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공. (요청이 없으면 빈 리스트 `[]` 반환)",
@@ -188,7 +163,7 @@ public class FriendController {
                             """))),
             @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content)
     })
-    @GetMapping("/requests/received") // (신규) GET /api/v1/friends/requests/received
+    @GetMapping("/requests/received")
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getReceivedFriendRequests(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
@@ -197,10 +172,7 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(requesters));
     }
 
-    /**
-     * API 7. 내가 보낸 친구 요청 목록 조회
-     */
-    @Operation(summary = "[친구] 7. (Pull) 내가 보낸 친구 요청 목록 (수락 대기)",
+    @Operation(summary = "[친구] 6. (Pull) 내가 보낸 친구 요청 목록 (수락 대기)",
             description = "내가 친구 요청을 보냈지만 아직 상대방이 수락하지 않은 (PENDING) 사용자 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content),
@@ -215,16 +187,13 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(receivers));
     }
 
-    /**
-     * API 8. 내 친구 목록 조회
-     */
-    @Operation(summary = "[친구] 8. (Pull) 내 친구 목록",
+    @Operation(summary = "[친구] 7. (Pull) 내 친구 목록",
             description = "서로 친구 관계(FRIENDSHIP)가 수락된 모든 사용자 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content),
             @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content)
     })
-    @GetMapping("") // GET /api/v1/friends
+    @GetMapping("")
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getMyFriends(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {

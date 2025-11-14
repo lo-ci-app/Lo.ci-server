@@ -15,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HexFormat; // ◀◀◀ [추가]
 import java.util.List;
+import java.security.SecureRandom; // ◀◀◀ [추가]
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -32,6 +34,10 @@ class FriendServiceIntegrationTest {
     @Autowired
     private FriendshipRepository friendshipRepository;
 
+    // ◀◀◀ [추가] 테스트용 토큰 생성을 위해 AuthSvc 로직 일부 사용
+    @Autowired
+    private AuthService authService;
+
     private User userA;
     private User userB;
     private User userC;
@@ -43,29 +49,55 @@ class FriendServiceIntegrationTest {
         userB = User.builder().nickname("UserB").provider("apple").providerId("provider_B").build();
         userC = User.builder().nickname("UserC").provider("apple").providerId("provider_C").build();
 
+        // ◀◀◀ [수정] 고정 토큰을 미리 발급 (AuthService 로직 모방)
+        // (실제로는 AuthService.loginWithApple()이 담당)
+        userA.updateBluetoothToken(generateTestToken());
+        userB.updateBluetoothToken(generateTestToken());
+        userC.updateBluetoothToken(generateTestToken());
+
         userRepository.saveAll(List.of(userA, userB, userC));
+    }
+
+    // 테스트용 고유 토큰 생성기
+    private String generateTestToken() {
+        SecureRandom random = new SecureRandom();
+        HexFormat hexFormat = HexFormat.of();
+        byte[] tokenBytes = new byte[4];
+        String newToken;
+        do {
+            random.nextBytes(tokenBytes);
+            newToken = hexFormat.formatHex(tokenBytes);
+        } while (userRepository.existsByBluetoothToken(newToken));
+        return newToken;
     }
 
     // --- API 1 (Token) ---
     @Test
-    @DisplayName("토큰 발급/갱신 시 유저 DB에 토큰이 저장된다")
-    void refreshBluetoothToken_Success() {
+    @DisplayName("고정 토큰 조회 시 DB에 저장된 토큰이 반환된다") // ◀◀◀ [수정]
+    void getBluetoothToken_Success() { // ◀◀◀ [수정]
+        // given
+        String fixedTokenA = userA.getBluetoothToken();
+        assertThat(fixedTokenA).isNotNull(); // setup에서 잘 저장되었는지 확인
+
         // when
-        String tokenA = friendService.refreshBluetoothToken(userA.getId()).getBluetoothToken();
+        // 토큰 조회 API (구. refreshBluetoothToken) 호출
+        String tokenA = friendService.getBluetoothToken(userA.getId()).getBluetoothToken(); // ◀◀◀ [수정]
 
         // then
-        User findUserA = userRepository.findById(userA.getId()).get();
-        assertThat(findUserA.getBluetoothToken()).isEqualTo(tokenA);
-        assertThat(tokenA).isNotNull();
+        assertThat(tokenA).isEqualTo(fixedTokenA); // 저장된 토큰과 일치해야 함
+
+        // ◀◀◀ [추가] 여러 번 호출해도 같은 토큰이 나와야 함 (고정)
+        String tokenA_again = friendService.getBluetoothToken(userA.getId()).getBluetoothToken();
+        assertThat(tokenA_again).isEqualTo(fixedTokenA);
     }
 
     // --- API 2 (Discovery) ---
     @Test
-    @DisplayName("토큰 목록 조회 시 ID, 닉네임, 친구가 아닌 상태(NONE)가 반환된다") // ◀ (수정)
+    @DisplayName("토큰 목록 조회 시 ID, 닉네임, 상태(NONE)가 반환된다") // ◀◀◀ [수정]
     void findUsersByTokens_Status_NONE() {
         // given
-        String tokenB = friendService.refreshBluetoothToken(userB.getId()).getBluetoothToken();
-        String tokenC = friendService.refreshBluetoothToken(userC.getId()).getBluetoothToken();
+        String tokenB = userB.getBluetoothToken(); // ◀◀◀ [수정]
+        String tokenC = userC.getBluetoothToken(); // ◀◀◀ [수정]
 
         // when
         // A가 B와 C를 스캔함
@@ -76,30 +108,31 @@ class FriendServiceIntegrationTest {
         // then
         assertThat(result).hasSize(2);
 
-        // (수정) AssertJ의 extracting()과 containsExactlyInAnyOrder() 사용
+        // 닉네임 검사
         assertThat(result)
-                .extracting(FriendDto.DiscoveredUserResponse::getNickname) // 닉네임만 추출
-                .containsExactlyInAnyOrder("UserB", "UserC"); // 순서 상관없이 "UserB", "UserC"가 모두 있는지 확인
+                .extracting(FriendDto.DiscoveredUserResponse::getNickname)
+                .containsExactlyInAnyOrder("UserB", "UserC");
 
-        // ◀ [추가] DTO가 ID를 잘 반환하는지 검증
+        // ◀◀◀ [추가] ID 검사 (리팩토링 핵심)
         assertThat(result)
-                .extracting(FriendDto.DiscoveredUserResponse::getId) // ID 추출
+                .extracting(FriendDto.DiscoveredUserResponse::getId)
                 .containsExactlyInAnyOrder(userB.getId(), userC.getId());
 
+        // 상태 검사
         assertThat(result)
-                .extracting(FriendDto.DiscoveredUserResponse::getFriendshipStatus) // 친구 상태만 추출
-                .containsOnly(FriendDto.FriendshipStatusInfo.NONE); // 2명 다 "NONE" 상태인지 확인
+                .extracting(FriendDto.DiscoveredUserResponse::getFriendshipStatus)
+                .containsOnly(FriendDto.FriendshipStatusInfo.NONE);
     }
 
     // --- API 3 (Request) ---
     @Test
-    @DisplayName("성공: A가 B의 ID로 친구 요청을 보낸다") // ◀ (수정)
+    @DisplayName("성공: A가 B의 ID로 친구 요청을 보낸다") // ◀◀◀ [수정]
     void requestFriend_Success() {
         // given
-        // ◀ (삭제) String tokenB = friendService.refreshBluetoothToken(userB.getId()).getBluetoothToken();
+        Long idB = userB.getId(); // ◀◀◀ [수정] (토큰 대신 ID 사용)
 
         // when
-        friendService.requestFriend(userA.getId(), userB.getId()); // ◀ (수정) tokenB -> userB.getId()
+        friendService.requestFriend(userA.getId(), idB); // ◀◀◀ [수정]
 
         // then
         Friendship friendship = friendshipRepository.findAll().get(0);
@@ -107,27 +140,27 @@ class FriendServiceIntegrationTest {
         assertThat(friendship.getReceiver().getId()).isEqualTo(userB.getId());
         assertThat(friendship.getStatus()).isEqualTo(FriendshipStatus.PENDING);
 
-        // ◀ (삭제) 토큰 만료 로직이 서비스에서 제거되었으므로 테스트도 삭제
-        // // (보안) B의 토큰이 만료(null)되었는지 확인 (토큰 재사용 방지)
-        // User updatedUserB = userRepository.findById(userB.getId()).get();
-        // assertThat(updatedUserB.getBluetoothToken()).isNull();
+        // ◀◀◀ [수정] B의 토큰이 만료(null)되지 *않았는지* 확인 (고정 토큰)
+        User updatedUserB = userRepository.findById(userB.getId()).get();
+        assertThat(updatedUserB.getBluetoothToken()).isNotNull();
+        assertThat(updatedUserB.getBluetoothToken()).isEqualTo(userB.getBluetoothToken());
     }
 
     @Test
-    @DisplayName("실패: A가 자신의 ID로 친구 요청 (SELF_FRIEND_REQUEST)") // ◀ (수정)
+    @DisplayName("실패: A가 자신의 ID로 친구 요청 (SELF_FRIEND_REQUEST)") // ◀◀◀ [수정]
     void requestFriend_SelfRequest() {
         // given
-        // ◀ (삭제) String tokenA = friendService.refreshBluetoothToken(userA.getId()).getBluetoothToken();
+        Long idA = userA.getId(); // ◀◀◀ [수정]
 
         // when & then
-        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), userA.getId())) // ◀ (수정) tokenA -> userA.getId()
+        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), idA)) // ◀◀◀ [수정]
                 .isInstanceOf(CustomException.class)
-                .extracting("code") // CustomException에서 ErrorCode 객체를 가져옴
-                .isEqualTo(ErrorCode.SELF_FRIEND_REQUEST); //
+                .extracting("code")
+                .isEqualTo(ErrorCode.SELF_FRIEND_REQUEST);
     }
 
     @Test
-    @DisplayName("실패: A가 이미 친구인 B에게 ID로 다시 요청 (FRIEND_REQUEST_ALREADY_EXISTS)") // ◀ (수정)
+    @DisplayName("실패: A가 이미 친구인 B에게 다시 요청 (FRIEND_REQUEST_ALREADY_EXISTS)") // ◀◀◀ [수정]
     void requestFriend_AlreadyExists() {
         // given
         // 1. A와 B가 이미 친구 상태
@@ -137,12 +170,15 @@ class FriendServiceIntegrationTest {
                 .status(FriendshipStatus.FRIENDSHIP)
                 .build());
 
+        // 2. B의 ID
+        Long idB = userB.getId(); // ◀◀◀ [수정]
+
         // when & then
         // 3. A가 B의 ID로 다시 요청 시 예외 발생
-        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), userB.getId())) // ◀ (수정) tokenB_new -> userB.getId()
+        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), idB)) // ◀◀◀ [수정]
                 .isInstanceOf(CustomException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS); //
+                .isEqualTo(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
     }
 
     // --- API 4 (Accept) ---
@@ -178,6 +214,6 @@ class FriendServiceIntegrationTest {
         assertThatThrownBy(() -> friendService.acceptFriend(userB.getId(), userA.getId()))
                 .isInstanceOf(CustomException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.FRIEND_REQUEST_NOT_FOUND); //
+                .isEqualTo(ErrorCode.FRIEND_REQUEST_NOT_FOUND);
     }
 }
