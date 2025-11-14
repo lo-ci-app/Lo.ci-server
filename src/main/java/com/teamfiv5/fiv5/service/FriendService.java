@@ -44,7 +44,7 @@ public class FriendService {
     public FriendDto.DiscoveryTokenResponse refreshBluetoothToken(Long myUserId) {
         User user = findUserById(myUserId);
 
-        byte[] tokenBytes = new byte[8];
+        byte[] tokenBytes = new byte[6];
         random.nextBytes(tokenBytes);
         String newToken = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
 
@@ -118,9 +118,7 @@ public class FriendService {
     @Transactional
     public void requestFriend(Long myUserId, Long targetUserId) {
         // 1. ID로 상대방 조회 (findUserById 헬퍼 메서드 사용)
-        User target = findUserById(targetUserId); // ◀◀◀ [수정] (토큰 조회 로직 -> ID 조회 로직)
-        // ◀◀◀ [참고] targetToken 조회 시 발생하던 ErrorCode.INVALID_TARGET_TOKEN 는
-        // ◀◀◀ findUserById 가 실패할 때 ErrorCode.USER_NOT_FOUND 로 대체됩니다.
+        User target = findUserById(targetUserId);
 
         // 2. 자신에게 요청하는지 확인 (ID 비교)
         if (myUserId.equals(target.getId())) {
