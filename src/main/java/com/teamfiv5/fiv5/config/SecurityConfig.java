@@ -59,7 +59,7 @@ public class SecurityConfig {
                 .formLogin(formLogin -> formLogin.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        // (2) 경로별 권한 설정 
+        // (2) 경로별 권한 설정
         http
                 .authorizeHttpRequests(auth -> auth
                         // /health, /api/v1/auth/**, Swagger 경로는 인증 없이 허용

@@ -20,13 +20,6 @@ public class FriendDto {
         private List<String> tokens;
     }
 
-    @Getter
-    @NoArgsConstructor
-    public static class FriendRequestByToken {
-        @NotNull(message = "친구 요청 대상의 토큰이 필요합니다.")
-        private String targetToken;
-    }
-
     /**
      * API 4 (친구 수락) DTO
      */
@@ -49,6 +42,7 @@ public class FriendDto {
     @Getter
     @AllArgsConstructor
     public static class DiscoveredUserResponse {
+        private Long id;
         private String nickname;
         private String bio;
         private String profileUrl;
@@ -59,10 +53,11 @@ public class FriendDto {
 
         public static DiscoveredUserResponse of(User user, FriendshipStatusInfo status) {
             return new DiscoveredUserResponse(
+                    user.getId(),
                     user.getNickname(),
                     user.getBio(),
                     user.getProfileUrl(),
-                    user.getBluetoothToken(), // (수정) id 대신 토큰 반환
+                    user.getBluetoothToken(), // (수정) id 대신 토큰 반환 -> (유지)
                     status
             );
         }

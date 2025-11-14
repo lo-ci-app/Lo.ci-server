@@ -119,29 +119,28 @@ public class FriendController {
 
     // --- 2. 친구 요청/수락 ---
 
-    @Operation(summary = "[친구] 4. 친구 요청 (토큰 사용)",
-            description = "특정 사용자의 블루투스 토큰(token)을 사용해 친구 요청을 보냅니다.")
+    @Operation(summary = "[친구] 4. 친구 요청 (ID 사용)", // (토큰 사용 -> ID 사용)
+            description = "특정 사용자의 ID(id)를 사용해 친구 요청을 보냅니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "조회 API에서 얻은 상대방의 `bluetoothToken`", required = true,
-            content = @Content(examples = @ExampleObject(value = "{\"targetToken\": \"gA_j3q-v-m8\"}"))
+            description = "조회 API에서 얻은 상대방의 `id`", required = true,
+            content = @Content(examples = @ExampleObject(value = "{\"targetUserId\": 2}"))
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "요청 성공", content = @Content),
             @ApiResponse(responseCode = "400", description = "(FRIEND400_1) 자기 자신에게 요청", content = @Content),
-            @ApiResponse(responseCode = "404", description = "(NOT_FOUND) 유효하지 않거나 만료된 토큰", content = @Content),
+            @ApiResponse(responseCode = "404", description = "(USER404_1) 존재하지 않는 사용자", content = @Content),
             @ApiResponse(responseCode = "409", description = "(FRIEND409_1) 이미 친구 관계 또는 요청 대기 중", content = @Content)
     })
     @PostMapping("/request")
     public ResponseEntity<CustomResponse<Void>> requestFriend(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Valid @RequestBody FriendDto.FriendRequestByToken request // (DTO 수정)
+            @Valid @RequestBody FriendDto.FriendManageByIdRequest request
     ) {
         Long myUserId = getUserId(user);
-        // (Service 호출 수정) id가 아닌 토큰을 전달
-        friendService.requestFriend(myUserId, request.getTargetToken());
+        // (Service 호출 수정) 토큰이 아닌 ID를 전달
+        friendService.requestFriend(myUserId, request.getTargetUserId());
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
-
     @Operation(summary = "[친구] 5. 친구 수락 (ID 사용)",
             description = "나에게 온 친구 요청을 수락합니다. (알림 등에서 받은 요청자의 ID 사용)")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(

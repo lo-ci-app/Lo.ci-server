@@ -116,10 +116,11 @@ public class FriendService {
      * (API 3) 친구 요청 (수정됨)
      */
     @Transactional
-    public void requestFriend(Long myUserId, String targetToken) {
-        // 1. 토큰으로 상대방 조회
-        User target = userRepository.findByBluetoothToken(targetToken)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_TARGET_TOKEN));
+    public void requestFriend(Long myUserId, Long targetUserId) {
+        // 1. ID로 상대방 조회 (findUserById 헬퍼 메서드 사용)
+        User target = findUserById(targetUserId); // ◀◀◀ [수정] (토큰 조회 로직 -> ID 조회 로직)
+        // ◀◀◀ [참고] targetToken 조회 시 발생하던 ErrorCode.INVALID_TARGET_TOKEN 는
+        // ◀◀◀ findUserById 가 실패할 때 ErrorCode.USER_NOT_FOUND 로 대체됩니다.
 
         // 2. 자신에게 요청하는지 확인 (ID 비교)
         if (myUserId.equals(target.getId())) {
@@ -134,9 +135,6 @@ public class FriendService {
         if (alreadyExists) {
             throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
         }
-
-        // 4. (보안) 요청에 사용된 토큰은 즉시 만료(null)시켜 재사용 방지
-        target.updateBluetoothToken(null);
 
         // 5. 친구 요청 생성
         Friendship friendship = Friendship.builder()

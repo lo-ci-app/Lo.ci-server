@@ -61,7 +61,7 @@ class FriendServiceIntegrationTest {
 
     // --- API 2 (Discovery) ---
     @Test
-    @DisplayName("토큰 목록 조회 시 친구가 아닌 상태(NONE)가 반환된다")
+    @DisplayName("토큰 목록 조회 시 ID, 닉네임, 친구가 아닌 상태(NONE)가 반환된다") // ◀ (수정)
     void findUsersByTokens_Status_NONE() {
         // given
         String tokenB = friendService.refreshBluetoothToken(userB.getId()).getBluetoothToken();
@@ -74,13 +74,17 @@ class FriendServiceIntegrationTest {
         );
 
         // then
-        // (수정) 순서를 가정하지 않고, 내용만 검사합니다.
         assertThat(result).hasSize(2);
 
-        // AssertJ의 extracting()과 containsExactlyInAnyOrder() 사용
+        // (수정) AssertJ의 extracting()과 containsExactlyInAnyOrder() 사용
         assertThat(result)
                 .extracting(FriendDto.DiscoveredUserResponse::getNickname) // 닉네임만 추출
                 .containsExactlyInAnyOrder("UserB", "UserC"); // 순서 상관없이 "UserB", "UserC"가 모두 있는지 확인
+
+        // ◀ [추가] DTO가 ID를 잘 반환하는지 검증
+        assertThat(result)
+                .extracting(FriendDto.DiscoveredUserResponse::getId) // ID 추출
+                .containsExactlyInAnyOrder(userB.getId(), userC.getId());
 
         assertThat(result)
                 .extracting(FriendDto.DiscoveredUserResponse::getFriendshipStatus) // 친구 상태만 추출
@@ -89,13 +93,13 @@ class FriendServiceIntegrationTest {
 
     // --- API 3 (Request) ---
     @Test
-    @DisplayName("성공: A가 B의 토큰으로 친구 요청을 보낸다 (보안 API)")
+    @DisplayName("성공: A가 B의 ID로 친구 요청을 보낸다") // ◀ (수정)
     void requestFriend_Success() {
         // given
-        String tokenB = friendService.refreshBluetoothToken(userB.getId()).getBluetoothToken();
+        // ◀ (삭제) String tokenB = friendService.refreshBluetoothToken(userB.getId()).getBluetoothToken();
 
         // when
-        friendService.requestFriend(userA.getId(), tokenB);
+        friendService.requestFriend(userA.getId(), userB.getId()); // ◀ (수정) tokenB -> userB.getId()
 
         // then
         Friendship friendship = friendshipRepository.findAll().get(0);
@@ -103,26 +107,27 @@ class FriendServiceIntegrationTest {
         assertThat(friendship.getReceiver().getId()).isEqualTo(userB.getId());
         assertThat(friendship.getStatus()).isEqualTo(FriendshipStatus.PENDING);
 
-        // (보안) B의 토큰이 만료(null)되었는지 확인 (토큰 재사용 방지)
-        User updatedUserB = userRepository.findById(userB.getId()).get();
-        assertThat(updatedUserB.getBluetoothToken()).isNull();
+        // ◀ (삭제) 토큰 만료 로직이 서비스에서 제거되었으므로 테스트도 삭제
+        // // (보안) B의 토큰이 만료(null)되었는지 확인 (토큰 재사용 방지)
+        // User updatedUserB = userRepository.findById(userB.getId()).get();
+        // assertThat(updatedUserB.getBluetoothToken()).isNull();
     }
 
     @Test
-    @DisplayName("실패: A가 자신의 토큰으로 친구 요청 (SELF_FRIEND_REQUEST)")
+    @DisplayName("실패: A가 자신의 ID로 친구 요청 (SELF_FRIEND_REQUEST)") // ◀ (수정)
     void requestFriend_SelfRequest() {
         // given
-        String tokenA = friendService.refreshBluetoothToken(userA.getId()).getBluetoothToken();
+        // ◀ (삭제) String tokenA = friendService.refreshBluetoothToken(userA.getId()).getBluetoothToken();
 
         // when & then
-        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), tokenA))
+        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), userA.getId())) // ◀ (수정) tokenA -> userA.getId()
                 .isInstanceOf(CustomException.class)
                 .extracting("code") // CustomException에서 ErrorCode 객체를 가져옴
                 .isEqualTo(ErrorCode.SELF_FRIEND_REQUEST); //
     }
 
     @Test
-    @DisplayName("실패: A가 이미 친구인 B에게 다시 요청 (FRIEND_REQUEST_ALREADY_EXISTS)")
+    @DisplayName("실패: A가 이미 친구인 B에게 ID로 다시 요청 (FRIEND_REQUEST_ALREADY_EXISTS)") // ◀ (수정)
     void requestFriend_AlreadyExists() {
         // given
         // 1. A와 B가 이미 친구 상태
@@ -132,12 +137,9 @@ class FriendServiceIntegrationTest {
                 .status(FriendshipStatus.FRIENDSHIP)
                 .build());
 
-        // 2. B가 새 토큰을 발급받음
-        String tokenB_new = friendService.refreshBluetoothToken(userB.getId()).getBluetoothToken();
-
         // when & then
-        // 3. A가 B의 새 토큰으로 다시 요청 시 예외 발생
-        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), tokenB_new))
+        // 3. A가 B의 ID로 다시 요청 시 예외 발생
+        assertThatThrownBy(() -> friendService.requestFriend(userA.getId(), userB.getId())) // ◀ (수정) tokenB_new -> userB.getId()
                 .isInstanceOf(CustomException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS); //
