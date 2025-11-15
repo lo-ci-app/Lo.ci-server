@@ -78,4 +78,10 @@ public class UserService {
         User user = findUserById(userId);
         user.withdraw();
     }
+
+    @Transactional
+    public void updateFcmToken(Long userId, UserDto.FcmTokenUpdateRequest request) {
+        User user = findUserById(userId);
+        user.updateFcmToken(request.getFcmToken());
+    }
 }

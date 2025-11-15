@@ -203,7 +203,28 @@ public class UserController {
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
         Long userId = getUserId(user);
-        userService.withdrawUser(userId); // Soft Delete 실행
+        userService.withdrawUser(userId);
+        return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "[User] 6. FCM 기기 토큰 갱신",
+            description = "로그인 시 또는 기기 토큰이 갱신될 때마다 클라이언트가 이 API를 호출하여 서버에 토큰을 등록합니다.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "FCM 기기 토큰",
+            required = true,
+            content = @Content(examples = @ExampleObject(value = "{\"fcmToken\": \"c_abc123...\"}"))
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "FCM 토큰 갱신 성공", content = @Content),
+            @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content)
+    })
+    @PatchMapping("/me/fcm-token")
+    public ResponseEntity<CustomResponse<Void>> updateFcmToken(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody UserDto.FcmTokenUpdateRequest request
+    ) {
+        Long userId = getUserId(user);
+        userService.updateFcmToken(userId, request);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 }

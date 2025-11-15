@@ -12,6 +12,7 @@ import com.teamfiv5.fiv5.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public class FriendService {
 
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final NotificationService notificationService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -109,7 +111,13 @@ public class FriendService {
 
         friendshipRepository.save(friendship);
 
-        // TODO: 알림 생성 로직 추가
+        String targetToken = target.getFcmToken();
+        if (StringUtils.hasText(targetToken)) {
+            notificationService.sendFriendRequestNotification(
+                    targetToken,
+                    me.getNickname()
+            );
+        }
     }
 
     @Transactional
@@ -162,4 +170,6 @@ public class FriendService {
                 .map(UserDto.UserResponse::from)
                 .collect(Collectors.toList());
     }
+
+
 }

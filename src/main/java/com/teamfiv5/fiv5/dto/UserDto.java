@@ -23,7 +23,14 @@ public class UserDto {
     @Getter
     @NoArgsConstructor
     public static class ProfileUrlUpdateRequest {
-        private String profileUrl; // null 허용
+        private String profileUrl;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class FcmTokenUpdateRequest {
+        @NotBlank(message = "FCM 토큰이 필요합니다.")
+        private String fcmToken;
     }
 
     @Getter

@@ -61,3 +61,6 @@ application-prod.yml
 
 # Windows
 Thumbs.db
+
+# Firebase
+src/main/resources/firebase-service-account.json

@@ -47,9 +47,16 @@ public class User {
     @Column(name = "bluetooth_token", unique = true)
     private String bluetoothToken;
 
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
 
     @Builder
     public User(String email, String nickname, String profileUrl, String provider, String providerId) {
@@ -83,5 +90,6 @@ public class User {
         this.providerId = "DELETED_" + this.providerId;
         this.status = UserStatus.DELETED;
         this.bluetoothToken = null;
+        this.fcmToken = null;
     }
 }
