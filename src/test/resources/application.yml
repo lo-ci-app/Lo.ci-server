@@ -30,3 +30,6 @@ apple:
   audience: com.test.bundle.id
   iss: https://appleid.apple.com
   keys-url: https://appleid.apple.com/auth/keys
+
+firebase:
+  service-account-path: "dummy-test-path.json"
