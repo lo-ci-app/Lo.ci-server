@@ -153,6 +153,24 @@ public class FriendService {
         friendship.accept();
     }
 
+    @Transactional
+    public void cancelFriendRequest(Long myUserId, Long targetUserId) {
+        Friendship friendship = friendshipRepository
+                .findByRequesterIdAndReceiverIdAndStatus(myUserId, targetUserId, FriendshipStatus.PENDING)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
+
+        friendshipRepository.delete(friendship);
+    }
+
+    @Transactional
+    public void deleteFriend(Long myUserId, Long friendId) {
+        Friendship friendship = friendshipRepository
+                .findFriendshipBetweenUsersByStatus(myUserId, friendId, FriendshipStatus.FRIENDSHIP)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FRIENDS));
+
+        friendshipRepository.delete(friendship);
+    }
+
     public List<UserDto.UserResponse> getReceivedFriendRequests(Long myUserId) {
         List<Friendship> pendingRequests = friendshipRepository.findByReceiverIdAndStatusWithRequester(
                 myUserId,

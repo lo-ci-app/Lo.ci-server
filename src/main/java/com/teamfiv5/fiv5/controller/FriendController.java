@@ -50,7 +50,7 @@ public class FriendController {
     })
     @GetMapping("/discovery/token")
     public ResponseEntity<CustomResponse<FriendDto.DiscoveryTokenResponse>> getMyDiscoveryToken(
-        @AuthenticationPrincipal AuthenticatedUser user
+            @AuthenticationPrincipal AuthenticatedUser user
     ) {
         Long myUserId = getUserId(user);
         FriendDto.DiscoveryTokenResponse response = friendService.getBluetoothToken(myUserId);
@@ -139,7 +139,75 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 
-    @Operation(summary = "[친구] 5. 내가 받은 친구 요청 목록 조회",
+    @Operation(summary = "[친구] 5. (Pull) 내가 보낸 친구 요청 '취소'",
+            description = "내가 상대방에게 보낸 친구 요청(PENDING)을 취소합니다.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "요청을 보냈던 상대방의 `id`", required = true,
+            content = @Content(examples = @ExampleObject(value = "{\"targetUserId\": 4}"))
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "요청 취소 성공",
+                    content = @Content(schema = @Schema(implementation = CustomResponse.class),
+                            examples = @ExampleObject(value = """
+                                    { "code": "COMMON200", "result": null }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "(FRIEND404_1) 취소할 요청이 존재하지 않음",
+                    content = @Content(schema = @Schema(implementation = CustomResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "timestamp": "2025-11-17T16:10:00",
+                                      "isSuccess": false,
+                                      "code": "FRIEND404_1",
+                                      "message": "존재하지 않는 친구 요청입니다.",
+                                      "result": null
+                                    }
+                                    """)))
+    })
+    @DeleteMapping("/request")
+    public ResponseEntity<CustomResponse<Void>> cancelFriendRequest(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody FriendDto.FriendManageByIdRequest request
+    ) {
+        Long myUserId = getUserId(user);
+        friendService.cancelFriendRequest(myUserId, request.getTargetUserId());
+        return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "[친구] 6. 친구 삭제 (언프렌드)",
+            description = "친구 관계(FRIENDSHIP)를 삭제합니다. (양방향 모두 가능)")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "삭제할 친구의 `id`", required = true,
+            content = @Content(examples = @ExampleObject(value = "{\"targetUserId\": 2}"))
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "친구 삭제 성공",
+                    content = @Content(schema = @Schema(implementation = CustomResponse.class),
+                            examples = @ExampleObject(value = """
+                                    { "code": "COMMON200", "result": null }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "(FRIEND404_3) 친구 관계가 존재하지 않음",
+                    content = @Content(schema = @Schema(implementation = CustomResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "timestamp": "2025-11-17T16:11:00",
+                                      "isSuccess": false,
+                                      "code": "FRIEND404_3",
+                                      "message": "두 사용자 간에 친구 관계가 존재하지 않습니다.",
+                                      "result": null
+                                    }
+                                    """)))
+    })
+    @DeleteMapping("")
+    public ResponseEntity<CustomResponse<Void>> deleteFriend(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody FriendDto.FriendManageByIdRequest request
+    ) {
+        Long myUserId = getUserId(user);
+        friendService.deleteFriend(myUserId, request.getTargetUserId());
+        return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "[친구] 7. 내가 받은 친구 요청 목록 조회",
             description = "나에게 친구 요청을 보냈지만 아직 수락/거절하지 않은 (PENDING) 사용자 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공. (요청이 없으면 빈 리스트 `[]` 반환)",
@@ -172,7 +240,7 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(requesters));
     }
 
-    @Operation(summary = "[친구] 6. (Pull) 내가 보낸 친구 요청 목록 (수락 대기)",
+    @Operation(summary = "[친구] 8. (Pull) 내가 보낸 친구 요청 목록 (수락 대기)",
             description = "내가 친구 요청을 보냈지만 아직 상대방이 수락하지 않은 (PENDING) 사용자 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content),
@@ -187,13 +255,13 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(receivers));
     }
 
-    @Operation(summary = "[친구] 7. (Pull) 내 친구 목록",
+    @Operation(summary = "[친구] 9. (Pull) 내 친구 목록",
             description = "서로 친구 관계(FRIENDSHIP)가 수락된 모든 사용자 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content),
             @ApiResponse(responseCode = "401", description = "(COMMON401) 인증 실패", content = @Content)
     })
-    @GetMapping("")
+    @GetMapping("") 
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getMyFriends(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {

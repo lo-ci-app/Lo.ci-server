@@ -34,8 +34,8 @@ public enum ErrorCode implements BaseErrorCode {
     FRIEND_LIMIT_EXCEEDED("FRIEND409_2", "친구는 최대 5명까지 추가할 수 있습니다.", HttpStatus.CONFLICT),
     TARGET_FRIEND_LIMIT_EXCEEDED("FRIEND409_3", "상대방의 친구 수가 꽉 찼습니다.", HttpStatus.CONFLICT),
     FRIEND_REQUEST_NOT_FOUND("FRIEND404_1", "존재하지 않는 친구 요청입니다.", HttpStatus.NOT_FOUND),
-
     INVALID_TARGET_TOKEN("FRIEND404_2", "유효하지 않은 토큰이거나 만료된 사용자입니다.", HttpStatus.NOT_FOUND),
+    NOT_FRIENDS("FRIEND404_3", "두 사용자 간에 친구 관계가 존재하지 않습니다.", HttpStatus.NOT_FOUND),
 
     // == 포스트 관련 에러 ==
     POST_NOT_FOUND("POST404_1", "게시물을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
