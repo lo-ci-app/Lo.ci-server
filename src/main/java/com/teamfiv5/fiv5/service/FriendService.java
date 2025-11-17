@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FriendService {
 
-    private static final int MAX_FRIEND_LIMIT = 5; // 최대 친구 수 -> 5명
+    private static final int MAX_FRIEND_LIMIT = 5;
 
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
@@ -125,10 +125,16 @@ public class FriendService {
     @Transactional
     public void acceptFriend(Long myUserId, Long requesterId) {
 
-        User me = userRepository.findByIdWithLock(myUserId)
+        Long firstId = Math.min(myUserId, requesterId);
+        Long secondId = Math.max(myUserId, requesterId);
+
+        User user1 = userRepository.findByIdWithLock(firstId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        User requester = userRepository.findByIdWithLock(requesterId)
+        User user2 = userRepository.findByIdWithLock(secondId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        User me = myUserId.equals(user1.getId()) ? user1 : user2;
+        User requester = requesterId.equals(user1.getId()) ? user1 : user2;
 
         long myFriendCount = friendshipRepository.countByUserIdAndStatus(me.getId(), FriendshipStatus.FRIENDSHIP);
         if (myFriendCount >= MAX_FRIEND_LIMIT) {
@@ -188,6 +194,4 @@ public class FriendService {
                 .map(UserDto.UserResponse::from)
                 .collect(Collectors.toList());
     }
-
-
 }
