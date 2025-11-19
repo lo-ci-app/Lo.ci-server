@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: "jdbc:h2:mem:testdb" # 테스트용 인메모리 DB
+    driverClassName: org.h2.Driver
+    username: sa
+    password: "" # 비밀번호 없음
+
+  cloud:
+    aws:
+      s3:
+        bucket: "test-bucket"
+      stack:
+        auto: false
+      region:
+        static: ap-northeast-2 # (필수) 리전은 명시해야 함
+
+  # (선택 사항) JPA를 사용하는 경우, H2 콘솔 활성화
+  jpa:
+    hibernate:
+      ddl-auto: create-drop # 테스트 실행 시 스키마 생성, 완료 시 삭제
+  h2:
+    console:
+      enabled: true
+
+jwt:
+  secret-key: TestSecretKeyForJwtTokenProvider1234567890
+  access-token-validity-seconds: 3600
+
+apple:
+  audience: com.test.bundle.id
+  iss: https://appleid.apple.com
+  keys-url: https://appleid.apple.com/auth/keys
+
+firebase:
+  service-account-path: "dummy-test-path.json"

@@ -30,8 +30,8 @@ jobs:
           host: ${{ secrets.HOST_IP }}
           username: ${{ secrets.HOST_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "build/libs/fiv5-0.0.1-SNAPSHOT.jar"
-          target: "~/fiv5"
+          source: "build/libs/loci-0.0.1-SNAPSHOT.jar"
+          target: "~/loci"
           strip_components: 2
 
       # 5. EC2에서 배포 스크립트 실행 (JAR 파일 이름을 인자로 전달)
