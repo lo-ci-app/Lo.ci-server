@@ -7,8 +7,10 @@ import com.teamloci.loci.domain.Friendship;
 import com.teamloci.loci.domain.FriendshipStatus;
 import com.teamloci.loci.domain.User;
 import com.teamloci.loci.dto.FriendDto;
+import com.teamloci.loci.dto.UserDto;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
+import com.teamloci.loci.global.util.AesUtil;
 import com.teamloci.loci.repository.FriendshipRepository;
 import com.teamloci.loci.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +42,9 @@ class FriendServiceIntegrationTest {
     @Autowired
     private FriendshipRepository friendshipRepository;
 
+    @Autowired
+    private AesUtil aesUtil;
+
     @MockBean
     private Firestore firestore;
 
@@ -61,11 +66,13 @@ class FriendServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // 기본 유저 세팅 (전화번호 없는 상태)
         userA = User.builder()
                 .email("a@test.com")
                 .nickname("UserA")
                 .provider("apple")
                 .providerId("provider_A")
+                .countryCode("KR")
                 .build();
 
         userB = User.builder()
@@ -126,6 +133,32 @@ class FriendServiceIntegrationTest {
         assertThat(result)
                 .extracting(FriendDto.DiscoveredUserResponse::getNickname)
                 .containsExactlyInAnyOrder("UserB", "UserC");
+    }
+
+    @Test
+    @DisplayName("성공: 주소록의 010 번호로 가입된 친구를 찾는다")
+    void matchFriends_Success() {
+        String rawPhoneNumber = "010-1234-5678";
+        String e164PhoneNumber = "+821012345678";
+        String searchHash = aesUtil.hash(e164PhoneNumber);
+
+        User userD = User.builder()
+                .email("d@test.com")
+                .nickname("PhoneFriend")
+                .provider("phone")
+                .providerId("firebase_uid_d")
+                .phoneSearchHash(searchHash)
+                .countryCode("KR")
+                .build();
+        userRepository.save(userD);
+
+        List<String> myContacts = List.of(rawPhoneNumber, "010-9999-9999");
+
+        List<UserDto.UserResponse> matched = friendService.matchFriends(userA.getId(), myContacts);
+
+        assertThat(matched).hasSize(1);
+        assertThat(matched.get(0).getNickname()).isEqualTo("PhoneFriend");
+        assertThat(matched.get(0).getId()).isEqualTo(userD.getId());
     }
 
     private void createAndSaveFriends(User user, int count) {
