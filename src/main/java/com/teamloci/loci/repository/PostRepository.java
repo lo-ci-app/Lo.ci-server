@@ -47,7 +47,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
-            "LEFT JOIN FETCH p.mediaList " +
             "WHERE p.user.id IN (" +
             "SELECT f.receiver.id FROM Friendship f WHERE f.requester.id = :myUserId AND f.status = 'FRIENDSHIP' " +
             "UNION " +
@@ -63,7 +62,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
-            "LEFT JOIN FETCH p.mediaList " +
             "WHERE p.user.id IN (" +
             "SELECT f.receiver.id FROM Friendship f WHERE f.requester.id = :myUserId AND f.status = 'FRIENDSHIP' " +
             "UNION " +
