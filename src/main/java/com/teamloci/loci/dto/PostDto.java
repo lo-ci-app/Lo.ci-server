@@ -86,21 +86,15 @@ public class PostDto {
     @NoArgsConstructor
     @Schema(description = "포스트 생성/수정 요청 Body")
     public static class PostCreateRequest {
-        @Schema(description = "포스트 본문 (비어있을 수 있음)", example = "오늘의 기록")
-        private String contents;
-        @Schema(description = "미디어 목록 (없으면 빈 배열 또는 null)")
+        @Schema(description = "미디어 목록")
         private List<MediaRequest> mediaList;
-        @Schema(description = "공동 작업자 User ID 목록 (없으면 빈 배열 또는 null)", example = "[2, 3]")
+        @Schema(description = "공동 작업자 User ID 목록")
         private List<Long> collaboratorIds;
-        @Schema(description = "위도", example = "37.5665")
-        @NotNull(message = "위치 정보(위도)는 필수입니다.")
+        @NotNull
         private Double latitude;
-        @Schema(description = "경도", example = "126.9780")
-        @NotNull(message = "위치 정보(경도)는 필수입니다.")
+        @NotNull
         private Double longitude;
-        @Schema(description = "장소명 (선택)", example = "스타벅스 강남점")
         private String locationName;
-        @Schema(description = "30일 후 자동 보관 여부 (true: 보관함 이동, false: 계속 유지). 미입력 시 기본값 true", example = "true")
         private Boolean isAutoArchive;
     }
 
@@ -112,8 +106,6 @@ public class PostDto {
     public static class PostDetailResponse {
         @Schema(description = "포스트 ID", example = "1")
         private Long id;
-        @Schema(description = "포스트 본문", example = "오늘의 기록")
-        private String contents;
         @Schema(description = "위도", example = "37.5665")
         private Double latitude;
         @Schema(description = "경도", example = "126.9780")
@@ -136,7 +128,6 @@ public class PostDto {
         public static PostDetailResponse from(Post post) {
             return PostDetailResponse.builder()
                     .id(post.getId())
-                    .contents(post.getContents())
                     .latitude(post.getLatitude())
                     .longitude(post.getLongitude())
                     .locationName(post.getLocationName())

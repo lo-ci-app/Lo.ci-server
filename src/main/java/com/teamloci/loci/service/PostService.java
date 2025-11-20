@@ -50,7 +50,6 @@ public class PostService {
 
         Post post = Post.builder()
                 .user(author)
-                .contents(request.getContents())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .locationName(request.getLocationName())
@@ -123,15 +122,12 @@ public class PostService {
         String beaconId = geoUtils.latLngToBeaconId(request.getLatitude(), request.getLongitude());
 
         post.update(
-                request.getContents(),
                 request.getLatitude(),
                 request.getLongitude(),
                 request.getLocationName(),
                 beaconId,
                 request.getIsAutoArchive()
         );
-
-        post.updateContents(request.getContents());
 
         post.clearMedia();
         if (request.getMediaList() != null) {

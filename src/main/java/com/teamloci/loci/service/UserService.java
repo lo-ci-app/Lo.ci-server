@@ -84,4 +84,8 @@ public class UserService {
         User user = findUserById(userId);
         user.updateFcmToken(request.getFcmToken());
     }
+
+    public boolean checkNicknameAvailability(String nickname) {
+        return !userRepository.existsByNickname(nickname);
+    }
 }

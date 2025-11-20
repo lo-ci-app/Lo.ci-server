@@ -1,15 +1,29 @@
 package com.teamloci.loci.domain;
 
-import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
@@ -26,9 +40,6 @@ public class Post extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @Column(nullable = true, columnDefinition = "TEXT")
-    private String contents;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
@@ -57,9 +68,8 @@ public class Post extends BaseTimeEntity {
     private boolean isAutoArchive;
 
     @Builder
-    public Post(User user, String contents, Double latitude, Double longitude, String locationName, String beaconId, Boolean isAutoArchive) {
+    public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, Boolean isAutoArchive) {
         this.user = user;
-        this.contents = contents;
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationName = locationName;
@@ -78,10 +88,6 @@ public class Post extends BaseTimeEntity {
         collaborator.setPost(this);
     }
 
-    public void updateContents(String contents) {
-        this.contents = contents;
-    }
-
     public void clearMedia() {
         this.mediaList.clear();
     }
@@ -90,8 +96,7 @@ public class Post extends BaseTimeEntity {
         this.collaborators.clear();
     }
 
-    public void update(String contents, Double latitude, Double longitude, String locationName, String beaconId, Boolean isAutoArchive) {
-        this.contents = contents;
+    public void update(Double latitude, Double longitude, String locationName, String beaconId, Boolean isAutoArchive) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationName = locationName;

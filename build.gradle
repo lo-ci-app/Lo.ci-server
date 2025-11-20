@@ -60,6 +60,10 @@ dependencies {
     implementation 'com.uber:h3:4.1.1'
 
     implementation 'com.googlecode.libphonenumber:libphonenumber:8.13.26'
+
+    implementation 'net.coobird:thumbnailator:0.4.20'
+
+    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.10.1'
 }
 
 tasks.named('test') {
