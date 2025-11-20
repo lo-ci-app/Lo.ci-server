@@ -39,7 +39,7 @@ public class PostController {
     }
 
     @Operation(summary = "[Post] 1. 포스트 생성",
-            description = "새로운 포스트를 생성합니다. 입력된 위치(위도, 경도)를 기반으로 비콘(Beacon) ID가 자동으로 계산되어 할당됩니다.")
+            description = "새로운 포스트를 생성합니다. 입력된 위치(위도, 경도)는 Uber H3 육각형 그리드 시스템(Res 9)을 통해 비콘 ID로 변환되어 저장됩니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "포스트 생성 요청 객체",
             required = true,
@@ -125,7 +125,7 @@ public class PostController {
     }
 
     @Operation(summary = "[Post] 5. 포스트 수정",
-            description = "포스트 내용을 수정합니다. 위치 정보가 변경될 경우 비콘 ID도 재계산됩니다.")
+            description = "포스트 내용을 수정합니다. 위치 정보가 변경될 경우 H3 비콘 ID도 재계산됩니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "수정할 포스트 정보",
             required = true,
@@ -158,7 +158,7 @@ public class PostController {
     }
 
     @Operation(summary = "[Post] 6. 위치 기반 타임라인 조회 (Beacon)",
-            description = "현재 위치(위도, 경도)를 기반으로, 같은 구역(Beacon) 내의 포스트들을 최신순으로 조회합니다.")
+            description = "현재 위치(위도, 경도)를 보내면, 해당 위치가 속한 H3 육각형 구역(Beacon)의 포스트들을 최신순으로 반환합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(schema = @Schema(implementation = CustomResponse.class),

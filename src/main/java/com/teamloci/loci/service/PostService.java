@@ -27,6 +27,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final GeoUtils geoUtils;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -42,7 +43,7 @@ public class PostService {
     public PostDto.PostDetailResponse createPost(Long authorId, PostDto.PostCreateRequest request) {
         User author = findUserById(authorId);
 
-        String beaconId = GeoUtils.generateBeaconId(request.getLatitude(), request.getLongitude());
+        String beaconId = geoUtils.latLngToBeaconId(request.getLatitude(), request.getLongitude());
 
         Post post = Post.builder()
                 .user(author)
@@ -115,14 +116,14 @@ public class PostService {
             throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
         }
 
-        String beaconId = GeoUtils.generateBeaconId(request.getLatitude(), request.getLongitude());
+        String beaconId = geoUtils.latLngToBeaconId(request.getLatitude(), request.getLongitude());
 
         post.update(
                 request.getContents(),
                 request.getLatitude(),
                 request.getLongitude(),
                 request.getLocationName(),
-                beaconId // [수정 4] 업데이트 반영
+                beaconId
         );
 
         post.updateContents(request.getContents());
@@ -159,7 +160,7 @@ public class PostService {
     }
 
     public List<PostDto.PostDetailResponse> getPostsByLocation(Double latitude, Double longitude) {
-        String beaconId = GeoUtils.generateBeaconId(latitude, longitude);
+        String beaconId = geoUtils.latLngToBeaconId(longitude, latitude);
 
         if (beaconId == null) {
             return List.of();

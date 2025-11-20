@@ -1,43 +1,41 @@
 package com.teamloci.loci.global.util;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import com.uber.h3core.H3Core;
+import com.teamloci.loci.global.exception.CustomException;
+import com.teamloci.loci.global.exception.code.ErrorCode;
+import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+
+@Component
 public class GeoUtils {
 
-    private final static int SCALE = 3;
+    private final H3Core h3;
 
-    public static String generateBeaconId(Double latitude, Double longitude) {
+    private static final int BEACON_RESOLUTION = 9;
+
+    public GeoUtils() {
+        try {
+            this.h3 = H3Core.newInstance();
+        } catch (IOException e) {
+            throw new RuntimeException("H3 라이브러리 초기화 실패", e);
+        }
+    }
+
+    public String latLngToBeaconId(Double latitude, Double longitude) {
         if (latitude == null || longitude == null) return null;
 
-        BigDecimal lat = BigDecimal.valueOf(latitude).setScale(SCALE, RoundingMode.HALF_UP);
-        BigDecimal lon = BigDecimal.valueOf(longitude).setScale(SCALE, RoundingMode.HALF_UP);
-
-        String rawKey = lat.toString() + "|" + lon.toString();
-
-        return sha256(rawKey);
+        return h3.latLngToCellAddress(latitude, longitude, BEACON_RESOLUTION);
     }
 
-    private static String sha256(String originalString) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] encodedhash = digest.digest(originalString.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(encodedhash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 알고리즘을 찾을 수 없습니다.", e);
-        }
+    public Pair<Double, Double> beaconIdToLatLng(String beaconId) {
+        var latLng = h3.cellToLatLng(beaconId);
+        return new Pair<>(latLng.lat, latLng.lng);
     }
 
-    private static String bytesToHex(byte[] hash) {
-        StringBuilder hexString = new StringBuilder(2 * hash.length);
-        for (byte b : hash) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) hexString.append('0');
-            hexString.append(hex);
-        }
-        return hexString.toString();
+    public static class Pair<K, V> {
+        public final K lat;
+        public final V lng;
+        public Pair(K lat, V lng) { this.lat = lat; this.lng = lng; }
     }
 }
