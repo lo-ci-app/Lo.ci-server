@@ -9,7 +9,6 @@ import java.util.Collection;
 @Getter
 @RequiredArgsConstructor
 public class AuthenticatedUser {
-    private final String email;
     private final Long userId;
     private final String nickname;
     private final Collection<? extends GrantedAuthority> authorities;

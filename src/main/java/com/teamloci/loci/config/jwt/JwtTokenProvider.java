@@ -52,12 +52,11 @@ public class JwtTokenProvider {
         Claims claims = getClaims(token);
 
         Long userId = Long.parseLong(claims.getSubject());
-        String email = claims.get("email", String.class);
         String nickname = claims.get("nickname", String.class);
         Collection<? extends GrantedAuthority> authorities =
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
 
-        AuthenticatedUser principal = new AuthenticatedUser(email, userId, nickname, authorities);
+        AuthenticatedUser principal = new AuthenticatedUser(userId, nickname, authorities);
 
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
     }

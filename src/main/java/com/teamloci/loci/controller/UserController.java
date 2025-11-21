@@ -39,8 +39,8 @@ public class UserController {
         return user.getUserId();
     }
 
-    @Operation(summary = "[User] 0. 핸들(ID) 중복 검사 (가입/수정 전)",
-            description = "입력한 핸들(@ID)이 사용 가능한지 확인합니다. (중복이면 false, 사용 가능하면 true 반환)")
+    @Operation(summary = "[User] 0. 핸들(ID) 중복 검사",
+            description = "입력한 핸들(@ID)이 사용 가능한지 확인합니다. (중복이면 false, 사용 가능하면 true)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "확인 성공",
                     content = @Content(schema = @Schema(implementation = CustomResponse.class),
@@ -52,16 +52,13 @@ public class UserController {
                                     """)))
     })
     @GetMapping("/check-handle")
-    public ResponseEntity<CustomResponse<Boolean>> checkHandle(
-            @Parameter(description = "검사할 핸들 (영문 소문자, 숫자, _, .)", required = true, example = "happy_quokka")
-            @RequestParam String handle
-    ) {
+    public ResponseEntity<CustomResponse<Boolean>> checkHandle(@RequestParam String handle) {
         boolean isAvailable = userService.checkHandleAvailability(handle);
         return ResponseEntity.ok(CustomResponse.ok(isAvailable));
     }
 
-    @Operation(summary = "[User] 1. 내 정보 조회 (로그인 유저 확인)",
-            description = "현재 로그인한 사용자의 전체 프로필 정보를 조회합니다. 프론트엔드가 로그인 직후 토큰을 검증하고 사용자 정보를 가져오기 위해 사용합니다.")
+    @Operation(summary = "[User] 1. 내 정보 조회",
+            description = "현재 로그인한 사용자의 프로필 정보를 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(schema = @Schema(implementation = CustomResponse.class),
@@ -73,17 +70,14 @@ public class UserController {
                                "message": "성공적으로 요청을 수행했습니다.",
                                "result": {
                                  "id": 1,
+                                 "handle": "happy_quokka",
                                  "nickname": "행복한쿼카",
-                                 "bio": "안녕하세요",
                                  "profileUrl": "https://example.com/image.png",
-                                 "email": "user@apple.com",
-                                 "provider": "apple",
-                                 "providerId": "001234.abc...",
                                  "createdAt": "2025-11-01T12:00:00"
                                }
                              }
                              """))),
-            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자 (토큰 만료/없음)", content = @Content)
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content)
     })
     @GetMapping("/me")
     public ResponseEntity<CustomResponse<UserDto.UserResponse>> getMyInfo(

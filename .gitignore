@@ -64,3 +64,6 @@ Thumbs.db
 
 # Firebase
 src/main/resources/firebase-service-account.json
+
+# login_html
+src/main/resources/static/login_test.html

@@ -63,7 +63,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/health",
                                 "/api/v1/auth/**",
-                                "/*.html"
+                                "/login_test.html"
                         ).permitAll()
                         .requestMatchers(SWAGGER_URL_PATTERNS).permitAll()
                         .anyRequest().authenticated());

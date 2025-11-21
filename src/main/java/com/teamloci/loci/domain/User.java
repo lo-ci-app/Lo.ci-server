@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"nickname"})
+        @UniqueConstraint(columnNames = {"handle"}),
+        @UniqueConstraint(columnNames = {"phone_search_hash"})
 })
 public class User {
 
@@ -82,10 +83,11 @@ public class User {
     }
 
     public void withdraw() {
-        this.nickname = "탈퇴한사용자_" + this.id;
+        this.handle = "deleted_" + this.id;
+        this.nickname = "알수없음";
         this.profileUrl = null;
         this.phoneEncrypted = null;
-        this.phoneSearchHash = null;
+        this.phoneSearchHash = "deleted_" + this.id;
         this.status = UserStatus.DELETED;
         this.bluetoothToken = null;
         this.fcmToken = null;
