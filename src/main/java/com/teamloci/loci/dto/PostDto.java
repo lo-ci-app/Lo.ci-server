@@ -97,7 +97,7 @@ public class PostDto {
         @NotNull
         private Double longitude;
         private String locationName;
-        
+
         @Schema(description = "30일 후 자동 보관 여부 설정 (true: 보관함 이동, false: 영구 게시). 미입력 시 기본값 true", example = "true")
         @JsonProperty("isArchived")
         private Boolean isArchived;
@@ -111,6 +111,8 @@ public class PostDto {
     public static class PostDetailResponse {
         @Schema(description = "포스트 ID", example = "1")
         private Long id;
+        @Schema(description = "비콘 ID (H3 Index)", example = "89283082807ffff")
+        private String beaconId;
         @Schema(description = "위도", example = "37.5665")
         private Double latitude;
         @Schema(description = "경도", example = "126.9780")
@@ -129,11 +131,12 @@ public class PostDto {
         private LocalDateTime updatedAt;
         @Schema(description = "30일 후 자동 보관 설정 여부")
         @JsonProperty("isArchived")
-        private boolean isArchived;
+        private Boolean isArchived;
 
         public static PostDetailResponse from(Post post) {
             return PostDetailResponse.builder()
                     .id(post.getId())
+                    .beaconId(post.getBeaconId())
                     .latitude(post.getLatitude())
                     .longitude(post.getLongitude())
                     .locationName(post.getLocationName())

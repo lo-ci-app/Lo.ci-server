@@ -81,6 +81,11 @@ public class FriendService {
             if (f.getRequester().getId().equals(myUserId)) {
                 throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
             } else {
+                if (friendshipRepository.countFriends(myUserId) >= MAX_FRIEND_LIMIT ||
+                        friendshipRepository.countFriends(targetUserId) >= MAX_FRIEND_LIMIT) {
+                    throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+                }
+
                 f.accept();
                 return;
             }
@@ -105,7 +110,6 @@ public class FriendService {
 
     @Transactional
     public void acceptFriendRequest(Long myUserId, Long requesterId) {
-        // requesterId: 나에게 친구 요청을 보낸 사람의 ID
         Friendship friendship = friendshipRepository.findFriendshipBetween(myUserId, requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
 
@@ -117,7 +121,8 @@ public class FriendService {
             throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
         }
 
-        if (friendshipRepository.countFriends(myUserId) >= MAX_FRIEND_LIMIT) {
+        if (friendshipRepository.countFriends(myUserId) >= MAX_FRIEND_LIMIT ||
+                friendshipRepository.countFriends(requesterId) >= MAX_FRIEND_LIMIT) {
             throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
         }
 

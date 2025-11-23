@@ -122,17 +122,16 @@ public class FriendController {
     @Operation(summary = "유저 검색 (무한 스크롤)",
             description = """
                     핸들(@ID) 또는 닉네임으로 유저를 검색합니다.
-                    
-                    **[사용법]**
-                    * `page=0`, `size=10`으로 첫 페이지 조회
-                    * 결과가 10개이면 `page=1`로 다음 페이지 요청 (+ 버튼 등)
+                    결과에는 **나와의 친구 상태(`relationStatus`)**가 포함됩니다.
                     """)
     @GetMapping("/search")
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> searchUsers(
-            @Parameter(description = "검색어") @RequestParam String keyword,
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Parameter(description = "검색어", required = true) @RequestParam String keyword,
             @Parameter(description = "페이지 번호 (0부터)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size
     ) {
+        Long myUserId = getUserId(user);
         return ResponseEntity.ok(CustomResponse.ok(friendService.searchUsers(keyword, page, size)));
     }
 
