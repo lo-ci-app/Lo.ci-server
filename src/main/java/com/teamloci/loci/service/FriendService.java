@@ -1,5 +1,12 @@
 package com.teamloci.loci.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.teamloci.loci.domain.Friendship;
 import com.teamloci.loci.domain.FriendshipStatus;
@@ -11,13 +18,8 @@ import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.util.AesUtil;
 import com.teamloci.loci.repository.FriendshipRepository;
 import com.teamloci.loci.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @Transactional(readOnly = true)
@@ -105,5 +107,14 @@ public class FriendService {
                 .findFriendshipBetweenUsersByStatus(myUserId, friendId, FriendshipStatus.FRIENDSHIP)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FRIENDS));
         friendshipRepository.delete(friendship);
+    }
+
+    public List<UserDto.UserResponse> searchUsers(String keyword) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+        
+        return userRepository.findTop10ByHandleContainingOrNicknameContaining(keyword, keyword)
+                .stream()
+                .map(UserDto.UserResponse::from)
+                .collect(Collectors.toList());
     }
 }

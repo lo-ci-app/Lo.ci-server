@@ -1,6 +1,16 @@
 package com.teamloci.loci.service;
 
-import com.teamloci.loci.domain.*;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.teamloci.loci.domain.Post;
 import com.teamloci.loci.domain.PostCollaborator;
 import com.teamloci.loci.domain.PostMedia;
@@ -11,17 +21,8 @@ import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.util.GeoUtils;
 import com.teamloci.loci.repository.PostRepository;
 import com.teamloci.loci.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -54,7 +55,7 @@ public class PostService {
                 .longitude(request.getLongitude())
                 .locationName(request.getLocationName())
                 .beaconId(beaconId)
-                .isAutoArchive(request.getIsAutoArchive())
+                .isArchived(request.getIsArchived())
                 .build();
 
         if (request.getMediaList() != null) {
@@ -126,7 +127,7 @@ public class PostService {
                 request.getLongitude(),
                 request.getLocationName(),
                 beaconId,
-                request.getIsAutoArchive()
+                request.getIsArchived()
         );
 
         post.clearMedia();
@@ -160,13 +161,11 @@ public class PostService {
         return PostDto.PostDetailResponse.from(findPostById(post.getId()));
     }
 
-    public List<PostDto.PostDetailResponse> getPostsByLocation(Double latitude, Double longitude) {
-        String beaconId = geoUtils.latLngToBeaconId(longitude, latitude);
-
-        if (beaconId == null) {
+    public List<PostDto.PostDetailResponse> getPostsByBeaconId(String beaconId) {
+        if (beaconId == null || beaconId.isBlank()) {
             return List.of();
         }
-
+        
         List<Post> posts = postRepository.findByBeaconId(beaconId);
 
         return posts.stream()

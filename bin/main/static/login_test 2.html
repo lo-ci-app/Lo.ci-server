@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Loci 전화번호 로그인 테스트</title>
+    <style>
+        body { padding: 50px; font-family: sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; }
+        h2 { color: #333; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        #result { margin-top: 20px; padding: 15px; background: #eef; border-radius: 5px; white-space: pre-wrap; word-break: break-all; border: 1px solid #ccd; display: none; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📱 Loci 전화번호 로그인 (Firebase)</h2>
+
+    <div id="step1">
+        <p>1. 전화번호를 입력하세요 (테스트용: +821012345678)</p>
+        <input type="text" id="phoneNumber" placeholder="+821012345678" value="+821012345678">
+        <button onclick="sendCode()" id="sendBtn">인증번호 발송</button>
+        <div id="recaptcha-container"></div>
+    </div>
+
+    <div id="step2" class="hidden">
+        <p>2. 인증번호 6자리를 입력하세요 (테스트용: 123456)</p>
+        <input type="text" id="code" placeholder="123456">
+        <button onclick="verifyCode()">로그인 실행</button>
+    </div>
+
+    <div id="result"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+<script>
+    // [중요] Firebase 콘솔에서 복사한 Config를 여기에 덮어쓰세요!
+    const firebaseConfig = {
+        apiKey: "AIzaSyBMk50SoNrdWyS3RmVVRyClXNi6gjmEYVs",
+        authDomain: "loci-917b0.firebaseapp.com",
+        projectId: "loci-917b0",
+        storageBucket: "loci-917b0.firebasestorage.app",
+        messagingSenderId: "219754940920",
+        appId: "1:219754940920:web:1e732acd9a57f7f939ee0d",
+        measurementId: "G-VST1FQYNB5"
+    };
+
+    // Firebase 초기화
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    // 리캡챠 설정 (보이지 않게)
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible'
+    });
+
+    function sendCode() {
+        const phoneNumber = document.getElementById('phoneNumber').value;
+        console.log("인증번호 발송 시도: " + phoneNumber);
+
+        firebase.auth().signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+            .then((confirmationResult) => {
+                window.confirmationResult = confirmationResult;
+                document.getElementById('step1').classList.add('hidden');
+                document.getElementById('step2').classList.remove('hidden');
+                alert("인증번호가 발송되었습니다. (테스트 번호라면 123456 입력)");
+            }).catch((error) => {
+            console.error(error);
+            alert("발송 실패! Firebase Config가 올바른지, 콘솔에서 Phone Auth가 켜져있는지 확인하세요.\n" + error.message);
+        });
+    }
+
+    function verifyCode() {
+        const code = document.getElementById('code').value;
+
+        window.confirmationResult.confirm(code).then((result) => {
+            const user = result.user;
+            log("✅ 1. Firebase 인증 성공! UID: " + user.uid);
+
+            // ID Token 가져오기
+            return user.getIdToken();
+        }).then((idToken) => {
+            log("🔑 2. ID Token 획득 완료 (길이: " + idToken.length + ")");
+            console.log("ID Token:", idToken);
+
+            // 백엔드로 로그인 요청
+            callBackendLogin(idToken);
+        }).catch((error) => {
+            console.error(error);
+            log("❌ 인증 실패: " + error.message);
+        });
+    }
+
+    async function callBackendLogin(idToken) {
+        log("🚀 3. 백엔드 API 호출 중... (/api/v1/auth/login/phone)");
+
+        try {
+            const response = await fetch('/api/v1/auth/login/phone', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken: idToken })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                log("🎉 4. 백엔드 로그인 성공!\n\n" + JSON.stringify(data, null, 2));
+                console.log("Access Token:", data.result.accessToken);
+                alert("로그인 성공! 토큰이 발급되었습니다.");
+            } else {
+                log("⚠️ 백엔드 에러: " + JSON.stringify(data, null, 2));
+            }
+        } catch (e) {
+            log("❌ 네트워크 에러: " + e);
+        }
+    }
+
+    function log(msg) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerText += msg + "\n\n";
+    }
+</script>
+</body>
+</html>

@@ -1,5 +1,17 @@
 package com.teamloci.loci.controller;
 
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.teamloci.loci.dto.FriendDto;
 import com.teamloci.loci.dto.UserDto;
 import com.teamloci.loci.global.exception.CustomException;
@@ -7,7 +19,9 @@ import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.response.CustomResponse;
 import com.teamloci.loci.global.security.AuthenticatedUser;
 import com.teamloci.loci.service.FriendService;
+
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -16,11 +30,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "Friend", description = "친구 관리 API (연락처 매칭, 친구 추가/삭제, 목록 조회)")
 @RestController
@@ -180,5 +189,14 @@ public class FriendController {
         Long myUserId = getUserId(user);
         friendService.deleteFriend(myUserId, request.getTargetUserId());
         return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "[친구] 0. 유저 검색 (Top 10)", 
+               description = "핸들(@ID) 또는 닉네임에 키워드가 포함된 유저를 최대 10명까지 검색합니다.")
+    @GetMapping("/search")
+    public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> searchUsers(
+            @Parameter(description = "검색어", required = true) @RequestParam String keyword
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(friendService.searchUsers(keyword)));
     }
 }

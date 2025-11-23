@@ -1,10 +1,15 @@
 package com.teamloci.loci.dto;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.teamloci.loci.domain.MediaType;
 import com.teamloci.loci.domain.Post;
 import com.teamloci.loci.domain.PostCollaborator;
 import com.teamloci.loci.domain.PostMedia;
 import com.teamloci.loci.domain.User;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -12,10 +17,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Schema(description = "게시물 관련 DTO")
 public class PostDto {
@@ -95,7 +96,9 @@ public class PostDto {
         @NotNull
         private Double longitude;
         private String locationName;
-        private Boolean isAutoArchive;
+        
+        @Schema(description = "30일 후 자동 보관 여부 설정 (true: 보관함 이동, false: 영구 게시). 미입력 시 기본값 true", example = "true")
+        private Boolean isArchived;
     }
 
     @Getter
@@ -122,8 +125,8 @@ public class PostDto {
         private LocalDateTime createdAt;
         @Schema(description = "마지막 수정 시간")
         private LocalDateTime updatedAt;
-        @Schema(description = "30일 후 자동 보관 여부")
-        private boolean isAutoArchive;
+        @Schema(description = "30일 후 자동 보관 설정 여부")
+        private boolean isArchived;
 
         public static PostDetailResponse from(Post post) {
             return PostDetailResponse.builder()
@@ -141,7 +144,7 @@ public class PostDto {
                             .collect(Collectors.toList()))
                     .createdAt(post.getCreatedAt())
                     .updatedAt(post.getUpdatedAt())
-                    .isAutoArchive(post.isAutoArchive())
+                    .isArchived(post.isArchived())
                     .build();
         }
     }

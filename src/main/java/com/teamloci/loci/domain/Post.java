@@ -65,17 +65,17 @@ public class Post extends BaseTimeEntity {
     private PostStatus status;
 
     @Column(nullable = false)
-    private boolean isAutoArchive;
+    private boolean isArchived; 
 
     @Builder
-    public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, Boolean isAutoArchive) {
+    public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, Boolean isArchived) {
         this.user = user;
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationName = locationName;
         this.beaconId = beaconId;
         this.status = PostStatus.ACTIVE;
-        this.isAutoArchive = (isAutoArchive != null) ? isAutoArchive : true;
+        this.isArchived = (isArchived != null) ? isArchived : true; 
     }
 
     public void addMedia(PostMedia media) {
@@ -96,13 +96,13 @@ public class Post extends BaseTimeEntity {
         this.collaborators.clear();
     }
 
-    public void update(Double latitude, Double longitude, String locationName, String beaconId, Boolean isAutoArchive) {
+    public void update(Double latitude, Double longitude, String locationName, String beaconId, Boolean isArchived) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationName = locationName;
         this.beaconId = beaconId;
-        if (isAutoArchive != null) {
-            this.isAutoArchive = isAutoArchive;
+        if (isArchived != null) {
+            this.isArchived = isArchived;
         }
     }
 }

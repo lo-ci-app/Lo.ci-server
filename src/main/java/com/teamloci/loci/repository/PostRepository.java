@@ -1,15 +1,16 @@
 package com.teamloci.loci.repository;
 
-import com.teamloci.loci.domain.Post;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import com.teamloci.loci.domain.Post;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
 
@@ -28,7 +29,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
-            "LEFT JOIN FETCH p.mediaList " +
             "WHERE p.beaconId = :beaconId AND p.status = 'ACTIVE' " +
             "ORDER BY p.createdAt DESC")
     List<Post> findByBeaconId(@Param("beaconId") String beaconId);
@@ -80,7 +80,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.status = 'ARCHIVED' " +
             "WHERE p.status = 'ACTIVE' " +
-            "AND p.isAutoArchive = true " +
+            "AND p.isArchived = true " +  
             "AND p.createdAt < :expiryDate")
     int archiveOldPosts(@Param("expiryDate") LocalDateTime expiryDate);
 }
