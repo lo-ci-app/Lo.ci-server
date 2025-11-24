@@ -74,11 +74,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
             "LEFT JOIN FETCH p.mediaList " +
-            "WHERE p.user.id IN (" +
+            "WHERE (p.user.id = :myUserId OR p.user.id IN (" +
             "   SELECT f.receiver.id FROM Friendship f WHERE f.requester.id = :myUserId AND f.status = 'FRIENDSHIP' " +
             "   UNION " +
             "   SELECT f.requester.id FROM Friendship f WHERE f.receiver.id = :myUserId AND f.status = 'FRIENDSHIP'" +
-            ") " +
+            ")) " +
             "AND p.status = 'ACTIVE' " +
             "AND (" +
             "   p.createdAt < :cursorCreatedAt OR " +
@@ -95,11 +95,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
             "LEFT JOIN FETCH p.mediaList " +
-            "WHERE p.user.id IN (" +
+            "WHERE (p.user.id = :myUserId OR p.user.id IN (" +
             "   SELECT f.receiver.id FROM Friendship f WHERE f.requester.id = :myUserId AND f.status = 'FRIENDSHIP' " +
             "   UNION " +
             "   SELECT f.requester.id FROM Friendship f WHERE f.receiver.id = :myUserId AND f.status = 'FRIENDSHIP'" +
-            ") " +
+            ")) " +
             "AND p.status = 'ACTIVE' " +
             "ORDER BY p.createdAt DESC, p.id DESC")
     List<Post> findFriendPostsFirstPage(
