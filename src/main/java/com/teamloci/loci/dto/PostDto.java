@@ -29,6 +29,8 @@ public class PostDto {
     public static class UserSimpleResponse {
         @Schema(description = "유저 ID", example = "1")
         private Long id;
+        @Schema(description = "유저 핸들 (@ID)", example = "happy_quokka")
+        private String handle;
         @Schema(description = "닉네임", example = "즐거운판다")
         private String nickname;
         @Schema(description = "프로필 이미지 URL", example = "https://fiv5.../profile.png")
@@ -37,6 +39,7 @@ public class PostDto {
         public static UserSimpleResponse from(User user) {
             return new UserSimpleResponse(
                     user.getId(),
+                    user.getHandle(),
                     user.getNickname(),
                     user.getProfileUrl()
             );

@@ -25,6 +25,7 @@ public class S3UploadService {
 
     private final S3Client s3Client;
     private static final String CACHE_CONTROL_VALUE = "public, max-age=2592000";
+    private static final String CLOUDFRONT_DOMAIN = "https://dagvorl6p9q6m.cloudfront.net";
 
     @Value("${spring.cloud.aws.s3.bucket:loci-assets}")
     private String bucket;
@@ -67,7 +68,7 @@ public class S3UploadService {
                 .bucket(bucket)
                 .key(key)
                 .contentType(file.getContentType())
-                .cacheControl(CACHE_CONTROL_VALUE)
+                .cacheControl(CACHE_CONTROL_VALUE) // [핵심] 캐시 헤더 설정
                 .build();
 
         try {
@@ -77,7 +78,7 @@ public class S3UploadService {
             throw new CustomException(ErrorCode.S3_UPLOAD_FAILED);
         }
 
-        return s3Client.utilities().getUrl(builder -> builder.bucket(bucket).key(key)).toString();
+        return CLOUDFRONT_DOMAIN + "/" + key;
     }
 
     public void delete(String fileUrl) {
@@ -102,52 +103,6 @@ public class S3UploadService {
 
         } catch (Exception e) {
             System.err.println("S3 파일 삭제 실패: " + fileUrl + " (" + e.getMessage() + ")");
-        }
-    }
-
-    public boolean doesObjectExist(String key) {
-        try {
-            HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(key)
-                    .build();
-            s3Client.headObject(headObjectRequest);
-            return true;
-        } catch (NoSuchKeyException e) {
-            return false;
-        }
-    }
-
-    public byte[] downloadFile(String key) {
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .build();
-        return s3Client.getObject(getObjectRequest, ResponseTransformer.toBytes()).asByteArray();
-    }
-
-    public void uploadBytes(byte[] bytes, String key, String contentType) {
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .contentType(contentType)
-                .cacheControl(CACHE_CONTROL_VALUE)
-                .build();
-
-        s3Client.putObject(putObjectRequest,
-                RequestBody.fromInputStream(new ByteArrayInputStream(bytes), bytes.length));
-    }
-
-    public String extractKeyFromUrl(String fileUrl) {
-        try {
-            URL url = new URL(fileUrl);
-            String key = url.getPath();
-            if (key.startsWith("/")) {
-                key = key.substring(1);
-            }
-            return key;
-        } catch (Exception e) {
-            return fileUrl;
         }
     }
 }

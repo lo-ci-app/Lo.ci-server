@@ -2,12 +2,27 @@ package com.teamloci.loci.controller;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.teamloci.loci.dto.PostDto;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.response.CustomResponse;
 import com.teamloci.loci.global.security.AuthenticatedUser;
 import com.teamloci.loci.service.PostService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,10 +33,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Post", description = "게시물, 지도 타임라인, 피드 API")
 @RestController
@@ -31,17 +42,24 @@ public class PostController {
 
     private final PostService postService;
 
+    // 실제 CloudFront 도메인 적용 (예시용 상수, 실제 DTO에는 DB 값이 들어감)
+    private static final String CDN_URL = "https://dagvorl6p9q6m.cloudfront.net";
+
     private Long getUserId(AuthenticatedUser user) {
         if (user == null) throw new CustomException(ErrorCode.UNAUTHORIZED);
         return user.getUserId();
     }
 
-    @Operation(summary = "포스트 생성", description = "새로운 포스트를 작성합니다.")
+    @Operation(summary = "포스트 생성", description = "새로운 포스트를 작성합니다. 위경도를 보내면 서버에서 `beaconId`를 자동 계산하여 저장합니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             content = @Content(examples = @ExampleObject(value = """
                     {
                       "mediaList": [
-                        { "mediaUrl": "https://s3.../img.webp", "mediaType": "IMAGE", "sortOrder": 1 }
+                        { 
+                          "mediaUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/a0bf6959-image.webp", 
+                          "mediaType": "IMAGE", 
+                          "sortOrder": 1 
+                        }
                       ],
                       "collaboratorIds": [2, 3],
                       "latitude": 37.5665,
@@ -55,7 +73,7 @@ public class PostController {
             @ApiResponse(responseCode = "201", description = "생성 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
-                              "timestamp": "2025-11-23T10:00:00",
+                              "timestamp": "2025-11-24T12:00:00",
                               "isSuccess": true,
                               "code": "COMMON201",
                               "message": "성공적으로 객체를 생성했습니다.",
@@ -65,12 +83,22 @@ public class PostController {
                                 "latitude": 37.5665,
                                 "longitude": 126.9780,
                                 "locationName": "서울시청",
-                                "author": { "id": 1, "nickname": "내닉네임", "profileUrl": "https://s3.../me.jpg" },
-                                "mediaList": [{ "id": 50, "mediaUrl": "https://s3.../img.jpg", "mediaType": "IMAGE", "sortOrder": 1 }],
+                                "author": { 
+                                  "id": 1, 
+                                  "handle": "my_handle", 
+                                  "nickname": "내닉네임", 
+                                  "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/me.jpg" 
+                                },
+                                "mediaList": [{ 
+                                  "id": 50, 
+                                  "mediaUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/a0bf6959-image.webp", 
+                                  "mediaType": "IMAGE", 
+                                  "sortOrder": 1 
+                                }],
                                 "collaborators": [],
-                                "createdAt": "2025-11-23T10:00:00",
-                                "updatedAt": "2025-11-23T10:00:00",
-                                "isArchived": false
+                                "createdAt": "2025-11-24T12:00:00",
+                                "updatedAt": "2025-11-24T12:00:00",
+                                "isArchived": true
                               }
                             }
                             """)))
@@ -96,7 +124,7 @@ public class PostController {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
-                              "timestamp": "2025-11-23T10:05:00",
+                              "timestamp": "2025-11-24T12:05:00",
                               "isSuccess": true,
                               "code": "COMMON200",
                               "message": "성공적으로 요청을 수행했습니다.",
@@ -107,9 +135,20 @@ public class PostController {
                                   "latitude": 37.5665,
                                   "longitude": 126.9780,
                                   "locationName": "한강공원",
-                                  "author": { "id": 5, "nickname": "즐거운판다", "profileUrl": "https://s3.../panda.jpg" },
-                                  "mediaList": [],
-                                  "createdAt": "2025-11-22T18:00:00",
+                                  "author": { 
+                                    "id": 5, 
+                                    "handle": "happy_panda", 
+                                    "nickname": "즐거운판다", 
+                                    "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/panda.jpg" 
+                                  },
+                                  "mediaList": [{
+                                    "id": 60,
+                                    "mediaUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/river.jpg",
+                                    "mediaType": "IMAGE",
+                                    "sortOrder": 1
+                                  }],
+                                  "createdAt": "2025-11-24T10:00:00",
+                                  "updatedAt": "2025-11-24T10:00:00",
                                   "isArchived": false
                                 },
                                 {
@@ -118,9 +157,15 @@ public class PostController {
                                   "latitude": 37.5700,
                                   "longitude": 126.9800,
                                   "locationName": "롯데타워",
-                                  "author": { "id": 5, "nickname": "즐거운판다", "profileUrl": "https://s3.../panda.jpg" },
+                                  "author": { 
+                                    "id": 5, 
+                                    "handle": "happy_panda", 
+                                    "nickname": "즐거운판다", 
+                                    "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/panda.jpg" 
+                                  },
                                   "mediaList": [],
-                                  "createdAt": "2025-11-20T14:30:00",
+                                  "createdAt": "2025-11-23T14:30:00",
+                                  "updatedAt": "2025-11-23T14:30:00",
                                   "isArchived": true
                                 }
                               ]
@@ -138,7 +183,7 @@ public class PostController {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
-                              "timestamp": "2025-11-23T10:10:00",
+                              "timestamp": "2025-11-24T12:10:00",
                               "isSuccess": true,
                               "code": "COMMON200",
                               "message": "성공적으로 요청을 수행했습니다.",
@@ -149,8 +194,20 @@ public class PostController {
                                   "latitude": 37.5665,
                                   "longitude": 126.9780,
                                   "locationName": "강남역 11번 출구",
-                                  "author": { "id": 10, "nickname": "강남토박이", "profileUrl": null },
+                                  "author": { 
+                                    "id": 10, 
+                                    "handle": "gangnam_local", 
+                                    "nickname": "강남토박이", 
+                                    "profileUrl": null 
+                                  },
+                                  "mediaList": [{
+                                    "id": 70,
+                                    "mediaUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/gangnam.jpg",
+                                    "mediaType": "IMAGE",
+                                    "sortOrder": 1
+                                  }],
                                   "createdAt": "2025-11-23T09:00:00",
+                                  "updatedAt": "2025-11-23T09:00:00",
                                   "isArchived": false
                                 },
                                 {
@@ -159,8 +216,15 @@ public class PostController {
                                   "latitude": 37.5665,
                                   "longitude": 126.9780,
                                   "locationName": "강남역",
-                                  "author": { "id": 3, "nickname": "지나가던사람", "profileUrl": null },
+                                  "author": { 
+                                    "id": 3, 
+                                    "handle": "passerby", 
+                                    "nickname": "지나가던사람", 
+                                    "profileUrl": null 
+                                  },
+                                  "mediaList": [],
                                   "createdAt": "2025-11-23T08:50:00",
+                                  "updatedAt": "2025-11-23T08:50:00",
                                   "isArchived": false
                                 }
                               ]
@@ -175,12 +239,16 @@ public class PostController {
         return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByBeaconId(beaconId)));
     }
 
-    @Operation(summary = "지도 마커 (범위 조회)", description = "지도 화면 내의 마커 정보를 반환합니다.")
+    @Operation(summary = "지도 마커 (범위 조회)",
+            description = """
+                    지도 화면 내의 마커 정보를 반환합니다. 
+                    `thumbnailImageUrl`은 CloudFront 리사이징 URL(`w300` 등)로 제공될 수 있습니다.
+                    """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
-                              "timestamp": "2025-11-23T10:15:00",
+                              "timestamp": "2025-11-24T12:15:00",
                               "isSuccess": true,
                               "code": "COMMON200",
                               "message": "성공적으로 요청을 수행했습니다.",
@@ -190,14 +258,14 @@ public class PostController {
                                   "latitude": 37.5665,
                                   "longitude": 126.9780,
                                   "count": 5,
-                                  "thumbnailImageUrl": "https://s3.../thumb1.jpg"
+                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/w300/posts/thumb1.jpg"
                                 },
                                 {
                                   "beaconId": "8928308280bffff",
                                   "latitude": 37.5700,
                                   "longitude": 126.9800,
                                   "count": 2,
-                                  "thumbnailImageUrl": "https://s3.../thumb2.jpg"
+                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/w300/posts/thumb2.jpg"
                                 }
                               ]
                             }
@@ -218,7 +286,7 @@ public class PostController {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
-                              "timestamp": "2025-11-23T10:20:00",
+                              "timestamp": "2025-11-24T12:20:00",
                               "isSuccess": true,
                               "code": "COMMON200",
                               "message": "성공적으로 요청을 수행했습니다.",
@@ -230,13 +298,25 @@ public class PostController {
                                     "latitude": 37.5665,
                                     "longitude": 126.9780,
                                     "locationName": "친구네 집",
-                                    "author": { "id": 7, "nickname": "절친1", "profileUrl": "..." },
-                                    "createdAt": "2025-11-23T09:30:00",
+                                    "author": { 
+                                      "id": 7, 
+                                      "handle": "best_friend", 
+                                      "nickname": "절친1", 
+                                      "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/friend.jpg" 
+                                    },
+                                    "mediaList": [{
+                                      "id": 80,
+                                      "mediaUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/party.jpg",
+                                      "mediaType": "IMAGE",
+                                      "sortOrder": 1
+                                    }],
+                                    "createdAt": "2025-11-24T09:30:00",
+                                    "updatedAt": "2025-11-24T09:30:00",
                                     "isArchived": false
                                   }
                                 ],
                                 "hasNext": true,
-                                "nextCursor": "2025-11-23T09:30:00"
+                                "nextCursor": "2025-11-24T09:30:00"
                               }
                             }
                             """)))
@@ -244,7 +324,7 @@ public class PostController {
     @GetMapping("/feed")
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getFriendFeed(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "이전 페이지의 마지막 포스트 작성 시간 (첫 요청 시 null)", example = "2024-11-23T12:00:00")
+            @Parameter(description = "이전 페이지의 마지막 포스트 작성 시간 (첫 요청 시 null)", example = "2024-11-24T12:00:00")
             @RequestParam(required = false) LocalDateTime cursor,
             @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
