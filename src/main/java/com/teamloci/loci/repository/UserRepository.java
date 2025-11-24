@@ -29,4 +29,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdWithLock(@Param("userId") Long userId);
 
     Slice<User> findByHandleContainingOrNicknameContaining(String handle, String nickname, Pageable pageable);
+
+    @Query("SELECT u FROM User u " +
+            "WHERE (u.handle LIKE %:keyword% OR u.nickname LIKE %:keyword%) " +
+            "AND u.id < :cursor " +
+            "ORDER BY u.id DESC")
+    List<User> searchByKeywordWithCursor(@Param("keyword") String keyword, @Param("cursor") Long cursor, Pageable pageable);
+
 }

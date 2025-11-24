@@ -6,11 +6,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class UserDto {
 
@@ -55,6 +54,7 @@ public class UserDto {
     }
 
     @Getter
+    @Setter
     @AllArgsConstructor
     @Schema(description = "사용자 정보 응답")
     public static class UserResponse {
@@ -73,14 +73,29 @@ public class UserDto {
         @Schema(description = "가입 일시")
         private LocalDateTime createdAt;
 
+        @Schema(description = "나와의 관계 (NONE: 남, FRIEND: 친구, PENDING_SENT: 요청 보냄, PENDING_RECEIVED: 요청 받음, SELF: 나)", example = "FRIEND")
+        private String relationStatus;
+
         public static UserResponse from(User user) {
             return new UserResponse(
                     user.getId(),
                     user.getHandle(),
                     user.getNickname(),
                     user.getProfileUrl(),
-                    user.getCreatedAt()
+                    user.getCreatedAt(),
+                    "NONE"
             );
         }
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class UserSearchResponse {
+        private List<UserResponse> users;
+        private boolean hasNext;
+        private Long nextCursor;
+    }
+
 }

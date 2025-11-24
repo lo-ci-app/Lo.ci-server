@@ -1,6 +1,8 @@
 package com.teamloci.loci.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,9 +15,24 @@ public class FriendDto {
     @NoArgsConstructor
     @Schema(description = "연락처 기반 친구 매칭 요청 Body")
     public static class ContactListRequest {
-        @Schema(description = "주소록에 있는 전화번호 리스트", example = "[\"010-1234-5678\", \"+82 10 1234 5678\"]")
+
+        @Schema(description = "주소록 연락처 리스트")
         @NotNull
-        private List<String> phoneNumbers;
+        @Valid
+        private List<ContactRequest> contacts;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @Schema(description = "개별 연락처 정보")
+    public static class ContactRequest {
+        @Schema(description = "주소록에 저장된 이름 (필수)", example = "홍길동")
+        @NotBlank(message = "이름은 필수입니다.") // DB not null 조건 맞춤
+        private String name;
+
+        @Schema(description = "전화번호 (필수)", example = "010-1234-5678")
+        @NotBlank(message = "전화번호는 필수입니다.")
+        private String phoneNumber;
     }
 
     @Getter

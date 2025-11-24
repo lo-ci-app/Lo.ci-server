@@ -119,28 +119,46 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(friendService.getMyFriends(getUserId(user))));
     }
 
-    @Operation(summary = "유저 검색 (무한 스크롤)",
+    @Operation(summary = "유저 검색 (Cursor Pagination)",
             description = """
                     핸들(@ID) 또는 닉네임으로 유저를 검색합니다.
-                    결과에는 **나와의 친구 상태(`relationStatus`)**가 포함됩니다.
+                    **커서 기반 페이지네이션**이 적용되었습니다.
+                    
+                    * `cursorId`: 마지막으로 조회된 유저의 ID (첫 요청 시 비워두세요)
                     """)
     @GetMapping("/search")
-    public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> searchUsers(
+    public ResponseEntity<CustomResponse<UserDto.UserSearchResponse>> searchUsers(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Parameter(description = "검색어", required = true) @RequestParam String keyword,
-            @Parameter(description = "페이지 번호 (0부터)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "이전 페이지의 마지막 유저 ID (첫 요청 시 null)") @RequestParam(required = false) Long cursorId,
+            @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
         Long myUserId = getUserId(user);
-        return ResponseEntity.ok(CustomResponse.ok(friendService.searchUsers(keyword, page, size)));
+        return ResponseEntity.ok(CustomResponse.ok(friendService.searchUsers(myUserId, keyword, cursorId, size)));
     }
 
-    @Operation(summary = "연락처 기반 매칭", description = "전화번호 리스트로 친구를 찾습니다.")
+    @Operation(summary = "연락처 기반 매칭 (동기화)",
+            description = """
+                    전화번호 리스트(이름 포함)를 서버에 **저장(동기화)** 하고, 가입된 친구를 찾습니다.
+                    **[동작 방식]**
+                    1. 기존 연락처와 비교하여 변경된 부분(추가/삭제/수정)을 DB에 반영합니다. (Upsert)
+                    2. 저장된 연락처 중 앱에 가입된 유저 목록을 반환합니다.
+                    """)
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "contacts": [
+                        { "name": "김철수", "phoneNumber": "010-1234-5678" },
+                        { "name": "이영희", "phoneNumber": "+82 10-9999-8888" }
+                      ]
+                    }
+                    """))
+    )
     @PostMapping("/match")
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> matchFriends(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody FriendDto.ContactListRequest request
     ) {
-        return ResponseEntity.ok(CustomResponse.ok(friendService.matchFriends(getUserId(user), request.getPhoneNumbers())));
+        return ResponseEntity.ok(CustomResponse.ok(friendService.matchFriends(getUserId(user), request.getContacts())));
     }
 }
