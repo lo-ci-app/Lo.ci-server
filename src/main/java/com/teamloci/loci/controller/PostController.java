@@ -85,6 +85,7 @@ public class PostController {
                                   "handle": "my_handle", 
                                   "nickname": "내닉네임", 
                                   "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/me.jpg",
+                                  "createdAt: 날짜
                                   "relationStatus": "SELF"
                                 },
                                 "mediaList": [{ 
@@ -162,6 +163,7 @@ public class PostController {
                                       "handle": "happy_panda", 
                                       "nickname": "즐거운판다", 
                                       "profileUrl": "...",
+                                      "createdAt: "날짜",
                                       "relationStatus": "FRIEND"
                                     },
                                     "mediaList": [],
@@ -211,6 +213,7 @@ public class PostController {
                                     "handle": "gangnam_local", 
                                     "nickname": "강남토박이", 
                                     "profileUrl": null,
+                                    "createdAt": "날짜",
                                     "relationStatus": "NONE"
                                   },
                                   "mediaList": [{
@@ -232,6 +235,7 @@ public class PostController {
                                     "handle": "passerby", 
                                     "nickname": "지나가던사람", 
                                     "profileUrl": null,
+                                    "createdAt": "날짜",
                                     "relationStatus": "FRIEND"
                                   },
                                   "mediaList": [],
@@ -308,6 +312,7 @@ public class PostController {
                                       "handle": "best_friend", 
                                       "nickname": "절친1", 
                                       "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/profiles/friend.jpg?w=100",
+                                      "createdAt": "날짜",
                                       "relationStatus": "FRIEND"
                                     },
                                     "mediaList": [{

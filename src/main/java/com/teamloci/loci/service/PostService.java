@@ -28,7 +28,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
-    private final PostCommentRepository commentRepository; // 댓글 수 조회를 위해 추가
+    private final PostCommentRepository commentRepository;
     private final NotificationService notificationService;
     private final GeoUtils geoUtils;
 
@@ -67,10 +67,9 @@ public class PostService {
             });
         }
 
-        // 공동 작업자 검증 및 추가
         if (request.getCollaboratorIds() != null && !request.getCollaboratorIds().isEmpty()) {
             Set<Long> collaboratorIds = new HashSet<>(request.getCollaboratorIds());
-            collaboratorIds.remove(authorId); // 본인 제외
+            collaboratorIds.remove(authorId);
 
             if (!collaboratorIds.isEmpty()) {
                 List<Friendship> relations = friendshipRepository.findAllRelationsBetween(authorId, collaboratorIds.stream().toList());
@@ -95,7 +94,7 @@ public class PostService {
 
         Post savedPost = postRepository.save(post);
 
-        // 알림 발송
+        // [알림] DB 저장 및 FCM 발송
         sendPostNotifications(author, savedPost);
 
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(findPostById(savedPost.getId()));
@@ -107,7 +106,6 @@ public class PostService {
         Post post = findPostById(postId);
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(post);
 
-        // 단일 조회도 리스트 처리 로직을 재사용하여 '댓글 수'와 '관계'를 모두 채움
         enrichPostAuthors(List.of(response), myUserId);
 
         return response;
@@ -164,7 +162,6 @@ public class PostService {
         }
 
         post.clearCollaborators();
-        // 수정 시 공동 작업자 검증 로직도 추가 가능 (현재는 단순 추가만 구현됨)
         if (request.getCollaboratorIds() != null && !request.getCollaboratorIds().isEmpty()) {
             Set<Long> collaboratorIds = new HashSet<>(request.getCollaboratorIds());
             List<User> collaboratorUsers = userRepository.findAllById(collaboratorIds);
@@ -242,22 +239,18 @@ public class PostService {
                 .build();
     }
 
-    // [핵심 메서드] 포스트 목록에 '친구 관계'와 '댓글 수'를 채워 넣는 로직
     private void enrichPostAuthors(List<PostDto.PostDetailResponse> posts, Long myUserId) {
         if (posts.isEmpty()) return;
 
         Set<Long> targetUserIds = new HashSet<>();
         List<Long> postIds = new ArrayList<>();
 
-        // 1. 조회할 ID 수집
         for (PostDto.PostDetailResponse p : posts) {
-            postIds.add(p.getId()); // 댓글 수 조회용
+            postIds.add(p.getId());
 
-            // 작성자 ID (나 제외)
             if (!p.getAuthor().getId().equals(myUserId)) {
                 targetUserIds.add(p.getAuthor().getId());
             }
-            // 공동 작업자 ID (나 제외)
             if (p.getCollaborators() != null) {
                 p.getCollaborators().stream()
                         .map(PostDto.UserSimpleResponse::getId)
@@ -266,14 +259,12 @@ public class PostService {
             }
         }
 
-        // 2. 댓글 수 일괄 조회 (Batch)
         Map<Long, Long> commentCountMap = commentRepository.countByPostIdIn(postIds).stream()
                 .collect(Collectors.toMap(
                         row -> (Long) row[0],
                         row -> (Long) row[1]
                 ));
 
-        // 3. 친구 관계 일괄 조회 (Batch)
         Map<Long, Friendship> friendshipMap;
         if (targetUserIds.isEmpty()) {
             friendshipMap = Map.of();
@@ -286,15 +277,11 @@ public class PostService {
                     ));
         }
 
-        // 4. 데이터 주입
         for (PostDto.PostDetailResponse p : posts) {
-            // 댓글 수 설정
             p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
 
-            // 작성자 관계 설정
             setStatus(p.getAuthor(), myUserId, friendshipMap);
 
-            // 공동 작업자 관계 설정
             if (p.getCollaborators() != null) {
                 for (PostDto.UserSimpleResponse collaborator : p.getCollaborators()) {
                     setStatus(collaborator, myUserId, friendshipMap);
@@ -303,7 +290,6 @@ public class PostService {
         }
     }
 
-    // [헬퍼 메서드] UserSimpleResponse에 relationStatus 주입
     private void setStatus(PostDto.UserSimpleResponse userRes, Long myUserId, Map<Long, Friendship> friendshipMap) {
         if (userRes.getId().equals(myUserId)) {
             userRes.setRelationStatus("SELF");
@@ -324,21 +310,35 @@ public class PostService {
         }
     }
 
-    // [헬퍼 메서드] 알림 발송
     private void sendPostNotifications(User author, Post post) {
         try {
-            List<Friendship> friendships = friendshipRepository.findAllFriendsWithUsers(author.getId());
+            post.getCollaborators().stream()
+                    .map(PostCollaborator::getUser)
+                    .filter(u -> !u.getId().equals(author.getId()))
+                    .forEach(taggedUser -> {
+                        notificationService.send(
+                                taggedUser,
+                                NotificationType.POST_TAGGED,
+                                "함께한 순간",
+                                author.getNickname() + "님이 회원님을 게시물에 태그했습니다.",
+                                post.getId()
+                        );
+                    });
 
-            List<String> fcmTokens = friendships.stream()
+            List<Friendship> friendships = friendshipRepository.findAllFriendsWithUsers(author.getId());
+            List<User> friends = friendships.stream()
                     .map(f -> f.getRequester().getId().equals(author.getId()) ? f.getReceiver() : f.getRequester())
                     .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                    .map(User::getFcmToken)
-                    .filter(token -> token != null && !token.isBlank())
                     .collect(Collectors.toList());
 
-            if (!fcmTokens.isEmpty()) {
-                // [TODO] 알림 기능 구현 후 주석 해제
-                // notificationService.sendPostCreationNotification(fcmTokens, author.getNickname(), post.getId());
+            if (!friends.isEmpty()) {
+                notificationService.sendMulticast(
+                        friends,
+                        NotificationType.NEW_POST,
+                        "새로운 Loci!",
+                        author.getNickname() + "님이 지금 순간을 공유했어요 📸",
+                        post.getId()
+                );
             }
         } catch (Exception e) {
             log.error("게시글 작성 알림 발송 실패: {}", e.getMessage());

@@ -1,83 +1,166 @@
 package com.teamloci.loci.service;
 
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.FirebaseMessagingException;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
-import com.google.firebase.messaging.ApnsConfig;
-import com.google.firebase.messaging.Aps;
-
+import com.google.firebase.messaging.*;
+import com.teamloci.loci.domain.Notification;
+import com.teamloci.loci.domain.NotificationType;
+import com.teamloci.loci.domain.User;
+import com.teamloci.loci.dto.NotificationDto;
+import com.teamloci.loci.global.exception.CustomException;
+import com.teamloci.loci.global.exception.code.ErrorCode;
+import com.teamloci.loci.repository.NotificationRepository;
+import com.teamloci.loci.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class NotificationService {
 
-    public void sendFriendRequestNotification(String targetFcmToken, String requesterNickname) {
-        try {
-            String title = "새로운 친구 요청";
-            String body = requesterNickname + "님이 친구 요청을 보냈어요!";
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
 
+    public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
+        PageRequest pageable = PageRequest.of(0, size + 1);
+        List<Notification> notifications = notificationRepository.findByUserIdWithCursor(userId, cursorId, pageable);
+
+        boolean hasNext = false;
+        if (notifications.size() > size) {
+            hasNext = true;
+            notifications.remove(size);
+        }
+        Long nextCursor = notifications.isEmpty() ? null : notifications.get(notifications.size() - 1).getId();
+
+        List<NotificationDto.Response> dtos = notifications.stream()
+                .map(NotificationDto.Response::from)
+                .collect(Collectors.toList());
+
+        long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
+
+        return NotificationDto.ListResponse.builder()
+                .notifications(dtos)
+                .hasNext(hasNext)
+                .nextCursor(nextCursor)
+                .unreadCount(unreadCount)
+                .build();
+    }
+
+    @Transactional
+    public void readNotification(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+
+        if (!notification.getReceiver().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+        notification.markAsRead();
+    }
+
+    @Transactional
+    public void send(User receiver, NotificationType type, String title, String body, Long relatedId) {
+        notificationRepository.save(Notification.builder()
+                .receiver(receiver)
+                .type(type)
+                .title(title)
+                .body(body)
+                .relatedId(relatedId)
+                .build());
+
+        String token = receiver.getFcmToken();
+        if (token != null && !token.isBlank()) {
+            sendFcm(token, title, body, type, relatedId);
+        }
+    }
+
+    @Transactional
+    public void sendMulticast(List<User> receivers, NotificationType type, String title, String body, Long relatedId) {
+        if (receivers == null || receivers.isEmpty()) return;
+
+        List<Notification> entities = receivers.stream()
+                .map(r -> Notification.builder()
+                        .receiver(r)
+                        .type(type)
+                        .title(title)
+                        .body(body)
+                        .relatedId(relatedId)
+                        .build())
+                .collect(Collectors.toList());
+        notificationRepository.saveAll(entities);
+
+        List<String> tokens = receivers.stream()
+                .map(User::getFcmToken)
+                .filter(t -> t != null && !t.isBlank())
+                .collect(Collectors.toList());
+
+        if (!tokens.isEmpty()) {
+            sendFcmMulticast(tokens, title, body, type, relatedId);
+        }
+    }
+
+    private void sendFcm(String token, String title, String body, NotificationType type, Long relatedId) {
+        try {
             Message message = Message.builder()
-                    .setToken(targetFcmToken)
-                    .setNotification(Notification.builder()
+                    .setToken(token)
+                    .setNotification(com.google.firebase.messaging.Notification.builder()
                             .setTitle(title)
                             .setBody(body)
                             .build())
                     .setApnsConfig(ApnsConfig.builder()
-                            .setAps(Aps.builder()
-                                    .setSound("default")
-                                    .setContentAvailable(true)
-                                    .build())
+                            .setAps(Aps.builder().setSound("default").setContentAvailable(true).build())
                             .build())
-
-                    .putData("type", "FRIEND_REQUEST")
-                    .putData("requesterNickname", requesterNickname)
+                    .putData("type", type.name())
+                    .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
                     .build();
 
-            String response = FirebaseMessaging.getInstance().send(message);
-            log.info("FCM 발송 성공: " + response);
-
-        } catch (FirebaseMessagingException e) {
-            log.error("FCM 발송 실패: " + e.getMessage(), e);
+            FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
-            log.error("FCM 메시지 빌드 중 알 수 없는 오류", e);
+            log.error("FCM 발송 실패: {}", e.getMessage());
+        }
+    }
+
+    private void sendFcmMulticast(List<String> tokens, String title, String body, NotificationType type, Long relatedId) {
+        try {
+            MulticastMessage message = MulticastMessage.builder()
+                    .addAllTokens(tokens)
+                    .setNotification(com.google.firebase.messaging.Notification.builder()
+                            .setTitle(title)
+                            .setBody(body)
+                            .build())
+                    .setApnsConfig(ApnsConfig.builder()
+                            .setAps(Aps.builder().setSound("default").setContentAvailable(true).build())
+                            .build())
+                    .putData("type", type.name())
+                    .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
+                    .build();
+
+            FirebaseMessaging.getInstance().sendMulticast(message);
+        } catch (Exception e) {
+            log.error("FCM Multicast 실패: {}", e.getMessage());
         }
     }
 
     public void sendDirectMessageNotification(String targetFcmToken, String senderNickname, String messageText) {
         try {
-            String title = senderNickname;
-
-            String body = messageText;
-            if (body.length() > 100) {
-                body = body.substring(0, 100) + "...";
-            }
-
             Message message = Message.builder()
                     .setToken(targetFcmToken)
-                    .setNotification(Notification.builder()
-                            .setTitle(title)
-                            .setBody(body)
+                    .setNotification(com.google.firebase.messaging.Notification.builder()
+                            .setTitle(senderNickname)
+                            .setBody(messageText)
                             .build())
-                    .setApnsConfig(ApnsConfig.builder()
-                            .setAps(Aps.builder()
-                                    .setSound("default")
-                                    .setContentAvailable(true)
-                                    .build())
-                            .build())
+                    .setApnsConfig(ApnsConfig.builder().setAps(Aps.builder().setSound("default").build()).build())
                     .putData("type", "DIRECT_MESSAGE")
-                    .putData("senderNickname", senderNickname)
                     .build();
-
-            String response = FirebaseMessaging.getInstance().send(message);
-            log.info("DM FCM 발송 성공: " + response);
-
-        } catch (FirebaseMessagingException e) {
-            log.error("DM FCM 발송 실패: " + e.getMessage(), e);
+            FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
-            log.error("DM FCM 메시지 빌드 중 알 수 없는 오류", e);
+            log.error("DM FCM 발송 실패", e);
         }
     }
 }

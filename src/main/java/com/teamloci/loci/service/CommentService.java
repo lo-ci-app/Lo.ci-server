@@ -27,6 +27,7 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public CommentDto.Response createComment(Long userId, Long postId, CommentDto.CreateRequest request) {
@@ -43,6 +44,17 @@ public class CommentService {
                 .build();
 
         PostComment savedComment = commentRepository.save(comment);
+
+        User postOwner = post.getUser();
+        if (!postOwner.getId().equals(userId)) {
+            notificationService.send(
+                    postOwner,
+                    NotificationType.POST_COMMENT,
+                    "새로운 댓글",
+                    user.getNickname() + "님이 댓글을 남겼습니다.",
+                    postId
+            );
+        }
 
         return CommentDto.Response.of(savedComment, "SELF");
     }

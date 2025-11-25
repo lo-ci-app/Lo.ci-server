@@ -33,6 +33,8 @@ public class PostDto {
         private String nickname;
         @Schema(description = "프로필 이미지 URL", example = "https://fiv5.../profile.png")
         private String profileUrl;
+        @Schema(description = "가입 일시")
+        private LocalDateTime createdAt;
         @Schema(description = "나와의 관계 (NONE: 남, FRIEND: 친구, PENDING_SENT: 요청 보냄, PENDING_RECEIVED: 요청 받음, SELF: 나)", example = "FRIEND")
         private String relationStatus;
 
@@ -42,6 +44,7 @@ public class PostDto {
                     user.getHandle(),
                     user.getNickname(),
                     user.getProfileUrl(),
+                    user.getCreatedAt(),
                     "NONE"
             );
         }

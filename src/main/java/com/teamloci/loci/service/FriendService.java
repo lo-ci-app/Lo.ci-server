@@ -150,9 +150,13 @@ public class FriendService {
 
         friendshipRepository.save(friendship);
 
-        if (StringUtils.hasText(target.getFcmToken())) {
-            notificationService.sendFriendRequestNotification(target.getFcmToken(), me.getNickname());
-        }
+        notificationService.send(
+                target,
+                NotificationType.FRIEND_REQUEST,
+                "친구 요청",
+                me.getNickname() + "님이 친구 요청을 보냈습니다.",
+                me.getId()
+        );
     }
 
     @Transactional
@@ -174,6 +178,17 @@ public class FriendService {
         }
 
         friendship.accept();
+
+        User requester = friendship.getRequester();
+        User me = friendship.getReceiver();
+
+        notificationService.send(
+                requester,
+                NotificationType.FRIEND_ACCEPTED,
+                "친구 수락",
+                me.getNickname() + "님과 친구가 되었습니다!",
+                me.getId()
+        );
     }
 
     @Transactional
