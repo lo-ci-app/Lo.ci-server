@@ -14,15 +14,13 @@ import com.teamloci.loci.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Schema(description = "게시물 관련 DTO")
 public class PostDto {
 
     @Getter
+    @Setter
     @AllArgsConstructor
     @NoArgsConstructor
     @Schema(description = "포스트 응답에 사용될 간략한 유저 정보")
@@ -35,13 +33,16 @@ public class PostDto {
         private String nickname;
         @Schema(description = "프로필 이미지 URL", example = "https://fiv5.../profile.png")
         private String profileUrl;
+        @Schema(description = "나와의 관계 (NONE: 남, FRIEND: 친구, PENDING_SENT: 요청 보냄, PENDING_RECEIVED: 요청 받음, SELF: 나)", example = "FRIEND")
+        private String relationStatus;
 
         public static UserSimpleResponse from(User user) {
             return new UserSimpleResponse(
                     user.getId(),
                     user.getHandle(),
                     user.getNickname(),
-                    user.getProfileUrl()
+                    user.getProfileUrl(),
+                    "NONE"
             );
         }
     }

@@ -32,7 +32,7 @@ public class UserService {
 
     public UserDto.UserResponse getMyInfo(Long userId) {
         User user = findUserById(userId);
-        return UserDto.UserResponse.from(user);
+        return UserDto.UserResponse.of(user, "SELF");
     }
 
     @Transactional
@@ -56,7 +56,7 @@ public class UserService {
 
         user.updateProfile(newHandle, newNickname);
 
-        return UserDto.UserResponse.from(user);
+        return UserDto.UserResponse.of(user, "SELF");
     }
 
     @Transactional
@@ -70,7 +70,7 @@ public class UserService {
         );
 
         user.updateProfileUrl(newFileUrl);
-        return UserDto.UserResponse.from(user);
+        return UserDto.UserResponse.of(user, "SELF");
     }
 
     @Transactional
@@ -82,7 +82,7 @@ public class UserService {
         s3UploadService.replaceUrl(newFileUrl, oldFileUrl);
 
         user.updateProfileUrl(newFileUrl);
-        return UserDto.UserResponse.from(user);
+        return UserDto.UserResponse.of(user, "SELF");
     }
 
     @Transactional

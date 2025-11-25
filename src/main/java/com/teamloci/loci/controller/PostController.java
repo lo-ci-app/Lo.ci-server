@@ -48,7 +48,7 @@ public class PostController {
     }
 
     @Operation(summary = "포스트 생성",
-            description = "새로운 포스트를 작성합니다. 위경도를 보내면 서버에서 `beaconId`를 자동 계산하여 저장합니다.")
+            description = "새로운 포스트를 작성합니다. \n\n응답의 `author.relationStatus`는 작성자 본인이므로 항상 `SELF`입니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             content = @Content(examples = @ExampleObject(value = """
                     {
@@ -85,7 +85,8 @@ public class PostController {
                                   "id": 1, 
                                   "handle": "my_handle", 
                                   "nickname": "내닉네임", 
-                                  "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/profiles/me.jpg?w=100" 
+                                  "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/me.jpg",
+                                  "relationStatus": "SELF"
                                 },
                                 "mediaList": [{ 
                                   "id": 50, 
@@ -110,17 +111,23 @@ public class PostController {
                 .body(CustomResponse.created(postService.createPost(getUserId(user), request)));
     }
 
-    @Operation(summary = "포스트 상세 조회", description = "포스트 ID로 상세 정보를 조회합니다.")
+    @Operation(summary = "포스트 상세 조회",
+            description = "포스트 ID로 상세 정보를 조회합니다. `relationStatus`에는 작성자와의 친구 상태가 포함됩니다.")
     @GetMapping("/{postId}")
-    public ResponseEntity<CustomResponse<PostDto.PostDetailResponse>> getPost(@PathVariable Long postId) {
-        return ResponseEntity.ok(CustomResponse.ok(postService.getPost(postId)));
+    public ResponseEntity<CustomResponse<PostDto.PostDetailResponse>> getPost(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId
+    ) {
+        Long myUserId = getUserId(user);
+        return ResponseEntity.ok(CustomResponse.ok(postService.getPost(postId, myUserId)));
     }
 
     @Operation(summary = "유저별 포스트 목록 (무한 스크롤)",
             description = """
-                    특정 유저(userId)가 작성한 포스트들을 최신순으로 조회합니다.
+                    특정 유저(targetUserId)가 작성한 포스트들을 최신순으로 조회합니다.
                     **내 포스트를 보려면 내 ID를 넣어서 호출하면 됩니다.**
-                    `cursor` (ID 기반) 페이지네이션을 사용합니다.
+                    
+                    * `author.relationStatus`: 해당 유저와 나의 관계 (`FRIEND`, `SELF` 등)
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
@@ -138,7 +145,13 @@ public class PostController {
                                     "latitude": 37.5665,
                                     "longitude": 126.9780,
                                     "locationName": "한강공원",
-                                    "author": { "id": 5, "handle": "happy_panda", "nickname": "즐거운판다", "profileUrl": "..." },
+                                    "author": { 
+                                      "id": 5, 
+                                      "handle": "happy_panda", 
+                                      "nickname": "즐거운판다", 
+                                      "profileUrl": "...",
+                                      "relationStatus": "FRIEND"
+                                    },
                                     "mediaList": [],
                                     "createdAt": "2025-11-24T10:00:00",
                                     "updatedAt": "2025-11-24T10:00:00",
@@ -153,16 +166,21 @@ public class PostController {
     })
     @GetMapping("/user/{userId}")
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getPostsByUser(
+            @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable Long userId,
             @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
             @RequestParam(required = false) Long cursor,
             @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(userId, cursor, size)));
+        Long myUserId = getUserId(user);
+        return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(myUserId, userId, cursor, size)));
     }
 
     @Operation(summary = "타임라인 (비콘별 조회)",
-            description = "지도에서 마커를 클릭했을 때, 해당 구역(Beacon)에 있는 포스트들을 조회합니다.")
+            description = """
+                    지도 마커 클릭 시 해당 구역(Beacon)의 포스트를 조회합니다.
+                    작성자가 친구가 아니더라도 조회될 수 있으며, `relationStatus`로 구분 가능합니다.
+                    """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
@@ -180,7 +198,8 @@ public class PostController {
                                     "id": 10, 
                                     "handle": "gangnam_local", 
                                     "nickname": "강남토박이", 
-                                    "profileUrl": null 
+                                    "profileUrl": null,
+                                    "relationStatus": "NONE"
                                   },
                                   "mediaList": [{
                                     "id": 70,
@@ -191,6 +210,22 @@ public class PostController {
                                   "createdAt": "2025-11-23T09:00:00",
                                   "updatedAt": "2025-11-23T09:00:00",
                                   "isArchived": false
+                                },
+                                {
+                                  "id": 202,
+                                  "beaconId": "89283082807ffff",
+                                  "locationName": "강남역",
+                                  "author": { 
+                                    "id": 3, 
+                                    "handle": "passerby", 
+                                    "nickname": "지나가던사람", 
+                                    "profileUrl": null,
+                                    "relationStatus": "FRIEND"
+                                  },
+                                  "mediaList": [],
+                                  "createdAt": "2025-11-23T08:50:00",
+                                  "updatedAt": "2025-11-23T08:50:00",
+                                  "isArchived": false
                                 }
                               ]
                             }
@@ -198,17 +233,18 @@ public class PostController {
     })
     @GetMapping("/timeline")
     public ResponseEntity<CustomResponse<List<PostDto.PostDetailResponse>>> getTimeline(
+            @AuthenticationPrincipal AuthenticatedUser user,
             @Parameter(description = "조회할 비콘 ID (H3 Index)", required = true, example = "89283082807ffff")
             @RequestParam String beaconId
     ) {
-        return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByBeaconId(beaconId)));
+        Long myUserId = getUserId(user);
+        return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByBeaconId(beaconId, myUserId)));
     }
 
     @Operation(summary = "지도 마커 (범위 조회)",
             description = """
                     지도 화면 내의 마커 정보를 반환합니다. 
-                    `thumbnailImageUrl`은 필요 시 `/w300/` 경로를 사용하여 리사이징된 이미지를 요청할 수 있습니다.
-                    (예: `https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg?w=300`)
+                    `thumbnailImageUrl`은 CloudFront 리사이징 URL(`w300` 등)로 제공될 수 있습니다.
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
@@ -224,7 +260,7 @@ public class PostController {
                                   "latitude": 37.5665,
                                   "longitude": 126.9780,
                                   "count": 5,
-                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg"
+                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg?w=300"
                                 }
                               ]
                             }
@@ -259,7 +295,8 @@ public class PostController {
                                       "id": 7, 
                                       "handle": "best_friend", 
                                       "nickname": "절친1", 
-                                      "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/profiles/friend.jpg?w=100" 
+                                      "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/profiles/friend.jpg?w=100",
+                                      "relationStatus": "FRIEND"
                                     },
                                     "mediaList": [{
                                       "id": 80,

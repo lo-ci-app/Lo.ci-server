@@ -3,18 +3,17 @@ package com.teamloci.loci.service;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.teamloci.loci.domain.*;
+import com.teamloci.loci.repository.FriendshipRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.teamloci.loci.domain.Post;
-import com.teamloci.loci.domain.PostCollaborator;
-import com.teamloci.loci.domain.PostMedia;
-import com.teamloci.loci.domain.User;
 import com.teamloci.loci.dto.PostDto;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
@@ -31,6 +30,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final FriendshipRepository friendshipRepository;
     private final GeoUtils geoUtils;
 
     private User findUserById(Long userId) {
@@ -85,24 +85,28 @@ public class PostService {
 
         Post savedPost = postRepository.save(post);
 
-        return PostDto.PostDetailResponse.from(findPostById(savedPost.getId()));
+        PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(findPostById(savedPost.getId()));
+        response.getAuthor().setRelationStatus("SELF");
+        return response;
     }
 
-    public PostDto.PostDetailResponse getPost(Long postId) {
+    public PostDto.PostDetailResponse getPost(Long postId, Long myUserId) {
         Post post = findPostById(postId);
-        return PostDto.PostDetailResponse.from(post);
+        PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(post);
+        enrichSinglePostAuthor(response, myUserId);
+        return response;
     }
 
-    public PostDto.FeedResponse getPostsByUser(Long targetUserId, Long cursorId, int size) {
+    public PostDto.FeedResponse getPostsByUser(Long myUserId, Long targetUserId, Long cursorId, int size) {
         if (!userRepository.existsById(targetUserId)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
-
         Pageable pageable = PageRequest.of(0, size + 1);
         List<Post> posts = postRepository.findByUserIdWithCursor(targetUserId, cursorId, pageable);
 
-        return makeFeedResponse(posts, size);
+        return makeFeedResponse(posts, size, myUserId);
     }
+
     @Transactional
     public void deletePost(Long currentUserId, Long postId) {
         Post post = findPostById(postId);
@@ -163,16 +167,16 @@ public class PostService {
         return PostDto.PostDetailResponse.from(findPostById(post.getId()));
     }
 
-    public List<PostDto.PostDetailResponse> getPostsByBeaconId(String beaconId) {
-        if (beaconId == null || beaconId.isBlank()) {
-            return List.of();
-        }
+    public List<PostDto.PostDetailResponse> getPostsByBeaconId(String beaconId, Long myUserId) {
+        if (beaconId == null || beaconId.isBlank()) return List.of();
 
         List<Post> posts = postRepository.findByBeaconId(beaconId);
-
-        return posts.stream()
+        List<PostDto.PostDetailResponse> responses = posts.stream()
                 .map(PostDto.PostDetailResponse::from)
                 .collect(Collectors.toList());
+
+        enrichPostAuthors(responses, myUserId);
+        return responses;
     }
 
     public List<PostDto.MapMarkerResponse> getMapMarkers(Double minLat, Double maxLat, Double minLon, Double maxLon) {
@@ -203,27 +207,82 @@ public class PostService {
     public PostDto.FeedResponse getFriendFeed(Long myUserId, Long cursorId, int size) {
         Pageable pageable = PageRequest.of(0, size + 1);
         List<Post> posts = postRepository.findFriendPostsWithCursor(myUserId, cursorId, pageable);
-
-        return makeFeedResponse(posts, size);
+        return makeFeedResponse(posts, size, myUserId);
     }
 
-    private PostDto.FeedResponse makeFeedResponse(List<Post> posts, int size) {
+    private PostDto.FeedResponse makeFeedResponse(List<Post> posts, int size, Long myUserId) {
         boolean hasNext = false;
         if (posts.size() > size) {
             hasNext = true;
             posts.remove(size);
         }
-
         Long nextCursor = posts.isEmpty() ? null : posts.get(posts.size() - 1).getId();
 
         List<PostDto.PostDetailResponse> postDtos = posts.stream()
                 .map(PostDto.PostDetailResponse::from)
                 .collect(Collectors.toList());
 
+        enrichPostAuthors(postDtos, myUserId);
+
         return PostDto.FeedResponse.builder()
                 .posts(postDtos)
                 .hasNext(hasNext)
                 .nextCursor(nextCursor)
                 .build();
+    }
+
+    private void enrichPostAuthors(List<PostDto.PostDetailResponse> posts, Long myUserId) {
+        if (posts.isEmpty()) return;
+
+        Set<Long> authorIds = posts.stream()
+                .map(p -> p.getAuthor().getId())
+                .filter(id -> !id.equals(myUserId))
+                .collect(Collectors.toSet());
+
+        if (authorIds.isEmpty()) {
+            posts.forEach(p -> {
+                if (p.getAuthor().getId().equals(myUserId)) p.getAuthor().setRelationStatus("SELF");
+            });
+            return;
+        }
+
+        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, authorIds.stream().toList());
+
+        Map<Long, Friendship> friendshipMap = friendships.stream()
+                .collect(Collectors.toMap(
+                        f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
+                        f -> f
+                ));
+
+        for (PostDto.PostDetailResponse p : posts) {
+            Long authorId = p.getAuthor().getId();
+            if (authorId.equals(myUserId)) {
+                p.getAuthor().setRelationStatus("SELF");
+            } else {
+                Friendship f = friendshipMap.get(authorId);
+                p.getAuthor().setRelationStatus(resolveStatus(f, myUserId));
+            }
+        }
+    }
+
+    private void enrichSinglePostAuthor(PostDto.PostDetailResponse post, Long myUserId) {
+        Long authorId = post.getAuthor().getId();
+        if (authorId.equals(myUserId)) {
+            post.getAuthor().setRelationStatus("SELF");
+            return;
+        }
+        Friendship f = friendshipRepository.findFriendshipBetween(myUserId, authorId).orElse(null);
+        post.getAuthor().setRelationStatus(resolveStatus(f, myUserId));
+    }
+
+    private String resolveStatus(Friendship f, Long myUserId) {
+        if (f == null) return "NONE";
+        if (f.getStatus() == FriendshipStatus.FRIENDSHIP) return "FRIEND";
+
+        if (f.getRequester().getId().equals(myUserId)) {
+            return "PENDING_SENT";
+        } else {
+            return "PENDING_RECEIVED";
+        }
     }
 }
