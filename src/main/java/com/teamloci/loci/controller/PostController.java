@@ -1,5 +1,6 @@
 package com.teamloci.loci.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -116,10 +118,9 @@ public class PostController {
 
     @Operation(summary = "유저별 포스트 목록 (무한 스크롤)",
             description = """
-                    특정 유저(targetUserId)가 작성한 포스트들을 최신순으로 조회합니다.
-                    **ID 기반 커서(`cursor`)**를 사용합니다.
-                    
-                    * `cursor`: 이전 페이지의 **마지막 포스트 ID** (첫 요청 시 생략)
+                    특정 유저(userId)가 작성한 포스트들을 최신순으로 조회합니다.
+                    **내 포스트를 보려면 내 ID를 넣어서 호출하면 됩니다.**
+                    `cursor` (ID 기반) 페이지네이션을 사용합니다.
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
@@ -158,22 +159,6 @@ public class PostController {
             @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(userId, cursor, size)));
-    }
-
-    @Operation(summary = "내 포스트 모아보기 (무한 스크롤)",
-            description = """
-                    **로그인한 사용자 본인**이 작성한 포스트 목록을 조회합니다.
-                    `/user/{myId}`를 호출하는 것과 동일하며, **ID 기반 커서**를 사용합니다.
-                    """)
-    @GetMapping("/me")
-    public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getMyPosts(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
-            @RequestParam(required = false) Long cursor,
-            @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
-    ) {
-        Long myUserId = getUserId(user);
-        return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(myUserId, cursor, size)));
     }
 
     @Operation(summary = "타임라인 (비콘별 조회)",
@@ -222,7 +207,7 @@ public class PostController {
     @Operation(summary = "지도 마커 (범위 조회)",
             description = """
                     지도 화면 내의 마커 정보를 반환합니다. 
-                    `thumbnailImageUrl`은 `?w=300` 같은 쿼리 파라미터를 사용하여 리사이징된 이미지를 요청할 수 있습니다.
+                    `thumbnailImageUrl`은 필요 시 `/w300/` 경로를 사용하여 리사이징된 이미지를 요청할 수 있습니다.
                     (예: `https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg?w=300`)
                     """)
     @ApiResponses(value = {
@@ -297,7 +282,7 @@ public class PostController {
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getFriendFeed(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
-            @RequestParam(required = false) Long cursor, // [수정] Long
+            @RequestParam(required = false) Long cursor,
             @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.getFriendFeed(getUserId(user), cursor, size)));
