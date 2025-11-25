@@ -93,50 +93,16 @@ public class PostService {
         return PostDto.PostDetailResponse.from(post);
     }
 
-    public PostDto.FeedResponse getPostsByUser(Long targetUserId, String cursor, int size) {
+    public PostDto.FeedResponse getPostsByUser(Long targetUserId, Long cursorId, int size) {
         if (!userRepository.existsById(targetUserId)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
         Pageable pageable = PageRequest.of(0, size + 1);
-        List<Post> posts;
+        List<Post> posts = postRepository.findByUserIdWithCursor(targetUserId, cursorId, pageable);
 
-        if (cursor == null) {
-            posts = postRepository.findByUserIdFirstPage(targetUserId, pageable);
-        } else {
-            try {
-                String[] parts = cursor.split(",");
-                LocalDateTime cursorCreatedAt = LocalDateTime.parse(parts[0]);
-                Long cursorId = Long.parseLong(parts[1]);
-                posts = postRepository.findByUserIdNextPage(targetUserId, cursorCreatedAt, cursorId, pageable);
-            } catch (Exception e) {
-                throw new CustomException(ErrorCode.INVALID_REQUEST);
-            }
-        }
-
-        boolean hasNext = false;
-        if (posts.size() > size) {
-            hasNext = true;
-            posts.remove(size);
-        }
-
-        String nextCursor = null;
-        if (!posts.isEmpty()) {
-            Post lastPost = posts.get(posts.size() - 1);
-            nextCursor = lastPost.getCreatedAt().toString() + "," + lastPost.getId();
-        }
-
-        List<PostDto.PostDetailResponse> postDtos = posts.stream()
-                .map(PostDto.PostDetailResponse::from)
-                .collect(Collectors.toList());
-
-        return PostDto.FeedResponse.builder()
-                .posts(postDtos)
-                .hasNext(hasNext)
-                .nextCursor(nextCursor)
-                .build();
+        return makeFeedResponse(posts, size);
     }
-
     @Transactional
     public void deletePost(Long currentUserId, Long postId) {
         Post post = findPostById(postId);
@@ -234,34 +200,21 @@ public class PostService {
                 .collect(Collectors.toList());
     }
 
-    public PostDto.FeedResponse getFriendFeed(Long myUserId, String cursor, int size) {
+    public PostDto.FeedResponse getFriendFeed(Long myUserId, Long cursorId, int size) {
         Pageable pageable = PageRequest.of(0, size + 1);
+        List<Post> posts = postRepository.findFriendPostsWithCursor(myUserId, cursorId, pageable);
 
-        List<Post> posts;
-        if (cursor == null) {
-            posts = postRepository.findFriendPostsFirstPage(myUserId, pageable);
-        } else {
-            try {
-                String[] parts = cursor.split(",");
-                LocalDateTime cursorCreatedAt = LocalDateTime.parse(parts[0]);
-                Long cursorId = Long.parseLong(parts[1]);
-                posts = postRepository.findFriendPostsNextPage(myUserId, cursorCreatedAt, cursorId, pageable);
-            } catch (Exception e) {
-                throw new CustomException(ErrorCode.INVALID_REQUEST);
-            }
-        }
+        return makeFeedResponse(posts, size);
+    }
 
+    private PostDto.FeedResponse makeFeedResponse(List<Post> posts, int size) {
         boolean hasNext = false;
         if (posts.size() > size) {
             hasNext = true;
             posts.remove(size);
         }
 
-        String nextCursor = null;
-        if (!posts.isEmpty()) {
-            Post lastPost = posts.get(posts.size() - 1);
-            nextCursor = lastPost.getCreatedAt().toString() + "," + lastPost.getId();
-        }
+        Long nextCursor = posts.isEmpty() ? null : posts.get(posts.size() - 1).getId();
 
         List<PostDto.PostDetailResponse> postDtos = posts.stream()
                 .map(PostDto.PostDetailResponse::from)

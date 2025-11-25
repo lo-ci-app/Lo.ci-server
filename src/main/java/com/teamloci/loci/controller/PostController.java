@@ -1,6 +1,5 @@
 package com.teamloci.loci.controller;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -40,8 +39,6 @@ import lombok.RequiredArgsConstructor;
 public class PostController {
 
     private final PostService postService;
-
-    private static final String CDN_URL = "https://dagvorl6p9q6m.cloudfront.net";
 
     private Long getUserId(AuthenticatedUser user) {
         if (user == null) throw new CustomException(ErrorCode.UNAUTHORIZED);
@@ -86,7 +83,7 @@ public class PostController {
                                   "id": 1, 
                                   "handle": "my_handle", 
                                   "nickname": "내닉네임", 
-                                  "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/me.jpg" 
+                                  "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/profiles/me.jpg?w=100" 
                                 },
                                 "mediaList": [{ 
                                   "id": 50, 
@@ -120,7 +117,9 @@ public class PostController {
     @Operation(summary = "유저별 포스트 목록 (무한 스크롤)",
             description = """
                     특정 유저(targetUserId)가 작성한 포스트들을 최신순으로 조회합니다.
-                    `cursor` 기반 페이지네이션을 지원합니다.
+                    **ID 기반 커서(`cursor`)**를 사용합니다.
+                    
+                    * `cursor`: 이전 페이지의 **마지막 포스트 ID** (첫 요청 시 생략)
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
@@ -146,7 +145,7 @@ public class PostController {
                                   }
                                 ],
                                 "hasNext": true,
-                                "nextCursor": "2025-11-24T10:00:00"
+                                "nextCursor": 98
                               }
                             }
                             """)))
@@ -154,8 +153,9 @@ public class PostController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getPostsByUser(
             @PathVariable Long userId,
-            @Parameter(description = "커서 (Time,Id)") @RequestParam(required = false) String cursor,
-            @Parameter(description = "개수") @RequestParam(defaultValue = "10") int size
+            @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
+            @RequestParam(required = false) Long cursor,
+            @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(userId, cursor, size)));
     }
@@ -163,12 +163,13 @@ public class PostController {
     @Operation(summary = "내 포스트 모아보기 (무한 스크롤)",
             description = """
                     **로그인한 사용자 본인**이 작성한 포스트 목록을 조회합니다.
-                    `/user/{userId}` API를 내 ID로 호출하는 것과 동일합니다.
+                    `/user/{myId}`를 호출하는 것과 동일하며, **ID 기반 커서**를 사용합니다.
                     """)
     @GetMapping("/me")
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getMyPosts(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "이전 페이지의 마지막 포스트 작성 시간") @RequestParam(required = false) String cursor,
+            @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
+            @RequestParam(required = false) Long cursor,
             @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
         Long myUserId = getUserId(user);
@@ -189,8 +190,6 @@ public class PostController {
                                 {
                                   "id": 201,
                                   "beaconId": "89283082807ffff",
-                                  "latitude": 37.5665,
-                                  "longitude": 126.9780,
                                   "locationName": "강남역 11번 출구",
                                   "author": { 
                                     "id": 10, 
@@ -206,23 +205,6 @@ public class PostController {
                                   }],
                                   "createdAt": "2025-11-23T09:00:00",
                                   "updatedAt": "2025-11-23T09:00:00",
-                                  "isArchived": false
-                                },
-                                {
-                                  "id": 202,
-                                  "beaconId": "89283082807ffff",
-                                  "latitude": 37.5665,
-                                  "longitude": 126.9780,
-                                  "locationName": "강남역",
-                                  "author": { 
-                                    "id": 3, 
-                                    "handle": "passerby", 
-                                    "nickname": "지나가던사람", 
-                                    "profileUrl": null 
-                                  },
-                                  "mediaList": [],
-                                  "createdAt": "2025-11-23T08:50:00",
-                                  "updatedAt": "2025-11-23T08:50:00",
                                   "isArchived": false
                                 }
                               ]
@@ -240,8 +222,8 @@ public class PostController {
     @Operation(summary = "지도 마커 (범위 조회)",
             description = """
                     지도 화면 내의 마커 정보를 반환합니다. 
-                    `thumbnailImageUrl`은 필요 시 `/w300/` 경로를 사용하여 리사이징된 이미지를 요청할 수 있습니다.
-                    (예: `https://dagvorl6p9q6m.cloudfront.net/w300/posts/thumb1.jpg`)
+                    `thumbnailImageUrl`은 `?w=300` 같은 쿼리 파라미터를 사용하여 리사이징된 이미지를 요청할 수 있습니다.
+                    (예: `https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg?w=300`)
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
@@ -257,14 +239,7 @@ public class PostController {
                                   "latitude": 37.5665,
                                   "longitude": 126.9780,
                                   "count": 5,
-                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/w300/posts/thumb1.jpg"
-                                },
-                                {
-                                  "beaconId": "8928308280bffff",
-                                  "latitude": 37.5700,
-                                  "longitude": 126.9800,
-                                  "count": 2,
-                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/w300/posts/thumb2.jpg"
+                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg"
                                 }
                               ]
                             }
@@ -280,7 +255,7 @@ public class PostController {
         return ResponseEntity.ok(CustomResponse.ok(postService.getMapMarkers(minLat, maxLat, minLon, maxLon)));
     }
 
-    @Operation(summary = "친구 피드 (무한 스크롤)", description = "친구들의 최신 글을 모아봅니다.")
+    @Operation(summary = "친구 피드 (무한 스크롤)", description = "친구들의 최신 글을 모아봅니다. **ID 기반 커서**를 사용합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
@@ -294,14 +269,12 @@ public class PostController {
                                   {
                                     "id": 305,
                                     "beaconId": "89283082807ffff",
-                                    "latitude": 37.5665,
-                                    "longitude": 126.9780,
                                     "locationName": "친구네 집",
                                     "author": { 
                                       "id": 7, 
                                       "handle": "best_friend", 
                                       "nickname": "절친1", 
-                                      "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/friend.jpg" 
+                                      "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/profiles/friend.jpg?w=100" 
                                     },
                                     "mediaList": [{
                                       "id": 80,
@@ -315,7 +288,7 @@ public class PostController {
                                   }
                                 ],
                                 "hasNext": true,
-                                "nextCursor": "2025-11-24T09:30:00"
+                                "nextCursor": 290
                               }
                             }
                             """)))
@@ -323,8 +296,8 @@ public class PostController {
     @GetMapping("/feed")
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getFriendFeed(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "이전 페이지의 마지막 포스트 커서 (Time,Id)")
-            @RequestParam(required = false) String cursor, // [수정] LocalDateTime -> String
+            @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
+            @RequestParam(required = false) Long cursor, // [수정] Long
             @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.getFriendFeed(getUserId(user), cursor, size)));
