@@ -1,36 +1,35 @@
 package com.teamloci.loci.service;
 
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import com.teamloci.loci.domain.*;
+import com.teamloci.loci.dto.PostDto;
+import com.teamloci.loci.global.exception.CustomException;
+import com.teamloci.loci.global.exception.code.ErrorCode;
+import com.teamloci.loci.global.util.GeoUtils;
 import com.teamloci.loci.repository.FriendshipRepository;
+import com.teamloci.loci.repository.PostCommentRepository;
+import com.teamloci.loci.repository.PostRepository;
+import com.teamloci.loci.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.teamloci.loci.dto.PostDto;
-import com.teamloci.loci.global.exception.CustomException;
-import com.teamloci.loci.global.exception.code.ErrorCode;
-import com.teamloci.loci.global.util.GeoUtils;
-import com.teamloci.loci.repository.PostRepository;
-import com.teamloci.loci.repository.UserRepository;
-
-import lombok.RequiredArgsConstructor;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final PostCommentRepository commentRepository; // 댓글 수 조회를 위해 추가
+    private final NotificationService notificationService;
     private final GeoUtils geoUtils;
 
     private User findUserById(Long userId) {
@@ -68,22 +67,36 @@ public class PostService {
             });
         }
 
+        // 공동 작업자 검증 및 추가
         if (request.getCollaboratorIds() != null && !request.getCollaboratorIds().isEmpty()) {
             Set<Long> collaboratorIds = new HashSet<>(request.getCollaboratorIds());
-            List<User> collaboratorUsers = userRepository.findAllById(collaboratorIds);
+            collaboratorIds.remove(authorId); // 본인 제외
 
-            if (collaboratorUsers.size() != collaboratorIds.size()) {
-                throw new CustomException(ErrorCode.USER_NOT_FOUND);
+            if (!collaboratorIds.isEmpty()) {
+                List<Friendship> relations = friendshipRepository.findAllRelationsBetween(authorId, collaboratorIds.stream().toList());
+
+                Set<Long> validFriendIds = relations.stream()
+                        .filter(f -> f.getStatus() == FriendshipStatus.FRIENDSHIP)
+                        .map(f -> f.getRequester().getId().equals(authorId) ? f.getReceiver().getId() : f.getRequester().getId())
+                        .collect(Collectors.toSet());
+
+                if (!validFriendIds.containsAll(collaboratorIds)) {
+                    throw new CustomException(ErrorCode.NOT_FRIENDS);
+                }
+
+                List<User> collaboratorUsers = userRepository.findAllById(collaboratorIds);
+                collaboratorUsers.forEach(collaboratorUser ->
+                        post.addCollaborator(PostCollaborator.builder()
+                                .user(collaboratorUser)
+                                .build())
+                );
             }
-
-            collaboratorUsers.forEach(collaboratorUser ->
-                    post.addCollaborator(PostCollaborator.builder()
-                            .user(collaboratorUser)
-                            .build())
-            );
         }
 
         Post savedPost = postRepository.save(post);
+
+        // 알림 발송
+        sendPostNotifications(author, savedPost);
 
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(findPostById(savedPost.getId()));
         response.getAuthor().setRelationStatus("SELF");
@@ -93,7 +106,10 @@ public class PostService {
     public PostDto.PostDetailResponse getPost(Long postId, Long myUserId) {
         Post post = findPostById(postId);
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(post);
-        enrichSinglePostAuthor(response, myUserId);
+
+        // 단일 조회도 리스트 처리 로직을 재사용하여 '댓글 수'와 '관계'를 모두 채움
+        enrichPostAuthors(List.of(response), myUserId);
+
         return response;
     }
 
@@ -148,15 +164,10 @@ public class PostService {
         }
 
         post.clearCollaborators();
-
+        // 수정 시 공동 작업자 검증 로직도 추가 가능 (현재는 단순 추가만 구현됨)
         if (request.getCollaboratorIds() != null && !request.getCollaboratorIds().isEmpty()) {
             Set<Long> collaboratorIds = new HashSet<>(request.getCollaboratorIds());
             List<User> collaboratorUsers = userRepository.findAllById(collaboratorIds);
-
-            if (collaboratorUsers.size() != collaboratorIds.size()) {
-                throw new CustomException(ErrorCode.USER_NOT_FOUND);
-            }
-
             collaboratorUsers.forEach(collaboratorUser ->
                     post.addCollaborator(PostCollaborator.builder()
                             .user(collaboratorUser)
@@ -200,7 +211,7 @@ public class PostService {
                             .thumbnailImageUrl(thumbnail)
                             .build();
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -231,48 +242,75 @@ public class PostService {
                 .build();
     }
 
+    // [핵심 메서드] 포스트 목록에 '친구 관계'와 '댓글 수'를 채워 넣는 로직
     private void enrichPostAuthors(List<PostDto.PostDetailResponse> posts, Long myUserId) {
         if (posts.isEmpty()) return;
 
-        Set<Long> authorIds = posts.stream()
-                .map(p -> p.getAuthor().getId())
-                .filter(id -> !id.equals(myUserId))
-                .collect(Collectors.toSet());
+        Set<Long> targetUserIds = new HashSet<>();
+        List<Long> postIds = new ArrayList<>();
 
-        if (authorIds.isEmpty()) {
-            posts.forEach(p -> {
-                if (p.getAuthor().getId().equals(myUserId)) p.getAuthor().setRelationStatus("SELF");
-            });
-            return;
+        // 1. 조회할 ID 수집
+        for (PostDto.PostDetailResponse p : posts) {
+            postIds.add(p.getId()); // 댓글 수 조회용
+
+            // 작성자 ID (나 제외)
+            if (!p.getAuthor().getId().equals(myUserId)) {
+                targetUserIds.add(p.getAuthor().getId());
+            }
+            // 공동 작업자 ID (나 제외)
+            if (p.getCollaborators() != null) {
+                p.getCollaborators().stream()
+                        .map(PostDto.UserSimpleResponse::getId)
+                        .filter(id -> !id.equals(myUserId))
+                        .forEach(targetUserIds::add);
+            }
         }
 
-        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, authorIds.stream().toList());
-
-        Map<Long, Friendship> friendshipMap = friendships.stream()
+        // 2. 댓글 수 일괄 조회 (Batch)
+        Map<Long, Long> commentCountMap = commentRepository.countByPostIdIn(postIds).stream()
                 .collect(Collectors.toMap(
-                        f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
-                        f -> f
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
                 ));
 
+        // 3. 친구 관계 일괄 조회 (Batch)
+        Map<Long, Friendship> friendshipMap;
+        if (targetUserIds.isEmpty()) {
+            friendshipMap = Map.of();
+        } else {
+            List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, targetUserIds.stream().toList());
+            friendshipMap = friendships.stream()
+                    .collect(Collectors.toMap(
+                            f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
+                            f -> f
+                    ));
+        }
+
+        // 4. 데이터 주입
         for (PostDto.PostDetailResponse p : posts) {
-            Long authorId = p.getAuthor().getId();
-            if (authorId.equals(myUserId)) {
-                p.getAuthor().setRelationStatus("SELF");
-            } else {
-                Friendship f = friendshipMap.get(authorId);
-                p.getAuthor().setRelationStatus(resolveStatus(f, myUserId));
+            // 댓글 수 설정
+            p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
+
+            // 작성자 관계 설정
+            setStatus(p.getAuthor(), myUserId, friendshipMap);
+
+            // 공동 작업자 관계 설정
+            if (p.getCollaborators() != null) {
+                for (PostDto.UserSimpleResponse collaborator : p.getCollaborators()) {
+                    setStatus(collaborator, myUserId, friendshipMap);
+                }
             }
         }
     }
 
-    private void enrichSinglePostAuthor(PostDto.PostDetailResponse post, Long myUserId) {
-        Long authorId = post.getAuthor().getId();
-        if (authorId.equals(myUserId)) {
-            post.getAuthor().setRelationStatus("SELF");
-            return;
+    // [헬퍼 메서드] UserSimpleResponse에 relationStatus 주입
+    private void setStatus(PostDto.UserSimpleResponse userRes, Long myUserId, Map<Long, Friendship> friendshipMap) {
+        if (userRes.getId().equals(myUserId)) {
+            userRes.setRelationStatus("SELF");
+        } else {
+            Friendship f = friendshipMap.get(userRes.getId());
+            userRes.setRelationStatus(resolveStatus(f, myUserId));
         }
-        Friendship f = friendshipRepository.findFriendshipBetween(myUserId, authorId).orElse(null);
-        post.getAuthor().setRelationStatus(resolveStatus(f, myUserId));
     }
 
     private String resolveStatus(Friendship f, Long myUserId) {
@@ -283,6 +321,27 @@ public class PostService {
             return "PENDING_SENT";
         } else {
             return "PENDING_RECEIVED";
+        }
+    }
+
+    // [헬퍼 메서드] 알림 발송
+    private void sendPostNotifications(User author, Post post) {
+        try {
+            List<Friendship> friendships = friendshipRepository.findAllFriendsWithUsers(author.getId());
+
+            List<String> fcmTokens = friendships.stream()
+                    .map(f -> f.getRequester().getId().equals(author.getId()) ? f.getReceiver() : f.getRequester())
+                    .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                    .map(User::getFcmToken)
+                    .filter(token -> token != null && !token.isBlank())
+                    .collect(Collectors.toList());
+
+            if (!fcmTokens.isEmpty()) {
+                // [TODO] 알림 기능 구현 후 주석 해제
+                // notificationService.sendPostCreationNotification(fcmTokens, author.getNickname(), post.getId());
+            }
+        } catch (Exception e) {
+            log.error("게시글 작성 알림 발송 실패: {}", e.getMessage());
         }
     }
 }

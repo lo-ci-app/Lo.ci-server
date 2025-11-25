@@ -2,11 +2,13 @@ package com.teamloci.loci.service;
 
 import com.teamloci.loci.domain.Friendship;
 import com.teamloci.loci.domain.FriendshipStatus;
+import com.teamloci.loci.domain.PostStatus;
 import com.teamloci.loci.domain.User;
 import com.teamloci.loci.dto.UserDto;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.repository.FriendshipRepository;
+import com.teamloci.loci.repository.PostRepository;
 import com.teamloci.loci.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final S3UploadService s3UploadService;
     private final FriendshipRepository friendshipRepository;
+    private final PostRepository postRepository;
     private static final SecureRandom random = new SecureRandom();
 
     private User findUserById(Long userId) {
@@ -36,28 +39,31 @@ public class UserService {
     }
 
     public UserDto.UserResponse getUserProfile(Long myUserId, Long targetUserId) {
-        if (myUserId.equals(targetUserId)) {
-            User me = findUserById(myUserId);
-            return UserDto.UserResponse.of(me, "SELF");
-        }
-
         User targetUser = findUserById(targetUserId);
-        Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
+
+        long friendCount = friendshipRepository.countFriends(targetUserId);
+        long postCount = postRepository.countByUserIdAndStatus(targetUserId, PostStatus.ACTIVE);
 
         String relationStatus = "NONE";
-        if (friendship.isPresent()) {
-            Friendship f = friendship.get();
-            if (f.getStatus() == FriendshipStatus.FRIENDSHIP) {
-                relationStatus = "FRIEND";
-            } else if (f.getRequester().getId().equals(myUserId)) {
-                relationStatus = "PENDING_SENT";
-            } else {
-                relationStatus = "PENDING_RECEIVED";
+        if (myUserId.equals(targetUserId)) {
+            relationStatus = "SELF";
+        } else {
+            Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
+            if (friendship.isPresent()) {
+                Friendship f = friendship.get();
+                if (f.getStatus() == FriendshipStatus.FRIENDSHIP) {
+                    relationStatus = "FRIEND";
+                } else if (f.getRequester().getId().equals(myUserId)) {
+                    relationStatus = "PENDING_SENT";
+                } else {
+                    relationStatus = "PENDING_RECEIVED";
+                }
             }
         }
 
-        return UserDto.UserResponse.of(targetUser, relationStatus);
+        return UserDto.UserResponse.of(targetUser, relationStatus, friendCount, postCount);
     }
+
     @Transactional
     public UserDto.UserResponse updateProfile(Long userId, UserDto.ProfileUpdateRequest request) {
         User user = findUserById(userId);
@@ -79,7 +85,7 @@ public class UserService {
 
         user.updateProfile(newHandle, newNickname);
 
-        return UserDto.UserResponse.of(user, "SELF");
+        return getUserProfile(userId, userId);
     }
 
     @Transactional
@@ -93,7 +99,7 @@ public class UserService {
         );
 
         user.updateProfileUrl(newFileUrl);
-        return UserDto.UserResponse.of(user, "SELF");
+        return getUserProfile(userId, userId);
     }
 
     @Transactional
@@ -105,7 +111,8 @@ public class UserService {
         s3UploadService.replaceUrl(newFileUrl, oldFileUrl);
 
         user.updateProfileUrl(newFileUrl);
-        return UserDto.UserResponse.of(user, "SELF");
+
+        return getUserProfile(userId, userId);
     }
 
     @Transactional

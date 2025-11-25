@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.teamloci.loci.domain.PostStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -81,4 +82,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "AND p.isArchived = true " +
             "AND p.createdAt < :expiryDate")
     int archiveOldPosts(@Param("expiryDate") LocalDateTime expiryDate);
+
+    long countByUserIdAndStatus(Long userId, PostStatus status);
 }

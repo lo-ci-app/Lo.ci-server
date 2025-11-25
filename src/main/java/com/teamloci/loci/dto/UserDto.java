@@ -55,6 +55,7 @@ public class UserDto {
 
     @Getter
     @Setter
+    @Builder
     @AllArgsConstructor
     @Schema(description = "사용자 정보 응답")
     public static class UserResponse {
@@ -76,27 +77,37 @@ public class UserDto {
         @Schema(description = "나와의 관계 (NONE: 남, FRIEND: 친구, PENDING_SENT: 요청 보냄, PENDING_RECEIVED: 요청 받음, SELF: 나)", example = "FRIEND")
         private String relationStatus;
 
+        @Schema(description = "친구 수", example = "12")
+        private Long friendCount;
 
-        public static UserResponse from(User user) {
-            return new UserResponse(
-                    user.getId(),
-                    user.getHandle(),
-                    user.getNickname(),
-                    user.getProfileUrl(),
-                    user.getCreatedAt(),
-                    "NONE"
-            );
+        @Schema(description = "게시물 수", example = "5")
+        private Long postCount;
+
+
+        public static UserResponse of(User user, String relationStatus, long friendCount, long postCount) {
+            return UserResponse.builder()
+                    .id(user.getId())
+                    .handle(user.getHandle())
+                    .nickname(user.getNickname())
+                    .profileUrl(user.getProfileUrl())
+                    .createdAt(user.getCreatedAt())
+                    .relationStatus(relationStatus)
+                    .friendCount(friendCount)
+                    .postCount(postCount)
+                    .build();
         }
 
-        public static UserResponse of(User user, String relationStatus) {
-            return new UserResponse(
-                    user.getId(),
-                    user.getHandle(),
-                    user.getNickname(),
-                    user.getProfileUrl(),
-                    user.getCreatedAt(),
-                    relationStatus
-            );
+        public static UserResponse from(User user) {
+            return UserResponse.builder()
+                    .id(user.getId())
+                    .handle(user.getHandle())
+                    .nickname(user.getNickname())
+                    .profileUrl(user.getProfileUrl())
+                    .createdAt(user.getCreatedAt())
+                    .relationStatus("NONE")
+                    .friendCount(0L)
+                    .postCount(0L)
+                    .build();
         }
     }
 

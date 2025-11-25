@@ -35,26 +35,29 @@ public class CommentController {
     @Operation(summary = "댓글 작성",
             description = """
                     특정 포스트에 댓글을 작성합니다.
-                    반환되는 객체를 리스트 맨 앞에 추가하면 즉시 반영된 것처럼 보입니다.
+                    
+                    * **반환값:** 생성된 댓글 객체를 반환합니다. 클라이언트에서는 이를 리스트 최상단에 즉시 추가(Insert)하여 반응 속도를 높이세요.
                     """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "작성 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
                               "code": "COMMON200",
+                              "message": "성공적으로 요청을 수행했습니다.",
                               "result": {
                                 "id": 123,
-                                "content": "멋지네요!",
+                                "content": "사진 정말 잘 나왔네요!",
                                 "author": {
                                   "id": 1,
-                                  "nickname": "나",
+                                  "nickname": "내닉네임",
                                   "profileUrl": "...",
                                   "relationStatus": "SELF"
                                 },
-                                "createdAt": "2025-11-25T10:00:00"
+                                "createdAt": "2025-11-25T12:34:56"
                               }
                             }
-                            """)))
+                            """))),
+            @ApiResponse(responseCode = "404", description = "(POST404_1) 존재하지 않는 게시물")
     })
     @PostMapping
     public ResponseEntity<CustomResponse<CommentDto.Response>> createComment(
@@ -71,9 +74,35 @@ public class CommentController {
             description = """
                     해당 포스트의 댓글을 최신순(ID 내림차순)으로 조회합니다.
                     
-                    * **삭제 버튼 노출 로직:** `author.relationStatus == 'SELF'` 일 때만 삭제 버튼 표시
-                    * **페이지네이션:** 응답의 `nextCursor` 값을 다음 요청의 `cursorId` 파라미터로 사용하세요.
+                    * **삭제 권한:** `author.relationStatus == 'SELF'` 인 경우 삭제 버튼을 노출하세요.
+                    * **페이지네이션:** `hasNext`가 true면 `nextCursor` 값을 다음 API 호출 시 `cursorId` 파라미터로 보내세요.
+                    * **전체 개수:** `totalCount` 필드를 통해 댓글 창 상단의 '댓글 (N)' 타이틀을 갱신하세요.
                     """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "COMMON200",
+                              "result": {
+                                "comments": [
+                                  {
+                                    "id": 120,
+                                    "content": "최신 댓글입니다.",
+                                    "author": {
+                                      "id": 5,
+                                      "nickname": "친구1",
+                                      "relationStatus": "FRIEND"
+                                    },
+                                    "createdAt": "2025-11-25T12:30:00"
+                                  }
+                                ],
+                                "hasNext": true,
+                                "nextCursor": 115,
+                                "totalCount": 42
+                              }
+                            }
+                            """)))
+    })
     @GetMapping
     public ResponseEntity<CustomResponse<CommentDto.ListResponse>> getComments(
             @AuthenticationPrincipal AuthenticatedUser user,
@@ -90,16 +119,22 @@ public class CommentController {
             description = """
                     내가 쓴 댓글을 삭제합니다.
                     
-                    * 본인이 작성한 댓글(`relationStatus == SELF`)만 삭제 가능합니다.
-                    * 남의 댓글 삭제 시도 시 `403 Forbidden` 에러가 발생합니다.
+                    * **권한:** 본인이 작성한 댓글만 삭제 가능합니다.
+                    * **에러:** 남의 댓글을 삭제하려고 하거나, 해당 게시물의 댓글이 아닌 경우 에러가 발생합니다.
                     """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (남의 댓글)"),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (게시물 ID 불일치)")
+    })
     @DeleteMapping("/{commentId}")
     public ResponseEntity<CustomResponse<Void>> deleteComment(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable Long postId,
             @PathVariable Long commentId
     ) {
-        commentService.deleteComment(getUserId(user), commentId);
+        commentService.deleteComment(getUserId(user), postId, commentId);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 }

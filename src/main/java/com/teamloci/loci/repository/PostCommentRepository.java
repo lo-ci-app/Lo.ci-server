@@ -22,4 +22,7 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
     );
 
     long countByPostId(Long postId);
+
+    @Query("SELECT c.post.id, COUNT(c) FROM PostComment c WHERE c.post.id IN :postIds GROUP BY c.post.id")
+    List<Object[]> countByPostIdIn(@Param("postIds") List<Long> postIds);
 }

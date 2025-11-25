@@ -81,8 +81,16 @@ public class CommentDto {
     @AllArgsConstructor
     @Schema(description = "댓글 목록 (커서 기반)")
     public static class ListResponse {
+        @Schema(description = "댓글 데이터 목록")
         private List<Response> comments;
+
+        @Schema(description = "다음 페이지 존재 여부")
         private boolean hasNext;
+
+        @Schema(description = "다음 요청에 사용할 커서 ID")
         private Long nextCursor;
+
+        @Schema(description = "이 게시물의 전체 댓글 수", example = "42")
+        private Long totalCount;
     }
 }

@@ -27,7 +27,6 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
-    // private final NotificationService notificationService; // 알림 필요 시 주석 해제
 
     @Transactional
     public CommentDto.Response createComment(Long userId, Long postId, CommentDto.CreateRequest request) {
@@ -69,18 +68,12 @@ public class CommentService {
                 .filter(id -> !id.equals(myUserId))
                 .collect(Collectors.toSet());
 
-        Map<Long, Friendship> friendshipMap;
-
-        if (authorIds.isEmpty()) {
-            friendshipMap = Map.of();
-        } else {
-            List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, authorIds.stream().toList());
-            friendshipMap = friendships.stream()
-                    .collect(Collectors.toMap(
-                            f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
-                            f -> f
-                    ));
-        }
+        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, authorIds.stream().toList());
+        Map<Long, Friendship> friendshipMap = friendships.stream()
+                .collect(Collectors.toMap(
+                        f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
+                        f -> f
+                ));
 
         List<CommentDto.Response> commentDtos = comments.stream()
                 .map(c -> {
@@ -94,17 +87,24 @@ public class CommentService {
                 })
                 .collect(Collectors.toList());
 
+        long totalCount = commentRepository.countByPostId(postId);
+
         return CommentDto.ListResponse.builder()
                 .comments(commentDtos)
                 .hasNext(hasNext)
                 .nextCursor(nextCursor)
+                .totalCount(totalCount)
                 .build();
     }
 
     @Transactional
-    public void deleteComment(Long userId, Long commentId) {
+    public void deleteComment(Long userId, Long postId, Long commentId) {
         PostComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+
+        if (!comment.getPost().getId().equals(postId)) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
 
         if (!comment.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.FORBIDDEN);

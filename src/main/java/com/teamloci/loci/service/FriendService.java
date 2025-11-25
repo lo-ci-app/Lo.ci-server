@@ -107,7 +107,7 @@ public class FriendService {
         return matchedUsers.stream()
                 .map(user -> {
                     String status = resolveRelationStatus(friendshipMap.get(user.getId()), myUserId);
-                    return UserDto.UserResponse.of(user, status);
+                    return UserDto.UserResponse.of(user, status, 0L, 0L);
                 })
                 .collect(Collectors.toList());
     }
@@ -188,21 +188,21 @@ public class FriendService {
         return friendshipRepository.findAllFriendsWithUsers(myUserId)
                 .stream()
                 .map(f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver() : f.getRequester())
-                .map(user -> UserDto.UserResponse.of(user, "FRIEND"))
+                .map(user -> UserDto.UserResponse.of(user, "FRIEND", 0L, 0L))
                 .collect(Collectors.toList());
     }
 
     public List<UserDto.UserResponse> getReceivedRequests(Long myUserId) {
         return friendshipRepository.findReceivedRequests(myUserId).stream()
                 .map(Friendship::getRequester)
-                .map(user -> UserDto.UserResponse.of(user, "PENDING_RECEIVED"))
+                .map(user -> UserDto.UserResponse.of(user, "PENDING_RECEIVED", 0L, 0L))
                 .collect(Collectors.toList());
     }
 
     public List<UserDto.UserResponse> getSentRequests(Long myUserId) {
         return friendshipRepository.findSentRequests(myUserId).stream()
                 .map(Friendship::getReceiver)
-                .map(user -> UserDto.UserResponse.of(user, "PENDING_SENT"))
+                .map(user -> UserDto.UserResponse.of(user, "PENDING_SENT", 0L, 0L))
                 .collect(Collectors.toList());
     }
 
@@ -230,10 +230,10 @@ public class FriendService {
         List<UserDto.UserResponse> userDtos = foundUsers.stream()
                 .map(user -> {
                     if (user.getId().equals(myUserId)) {
-                        return UserDto.UserResponse.of(user, "SELF");
+                        return UserDto.UserResponse.of(user, "SELF", 0L, 0L);
                     }
                     String status = resolveRelationStatus(friendshipMap.get(user.getId()), myUserId);
-                    return UserDto.UserResponse.of(user, status);
+                    return UserDto.UserResponse.of(user, status, 0L, 0L);
                 })
                 .collect(Collectors.toList());
 

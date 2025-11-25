@@ -108,6 +108,7 @@ public class PostDto {
     }
 
     @Getter
+    @Setter
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
@@ -136,6 +137,8 @@ public class PostDto {
         @Schema(description = "30일 후 자동 보관 설정 여부")
         @JsonProperty("isArchived")
         private Boolean isArchived;
+        @Schema(description = "이 게시물의 총 댓글 수", example = "5")
+        private Long commentCount;
 
         public static PostDetailResponse from(Post post) {
             return PostDetailResponse.builder()
@@ -155,6 +158,7 @@ public class PostDto {
                     .createdAt(post.getCreatedAt())
                     .updatedAt(post.getUpdatedAt())
                     .isArchived(post.isArchived())
+                    .commentCount(0L)
                     .build();
         }
     }

@@ -51,7 +51,8 @@ public class UserController {
         return ResponseEntity.ok(CustomResponse.ok(new UserDto.HandleCheckResponse(isAvailable)));
     }
 
-    @Operation(summary = "내 정보 조회")
+    @Operation(summary = "내 정보 조회",
+            description = "현재 로그인한 사용자의 상세 정보를 조회합니다. 친구 수와 게시물 수가 포함됩니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
@@ -62,7 +63,10 @@ public class UserController {
                                 "handle": "my_handle",
                                 "nickname": "나의닉네임",
                                 "profileUrl": "https://s3.../me.png",
-                                "createdAt": "2025-01-01T00:00:00"
+                                "createdAt": "2025-01-01T00:00:00",
+                                "relationStatus": "SELF",
+                                "friendCount": 12,
+                                "postCount": 5
                               }
                             }
                             """)))
@@ -70,30 +74,39 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<CustomResponse<UserDto.UserResponse>> getMyInfo(
             @AuthenticationPrincipal AuthenticatedUser user
-    ) {return ResponseEntity.ok(CustomResponse.ok(userService.getUserProfile(getUserId(user), getUserId(user))));
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(userService.getUserProfile(getUserId(user), getUserId(user))));
     }
 
     @Operation(summary = "유저 프로필 조회 (ID)",
             description = """
                     특정 유저(Target)의 상세 프로필 정보를 조회합니다.
-                    나와의 친구 관계(`relationStatus`)가 포함되어 반환됩니다.
                     
-                    **[Relation Status 목록]**
-                    * `SELF`: 나 자신
-                    * `FRIEND`: 서로 친구인 상태
-                    * `PENDING_SENT`: 내가 친구 요청을 보낸 상태 (수락 대기)
-                    * `PENDING_RECEIVED`: 상대방이 나에게 친구 요청을 보낸 상태 (수락 대기)
-                    * `NONE`: 아무 관계 없음
+                    * **관계 상태(`relationStatus`)**: 나와의 친구 관계 (SELF, FRIEND, NONE 등)
+                    * **통계 정보**: `friendCount`(친구 수), `postCount`(게시물 수)가 포함됩니다.
                     """)
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "404", description = "(USER404_1) 존재하지 않는 유저", content = @Content)
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "COMMON200",
+                              "result": {
+                                "id": 2,
+                                "handle": "friend_handle",
+                                "nickname": "친구닉네임",
+                                "profileUrl": "https://s3.../friend.png",
+                                "relationStatus": "FRIEND",
+                                "friendCount": 42,
+                                "postCount": 10
+                              }
+                            }
+                            """))),
+            @ApiResponse(responseCode = "404", description = "(USER404_1) 존재하지 않는 유저")
     })
     @GetMapping("/{userId}")
     public ResponseEntity<CustomResponse<UserDto.UserResponse>> getUserProfile(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "조회할 유저의 ID", required = true, example = "2")
-            @PathVariable Long userId
+            @Parameter(description = "조회할 유저의 ID", required = true) @PathVariable Long userId
     ) {
         return ResponseEntity.ok(CustomResponse.ok(userService.getUserProfile(getUserId(user), userId)));
     }
