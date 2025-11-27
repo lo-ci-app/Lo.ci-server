@@ -3,22 +3,22 @@ package com.teamloci.loci.service;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // [추가]
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class S3UploadService {
@@ -59,7 +59,7 @@ public class S3UploadService {
 
         String original = Optional.ofNullable(file.getOriginalFilename())
                 .filter(name -> !name.isBlank())
-                .orElseThrow(() -> new IllegalArgumentException("파일 이름이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.FILE_NAME_INVALID));
 
         String uniqueName = UUID.randomUUID() + "_" + original.replaceAll("[^a-zA-Z0-9.\\-]", "_");
         String key = dirName + "/" + uniqueName;
@@ -68,7 +68,7 @@ public class S3UploadService {
                 .bucket(bucket)
                 .key(key)
                 .contentType(file.getContentType())
-                .cacheControl(CACHE_CONTROL_VALUE) // [핵심] 캐시 헤더 설정
+                .cacheControl(CACHE_CONTROL_VALUE)
                 .build();
 
         try {
@@ -102,7 +102,7 @@ public class S3UploadService {
             s3Client.deleteObject(deleteObjectRequest);
 
         } catch (Exception e) {
-            System.err.println("S3 파일 삭제 실패: " + fileUrl + " (" + e.getMessage() + ")");
+            log.error("S3 파일 삭제 실패: {} ({})", fileUrl, e.getMessage());
         }
     }
 }

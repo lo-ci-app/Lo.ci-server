@@ -8,7 +8,6 @@ import com.teamloci.loci.dto.NotificationDto;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.repository.NotificationRepository;
-import com.teamloci.loci.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,7 +24,6 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final UserRepository userRepository;
 
     public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
         PageRequest pageable = PageRequest.of(0, size + 1);
@@ -56,7 +53,7 @@ public class NotificationService {
     @Transactional
     public void readNotification(Long userId, Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
 
         if (!notification.getReceiver().getId().equals(userId)) {
             throw new CustomException(ErrorCode.FORBIDDEN);

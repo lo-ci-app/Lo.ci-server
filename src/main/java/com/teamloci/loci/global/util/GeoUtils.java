@@ -18,7 +18,7 @@ public class GeoUtils {
         try {
             this.h3 = H3Core.newInstance();
         } catch (IOException e) {
-            throw new RuntimeException("H3 라이브러리 초기화 실패", e);
+            throw new CustomException(ErrorCode.H3_INIT_FAILED, e);
         }
     }
 

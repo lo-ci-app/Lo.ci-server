@@ -60,7 +60,7 @@ public class AesUtil {
         try {
             String[] parts = encryptedText.split(":");
             if (parts.length != 2) {
-                throw new IllegalArgumentException("Invalid encrypted format");
+                throw new CustomException(ErrorCode.DECRYPT_FAILED);
             }
 
             byte[] ivBytes = Base64.getDecoder().decode(parts[0]);
@@ -89,7 +89,7 @@ public class AesUtil {
             }
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new CustomException(ErrorCode.HASHING_FAILED);
         }
     }
 }

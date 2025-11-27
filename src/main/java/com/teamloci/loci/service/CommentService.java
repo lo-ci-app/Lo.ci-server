@@ -112,7 +112,7 @@ public class CommentService {
     @Transactional
     public void deleteComment(Long userId, Long postId, Long commentId) {
         PostComment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.getPost().getId().equals(postId)) {
             throw new CustomException(ErrorCode.INVALID_REQUEST);
