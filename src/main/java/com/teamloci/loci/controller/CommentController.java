@@ -36,7 +36,7 @@ public class CommentController {
             description = """
                     특정 포스트에 댓글을 작성합니다.
                     
-                    * **반환값:** 생성된 댓글 객체를 반환합니다. 클라이언트에서는 이를 리스트 최상단에 즉시 추가(Insert)하여 반응 속도를 높이세요.
+                    * **반환값:** 생성된 댓글 객체를 반환합니다. `user` 필드는 유저 조회 응답(`UserResponse`)과 동일한 구조를 가집니다.
                     """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "작성 성공",
@@ -47,11 +47,15 @@ public class CommentController {
                               "result": {
                                 "id": 123,
                                 "content": "사진 정말 잘 나왔네요!",
-                                "author": {
+                                "user": {
                                   "id": 1,
+                                  "handle": "happy_quokka",
                                   "nickname": "내닉네임",
-                                  "profileUrl": "...",
-                                  "relationStatus": "SELF"
+                                  "profileUrl": "https://fiv5.../profiles/me.jpg",
+                                  "createdAt": "2025-01-01T00:00:00",
+                                  "relationStatus": "SELF",
+                                  "friendCount": 0,
+                                  "postCount": 0
                                 },
                                 "createdAt": "2025-11-25T12:34:56"
                               }
@@ -74,7 +78,7 @@ public class CommentController {
             description = """
                     해당 포스트의 댓글을 최신순(ID 내림차순)으로 조회합니다.
                     
-                    * **삭제 권한:** `author.relationStatus == 'SELF'` 인 경우 삭제 버튼을 노출하세요.
+                    * **삭제 권한:** `user.relationStatus == 'SELF'` 인 경우 삭제 버튼을 노출하세요.
                     * **페이지네이션:** `hasNext`가 true면 `nextCursor` 값을 다음 API 호출 시 `cursorId` 파라미터로 보내세요.
                     * **전체 개수:** `totalCount` 필드를 통해 댓글 창 상단의 '댓글 (N)' 타이틀을 갱신하세요.
                     """)
@@ -88,10 +92,15 @@ public class CommentController {
                                   {
                                     "id": 120,
                                     "content": "최신 댓글입니다.",
-                                    "author": {
+                                    "user": {
                                       "id": 5,
+                                      "handle": "best_friend",
                                       "nickname": "친구1",
-                                      "relationStatus": "FRIEND"
+                                      "profileUrl": "https://fiv5.../profiles/friend.jpg",
+                                      "createdAt": "2025-02-01T00:00:00",
+                                      "relationStatus": "FRIEND",
+                                      "friendCount": 0,
+                                      "postCount": 0
                                     },
                                     "createdAt": "2025-11-25T12:30:00"
                                   }
@@ -119,7 +128,7 @@ public class CommentController {
             description = """
                     내가 쓴 댓글을 삭제합니다.
                     
-                    * **권한:** 본인이 작성한 댓글만 삭제 가능합니다.
+                    * **권한:** 본인이 작성한 댓글(`relationStatus == SELF`)만 삭제 가능합니다.
                     * **에러:** 남의 댓글을 삭제하려고 하거나, 해당 게시물의 댓글이 아닌 경우 에러가 발생합니다.
                     """)
     @ApiResponses({

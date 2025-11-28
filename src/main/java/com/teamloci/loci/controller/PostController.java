@@ -209,7 +209,7 @@ public class PostController {
 
     @Operation(summary = "지도 마커 (범위 조회)",
             description = """
-                    지도 화면 내의 마커 정보를 반환합니다. 
+                    지도 화면 내의 마커 정보를 반환합니다.
                     `thumbnailImageUrl`은 CloudFront 리사이징 URL(`w300` 등)로 제공될 수 있습니다.
                     
                     * **필터링:** 나와 내 친구의 'ACTIVE' 상태인 게시물만 집계합니다.
@@ -236,13 +236,12 @@ public class PostController {
     })
     @GetMapping("/map")
     public ResponseEntity<CustomResponse<List<PostDto.MapMarkerResponse>>> getMapMarkers(
-            @AuthenticationPrincipal AuthenticatedUser user, // [추가] 사용자 정보
+            @AuthenticationPrincipal AuthenticatedUser user,
             @Parameter(description = "SW 위도") @RequestParam Double minLat,
             @Parameter(description = "NE 위도") @RequestParam Double maxLat,
             @Parameter(description = "SW 경도") @RequestParam Double minLon,
             @Parameter(description = "NE 경도") @RequestParam Double maxLon
     ) {
-        // [수정] 내 ID를 서비스로 전달
         return ResponseEntity.ok(CustomResponse.ok(postService.getMapMarkers(minLat, maxLat, minLon, maxLon, getUserId(user))));
     }
 

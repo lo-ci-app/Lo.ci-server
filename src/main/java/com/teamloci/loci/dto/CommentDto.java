@@ -33,8 +33,8 @@ public class CommentDto {
         @Schema(description = "댓글 내용")
         private String content;
 
-        @Schema(description = "작성자 정보 (관계 포함)")
-        private AuthorInfo author;
+        @Schema(description = "작성자 정보 (UserResponse와 동일 구조)")
+        private UserDto.UserResponse user;
 
         @Schema(description = "작성 시간")
         private LocalDateTime createdAt;
@@ -43,35 +43,8 @@ public class CommentDto {
             return Response.builder()
                     .id(comment.getId())
                     .content(comment.getContent())
-                    .author(AuthorInfo.of(comment.getUser(), relationStatus))
+                    .user(UserDto.UserResponse.of(comment.getUser(), relationStatus, 0L, 0L))
                     .createdAt(comment.getCreatedAt())
-                    .build();
-        }
-    }
-
-    @Getter
-    @AllArgsConstructor
-    @Builder
-    @Schema(description = "댓글 작성자 정보")
-    public static class AuthorInfo {
-        @Schema(description = "유저 ID")
-        private Long id;
-
-        @Schema(description = "닉네임")
-        private String nickname;
-
-        @Schema(description = "프로필 이미지 URL")
-        private String profileUrl;
-
-        @Schema(description = "나와의 관계 (SELF, FRIEND, NONE, PENDING_SENT, PENDING_RECEIVED)", example = "FRIEND")
-        private String relationStatus;
-
-        public static AuthorInfo of(User user, String relationStatus) {
-            return AuthorInfo.builder()
-                    .id(user.getId())
-                    .nickname(user.getNickname())
-                    .profileUrl(user.getProfileUrl())
-                    .relationStatus(relationStatus)
                     .build();
         }
     }
