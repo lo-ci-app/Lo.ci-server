@@ -138,7 +138,12 @@ public class NotificationService {
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
                     .build();
 
-            FirebaseMessaging.getInstance().sendMulticast(message);
+            BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
+
+            if (response.getFailureCount() > 0) {
+                log.warn("FCM 일부 발송 실패: {}건 성공, {}건 실패", response.getSuccessCount(), response.getFailureCount());
+            }
+
         } catch (Exception e) {
             log.error("FCM Multicast 실패: {}", e.getMessage());
         }
