@@ -9,7 +9,6 @@ import com.teamloci.loci.domain.MediaType;
 import com.teamloci.loci.domain.Post;
 import com.teamloci.loci.domain.PostCollaborator;
 import com.teamloci.loci.domain.PostMedia;
-import com.teamloci.loci.domain.User;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
@@ -18,37 +17,6 @@ import lombok.*;
 
 @Schema(description = "게시물 관련 DTO")
 public class PostDto {
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Schema(description = "포스트 응답에 사용될 간략한 유저 정보")
-    public static class UserSimpleResponse {
-        @Schema(description = "유저 ID", example = "1")
-        private Long id;
-        @Schema(description = "유저 핸들 (@ID)", example = "happy_quokka")
-        private String handle;
-        @Schema(description = "닉네임", example = "즐거운판다")
-        private String nickname;
-        @Schema(description = "프로필 이미지 URL", example = "https://fiv5.../profile.png")
-        private String profileUrl;
-        @Schema(description = "가입 일시")
-        private LocalDateTime createdAt;
-        @Schema(description = "나와의 관계 (NONE: 남, FRIEND: 친구, PENDING_SENT: 요청 보냄, PENDING_RECEIVED: 요청 받음, SELF: 나)", example = "FRIEND")
-        private String relationStatus;
-
-        public static UserSimpleResponse from(User user) {
-            return new UserSimpleResponse(
-                    user.getId(),
-                    user.getHandle(),
-                    user.getNickname(),
-                    user.getProfileUrl(),
-                    user.getCreatedAt(),
-                    "NONE"
-            );
-        }
-    }
 
     @Getter
     @AllArgsConstructor
@@ -127,12 +95,16 @@ public class PostDto {
         private Double longitude;
         @Schema(description = "장소명", example = "스타벅스 강남점")
         private String locationName;
-        @Schema(description = "작성자 정보")
-        private UserSimpleResponse author;
+
+        @Schema(description = "작성자 정보 (UserResponse 통일)")
+        private UserDto.UserResponse user;
+
         @Schema(description = "미디어 목록")
         private List<MediaResponse> mediaList;
-        @Schema(description = "공동 작업자 목록")
-        private List<UserSimpleResponse> collaborators;
+
+        @Schema(description = "공동 작업자 목록 (UserResponse 통일)")
+        private List<UserDto.UserResponse> collaborators;
+
         @Schema(description = "생성 시간")
         private LocalDateTime createdAt;
         @Schema(description = "마지막 수정 시간")
@@ -150,13 +122,13 @@ public class PostDto {
                     .latitude(post.getLatitude())
                     .longitude(post.getLongitude())
                     .locationName(post.getLocationName())
-                    .author(UserSimpleResponse.from(post.getUser()))
+                    .user(UserDto.UserResponse.from(post.getUser()))
                     .mediaList(post.getMediaList().stream()
                             .map(MediaResponse::from)
                             .collect(Collectors.toList()))
                     .collaborators(post.getCollaborators().stream()
                             .map(PostCollaborator::getUser)
-                            .map(UserSimpleResponse::from)
+                            .map(UserDto.UserResponse::from)
                             .collect(Collectors.toList()))
                     .createdAt(post.getCreatedAt())
                     .updatedAt(post.getUpdatedAt())

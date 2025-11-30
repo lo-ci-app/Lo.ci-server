@@ -2,9 +2,11 @@ package com.teamloci.loci.service;
 
 import com.teamloci.loci.domain.*;
 import com.teamloci.loci.dto.PostDto;
+import com.teamloci.loci.dto.UserDto;
 import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.util.GeoUtils;
+import com.teamloci.loci.global.util.RelationUtil; // [추가]
 import com.teamloci.loci.repository.FriendshipRepository;
 import com.teamloci.loci.repository.PostCommentRepository;
 import com.teamloci.loci.repository.PostRepository;
@@ -97,7 +99,9 @@ public class PostService {
         sendPostNotifications(author, savedPost);
 
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(findPostById(savedPost.getId()));
-        response.getAuthor().setRelationStatus("SELF");
+
+        enrichPostUserData(List.of(response), authorId);
+
         return response;
     }
 
@@ -105,7 +109,7 @@ public class PostService {
         Post post = findPostById(postId);
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(post);
 
-        enrichPostAuthors(List.of(response), myUserId);
+        enrichPostUserData(List.of(response), myUserId);
 
         return response;
     }
@@ -182,7 +186,7 @@ public class PostService {
                 .map(PostDto.PostDetailResponse::from)
                 .collect(Collectors.toList());
 
-        enrichPostAuthors(responses, myUserId);
+        enrichPostUserData(responses, myUserId);
         return responses;
     }
 
@@ -229,7 +233,7 @@ public class PostService {
                 .map(PostDto.PostDetailResponse::from)
                 .collect(Collectors.toList());
 
-        enrichPostAuthors(postDtos, myUserId);
+        enrichPostUserData(postDtos, myUserId);
 
         return PostDto.FeedResponse.builder()
                 .posts(postDtos)
@@ -238,7 +242,7 @@ public class PostService {
                 .build();
     }
 
-    private void enrichPostAuthors(List<PostDto.PostDetailResponse> posts, Long myUserId) {
+    private void enrichPostUserData(List<PostDto.PostDetailResponse> posts, Long myUserId) {
         if (posts.isEmpty()) return;
 
         Set<Long> targetUserIds = new HashSet<>();
@@ -247,29 +251,38 @@ public class PostService {
         for (PostDto.PostDetailResponse p : posts) {
             postIds.add(p.getId());
 
-            if (!p.getAuthor().getId().equals(myUserId)) {
-                targetUserIds.add(p.getAuthor().getId());
-            }
+            targetUserIds.add(p.getUser().getId());
             if (p.getCollaborators() != null) {
-                p.getCollaborators().stream()
-                        .map(PostDto.UserSimpleResponse::getId)
-                        .filter(id -> !id.equals(myUserId))
-                        .forEach(targetUserIds::add);
+                p.getCollaborators().forEach(c -> targetUserIds.add(c.getId()));
             }
         }
 
         Map<Long, Long> commentCountMap = commentRepository.countByPostIdIn(postIds).stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
-                ));
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        Map<Long, Long> friendCountMap = new HashMap<>();
+        if (!targetUserIds.isEmpty()) {
+            friendshipRepository.countFriendsByUserIds(new ArrayList<>(targetUserIds)).forEach(row ->
+                    friendCountMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue())
+            );
+        }
+
+        Map<Long, Long> postCountMap = new HashMap<>();
+        if (!targetUserIds.isEmpty()) {
+            postRepository.countPostsByUserIds(new ArrayList<>(targetUserIds), PostStatus.ACTIVE).forEach(row ->
+                    postCountMap.put((Long) row[0], (Long) row[1])
+            );
+        }
+
+        Set<Long> otherUserIds = targetUserIds.stream()
+                .filter(id -> !id.equals(myUserId))
+                .collect(Collectors.toSet());
 
         Map<Long, Friendship> friendshipMap;
-        if (targetUserIds.isEmpty()) {
+        if (otherUserIds.isEmpty()) {
             friendshipMap = Map.of();
         } else {
-            List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, targetUserIds.stream().toList());
-            friendshipMap = friendships.stream()
+            friendshipMap = friendshipRepository.findAllRelationsBetween(myUserId, otherUserIds.stream().toList()).stream()
                     .collect(Collectors.toMap(
                             f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
                             f -> f
@@ -279,34 +292,30 @@ public class PostService {
         for (PostDto.PostDetailResponse p : posts) {
             p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
 
-            setStatus(p.getAuthor(), myUserId, friendshipMap);
+            fillUserInfo(p.getUser(), myUserId, friendshipMap, friendCountMap, postCountMap);
 
             if (p.getCollaborators() != null) {
-                for (PostDto.UserSimpleResponse collaborator : p.getCollaborators()) {
-                    setStatus(collaborator, myUserId, friendshipMap);
-                }
+                p.getCollaborators().forEach(c ->
+                        fillUserInfo(c, myUserId, friendshipMap, friendCountMap, postCountMap)
+                );
             }
         }
     }
 
-    private void setStatus(PostDto.UserSimpleResponse userRes, Long myUserId, Map<Long, Friendship> friendshipMap) {
+    private void fillUserInfo(UserDto.UserResponse userRes, Long myUserId,
+                              Map<Long, Friendship> friendshipMap,
+                              Map<Long, Long> friendCountMap,
+                              Map<Long, Long> postCountMap) {
+
         if (userRes.getId().equals(myUserId)) {
             userRes.setRelationStatus("SELF");
         } else {
             Friendship f = friendshipMap.get(userRes.getId());
-            userRes.setRelationStatus(resolveStatus(f, myUserId));
+            userRes.setRelationStatus(RelationUtil.resolveStatus(f, myUserId));
         }
-    }
 
-    private String resolveStatus(Friendship f, Long myUserId) {
-        if (f == null) return "NONE";
-        if (f.getStatus() == FriendshipStatus.FRIENDSHIP) return "FRIEND";
-
-        if (f.getRequester().getId().equals(myUserId)) {
-            return "PENDING_SENT";
-        } else {
-            return "PENDING_RECEIVED";
-        }
+        userRes.setFriendCount(friendCountMap.getOrDefault(userRes.getId(), 0L));
+        userRes.setPostCount(postCountMap.getOrDefault(userRes.getId(), 0L));
     }
 
     private void sendPostNotifications(User author, Post post) {

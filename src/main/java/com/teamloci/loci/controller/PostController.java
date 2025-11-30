@@ -47,7 +47,7 @@ public class PostController {
     }
 
     @Operation(summary = "포스트 생성",
-            description = "새로운 포스트를 작성합니다. \n\n응답의 `author.relationStatus`는 작성자 본인이므로 항상 `SELF`입니다.")
+            description = "새로운 포스트를 작성합니다. \n\n응답의 `user.relationStatus`는 작성자 본인이므로 항상 `SELF`입니다.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             content = @Content(examples = @ExampleObject(value = """
                     {
@@ -80,13 +80,15 @@ public class PostController {
                                 "latitude": 37.5665,
                                 "longitude": 126.9780,
                                 "locationName": "서울시청",
-                                "author": { 
+                                "user": { 
                                   "id": 1, 
                                   "handle": "my_handle", 
                                   "nickname": "내닉네임", 
                                   "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/me.jpg",
                                   "createdAt": "2025-11-24T12:00:00",
-                                  "relationStatus": "SELF"
+                                  "relationStatus": "SELF",
+                                  "friendCount": 150,
+                                  "postCount": 23
                                 },
                                 "mediaList": [{ 
                                   "id": 50, 
@@ -113,7 +115,7 @@ public class PostController {
     }
 
     @Operation(summary = "포스트 상세 조회",
-            description = "포스트 ID로 상세 정보를 조회합니다. `relationStatus`에는 작성자와의 친구 상태가 포함됩니다.")
+            description = "포스트 ID로 상세 정보를 조회합니다.")
     @GetMapping("/{postId}")
     public ResponseEntity<CustomResponse<PostDto.PostDetailResponse>> getPost(
             @AuthenticationPrincipal AuthenticatedUser user,
@@ -139,9 +141,6 @@ public class PostController {
     @Operation(summary = "유저별 포스트 목록 (무한 스크롤)",
             description = """
                     특정 유저(targetUserId)가 작성한 포스트들을 최신순으로 조회합니다.
-                    **내 포스트를 보려면 내 ID를 넣어서 호출하면 됩니다.**
-                    
-                    * `author.relationStatus`: 해당 유저와 나의 관계 (`FRIEND`, `SELF` 등)
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
@@ -159,13 +158,15 @@ public class PostController {
                                     "latitude": 37.5665,
                                     "longitude": 126.9780,
                                     "locationName": "한강공원",
-                                    "author": { 
+                                    "user": { 
                                       "id": 5, 
                                       "handle": "happy_panda", 
                                       "nickname": "즐거운판다", 
                                       "profileUrl": "...",
                                       "createdAt": "2025-11-24T10:00:00",
-                                      "relationStatus": "FRIEND"
+                                      "relationStatus": "FRIEND",
+                                      "friendCount": 42,
+                                      "postCount": 10
                                     },
                                     "mediaList": [],
                                     "createdAt": "2025-11-24T10:00:00",
@@ -209,31 +210,11 @@ public class PostController {
 
     @Operation(summary = "지도 마커 (범위 조회)",
             description = """
-                    지도 화면 내의 마커 정보를 반환합니다.
+                    지도 화면 내의 마커 정보를 반환합니다. 
                     `thumbnailImageUrl`은 CloudFront 리사이징 URL(`w300` 등)로 제공될 수 있습니다.
                     
                     * **필터링:** 나와 내 친구의 'ACTIVE' 상태인 게시물만 집계합니다.
                     """)
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "timestamp": "2025-11-24T12:15:00",
-                              "isSuccess": true,
-                              "code": "COMMON200",
-                              "message": "성공적으로 요청을 수행했습니다.",
-                              "result": [
-                                {
-                                  "beaconId": "89283082807ffff",
-                                  "latitude": 37.5665,
-                                  "longitude": 126.9780,
-                                  "count": 5,
-                                  "thumbnailImageUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/thumb1.jpg?w=300"
-                                }
-                              ]
-                            }
-                            """)))
-    })
     @GetMapping("/map")
     public ResponseEntity<CustomResponse<List<PostDto.MapMarkerResponse>>> getMapMarkers(
             @AuthenticationPrincipal AuthenticatedUser user,

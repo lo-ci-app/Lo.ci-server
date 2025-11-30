@@ -39,11 +39,11 @@ public class CommentDto {
         @Schema(description = "작성 시간")
         private LocalDateTime createdAt;
 
-        public static Response of(PostComment comment, String relationStatus) {
+        public static Response of(PostComment comment, String relationStatus, Long friendCount, Long postCount) {
             return Response.builder()
                     .id(comment.getId())
                     .content(comment.getContent())
-                    .user(UserDto.UserResponse.of(comment.getUser(), relationStatus, 0L, 0L))
+                    .user(UserDto.UserResponse.of(comment.getUser(), relationStatus, friendCount, postCount))
                     .createdAt(comment.getCreatedAt())
                     .build();
         }

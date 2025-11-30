@@ -43,4 +43,15 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
             "WHERE (f.requester.id = :userId OR f.receiver.id = :userId) " +
             "AND f.status = 'FRIENDSHIP'")
     long countFriends(@Param("userId") Long userId);
+
+    @Query(value = """
+        SELECT user_id, COUNT(*) 
+        FROM (
+            SELECT requester_id AS user_id FROM friendships WHERE requester_id IN :userIds AND status = 'FRIENDSHIP'
+            UNION ALL
+            SELECT receiver_id AS user_id FROM friendships WHERE receiver_id IN :userIds AND status = 'FRIENDSHIP'
+        ) AS all_friends 
+        GROUP BY user_id
+        """, nativeQuery = true)
+    List<Object[]> countFriendsByUserIds(@Param("userIds") List<Long> userIds);
 }

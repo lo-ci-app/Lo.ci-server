@@ -36,7 +36,7 @@ public class CommentController {
             description = """
                     특정 포스트에 댓글을 작성합니다.
                     
-                    * **반환값:** 생성된 댓글 객체를 반환합니다. `user` 필드는 유저 조회 응답(`UserResponse`)과 동일한 구조를 가집니다.
+                    * **반환값:** 생성된 댓글 객체를 반환합니다. `user` 객체에는 친구 수와 게시물 수 통계가 포함됩니다.
                     """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "작성 성공",
@@ -54,8 +54,8 @@ public class CommentController {
                                   "profileUrl": "https://fiv5.../profiles/me.jpg",
                                   "createdAt": "2025-01-01T00:00:00",
                                   "relationStatus": "SELF",
-                                  "friendCount": 0,
-                                  "postCount": 0
+                                  "friendCount": 42,
+                                  "postCount": 10
                                 },
                                 "createdAt": "2025-11-25T12:34:56"
                               }
@@ -78,6 +78,7 @@ public class CommentController {
             description = """
                     해당 포스트의 댓글을 최신순(ID 내림차순)으로 조회합니다.
                     
+                    * **작성자 정보:** `user` 객체에 프로필, 친구 관계, 통계 정보(`friendCount`, `postCount`)가 모두 포함됩니다.
                     * **삭제 권한:** `user.relationStatus == 'SELF'` 인 경우 삭제 버튼을 노출하세요.
                     * **페이지네이션:** `hasNext`가 true면 `nextCursor` 값을 다음 API 호출 시 `cursorId` 파라미터로 보내세요.
                     * **전체 개수:** `totalCount` 필드를 통해 댓글 창 상단의 '댓글 (N)' 타이틀을 갱신하세요.
@@ -99,8 +100,8 @@ public class CommentController {
                                       "profileUrl": "https://fiv5.../profiles/friend.jpg",
                                       "createdAt": "2025-02-01T00:00:00",
                                       "relationStatus": "FRIEND",
-                                      "friendCount": 0,
-                                      "postCount": 0
+                                      "friendCount": 150,
+                                      "postCount": 23
                                     },
                                     "createdAt": "2025-11-25T12:30:00"
                                   }

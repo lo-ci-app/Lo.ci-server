@@ -95,4 +95,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     int archiveOldPosts(@Param("expiryDate") LocalDateTime expiryDate);
 
     long countByUserIdAndStatus(Long userId, PostStatus status);
+
+    @Query("SELECT p.user.id, COUNT(p) FROM Post p " +
+            "WHERE p.user.id IN :userIds AND p.status = :status " +
+            "GROUP BY p.user.id")
+    List<Object[]> countPostsByUserIds(@Param("userIds") List<Long> userIds, @Param("status") PostStatus status);
 }
