@@ -46,11 +46,17 @@ public class CommentService {
 
         User postOwner = post.getUser();
         if (!postOwner.getId().equals(userId)) {
+
+            String commentContent = savedComment.getContent();
+            String summary = commentContent.length() > 20
+                    ? commentContent.substring(0, 20) + "..."
+                    : commentContent;
+
             notificationService.send(
                     postOwner,
                     NotificationType.POST_COMMENT,
                     "새로운 댓글",
-                    user.getNickname() + "님이 댓글을 남겼습니다.",
+                    user.getNickname() + "님: " + summary,
                     postId
             );
         }
