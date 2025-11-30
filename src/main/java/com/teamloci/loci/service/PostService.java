@@ -333,11 +333,7 @@ public class PostService {
                         );
                     });
 
-            List<Friendship> friendships = friendshipRepository.findAllFriendsWithUsers(author.getId());
-            List<User> friends = friendships.stream()
-                    .map(f -> f.getRequester().getId().equals(author.getId()) ? f.getReceiver() : f.getRequester())
-                    .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                    .collect(Collectors.toList());
+            List<User> friends = friendshipRepository.findAllActiveFriends(author.getId());
 
             if (!friends.isEmpty()) {
                 notificationService.sendMulticast(

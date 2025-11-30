@@ -13,8 +13,8 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
     @Query("SELECT c FROM PostComment c " +
             "JOIN FETCH c.user " +
             "WHERE c.post.id = :postId " +
-            "AND (:cursorId IS NULL OR c.id < :cursorId) " +
-            "ORDER BY c.id DESC")
+            "AND (:cursorId IS NULL OR c.id > :cursorId) " +
+            "ORDER BY c.id ASC")
     List<PostComment> findByPostIdWithCursor(
             @Param("postId") Long postId,
             @Param("cursorId") Long cursorId,

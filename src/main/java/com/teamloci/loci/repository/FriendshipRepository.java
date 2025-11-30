@@ -2,6 +2,7 @@ package com.teamloci.loci.repository;
 
 import com.teamloci.loci.domain.Friendship;
 import com.teamloci.loci.domain.FriendshipStatus;
+import com.teamloci.loci.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -54,4 +55,13 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
         GROUP BY user_id
         """, nativeQuery = true)
     List<Object[]> countFriendsByUserIds(@Param("userIds") List<Long> userIds);
+
+    @Query("SELECT CASE WHEN f.requester.id = :userId THEN f.receiver ELSE f.requester END " +
+            "FROM Friendship f " +
+            "JOIN f.requester req " +
+            "JOIN f.receiver res " +
+            "WHERE (req.id = :userId OR res.id = :userId) " +
+            "AND f.status = 'FRIENDSHIP' " +
+            "AND (CASE WHEN req.id = :userId THEN res.status ELSE req.status END) = 'ACTIVE'")
+    List<User> findAllActiveFriends(@Param("userId") Long userId);
 }
