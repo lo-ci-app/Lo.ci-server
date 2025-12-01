@@ -32,6 +32,11 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
             "AND f.status = 'FRIENDSHIP'")
     List<Friendship> findAllFriendsWithUsers(@Param("userId") Long userId);
 
+    @Query("SELECT f.receiver FROM Friendship f WHERE f.requester.id = :userId AND f.status = 'FRIENDSHIP' AND f.receiver.status = 'ACTIVE' " +
+            "UNION " +
+            "SELECT f.requester FROM Friendship f WHERE f.receiver.id = :userId AND f.status = 'FRIENDSHIP' AND f.requester.status = 'ACTIVE'")
+    List<User> findActiveFriendsByUserId(@Param("userId") Long userId);
+
     @Query("SELECT f FROM Friendship f JOIN FETCH f.requester " +
             "WHERE f.receiver.id = :userId AND f.status = 'PENDING'")
     List<Friendship> findReceivedRequests(@Param("userId") Long userId);

@@ -1,6 +1,6 @@
 package com.teamloci.loci.service;
 
-import com.google.firebase.FirebaseApp; // [추가] 앱 정보 확인용
+import com.google.firebase.FirebaseApp; 
 import com.google.firebase.messaging.*;
 import com.teamloci.loci.domain.Notification;
 import com.teamloci.loci.domain.NotificationType;
@@ -120,7 +120,6 @@ public class NotificationService {
 
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
-            // [디버깅 강화]
             log.error(">>> [FCM Single Send Error] <<<");
             log.error("Active Project ID: {}", FirebaseApp.getInstance().getOptions().getProjectId());
             log.error("Service Account: {}", FirebaseApp.getInstance().getOptions().getServiceAccountId());
@@ -148,7 +147,6 @@ public class NotificationService {
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
 
             if (response.getFailureCount() > 0) {
-                // [디버깅 강화]
                 log.warn(">>> [FCM Multicast Partial Failure] <<<");
                 log.warn("Success: {}, Failure: {}", response.getSuccessCount(), response.getFailureCount());
                 log.warn("Active Project ID: {}", FirebaseApp.getInstance().getOptions().getProjectId());
@@ -160,7 +158,6 @@ public class NotificationService {
                         log.error("--- Failure Detail (Index: {}) ---", i);
                         log.error("Target Token: {}", tokens.get(i));
                         log.error("Reason: {}", r.getException().getMessage());
-                        // 401 Unauthorized가 뜬다면, 위 'Active Project ID' 로그가 핵심 단서가 됩니다.
                     }
                 }
             }
@@ -183,7 +180,6 @@ public class NotificationService {
                     .build();
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
-            // [디버깅 강화]
             log.error(">>> [DM FCM Send Error] <<<");
             log.error("Active Project ID: {}", FirebaseApp.getInstance().getOptions().getProjectId());
             log.error("Target Token: {}", targetFcmToken);

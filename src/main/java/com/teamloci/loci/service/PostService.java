@@ -7,10 +7,7 @@ import com.teamloci.loci.global.exception.CustomException;
 import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.util.GeoUtils;
 import com.teamloci.loci.global.util.RelationUtil;
-import com.teamloci.loci.repository.FriendshipRepository;
-import com.teamloci.loci.repository.PostCommentRepository;
-import com.teamloci.loci.repository.PostRepository;
-import com.teamloci.loci.repository.UserRepository;
+import com.teamloci.loci.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,6 +30,7 @@ public class PostService {
     private final FriendshipRepository friendshipRepository;
     private final PostCommentRepository commentRepository;
     private final NotificationService notificationService;
+    private final DailyPushLogRepository dailyPushLogRepository;
     private final GeoUtils geoUtils;
 
     private User findUserById(Long userId) {
@@ -333,16 +332,45 @@ public class PostService {
                         );
                     });
 
-            List<User> friends = friendshipRepository.findAllActiveFriends(author.getId());
+            List<User> friends = friendshipRepository.findActiveFriendsByUserId(author.getId());
 
             if (!friends.isEmpty()) {
-                notificationService.sendMulticast(
-                        friends,
-                        NotificationType.NEW_POST,
-                        "새로운 Loci!",
-                        author.getNickname() + "님이 지금 순간을 공유했어요 📸",
-                        post.getId()
-                );
+                LocalDate today = LocalDate.now();
+
+                List<User> targetFriends = new ArrayList<>();
+
+                List<String> checkIds = friends.stream()
+                        .map(f -> today.toString() + "_" + f.getId())
+                        .toList();
+
+                Set<String> receivedLogIds = dailyPushLogRepository.findAllById(checkIds).stream()
+                        .map(DailyPushLog::getId)
+                        .collect(Collectors.toSet());
+
+                for (User friend : friends) {
+                    String key = today.toString() + "_" + friend.getId();
+                    if (!receivedLogIds.contains(key)) {
+                        targetFriends.add(friend);
+                    }
+                }
+
+                if (!targetFriends.isEmpty()) {
+                    notificationService.sendMulticast(
+                            targetFriends,
+                            NotificationType.NEW_POST,
+                            "새로운 Loci!",
+                            author.getNickname() + "님이 지금 순간을 공유했어요 📸",
+                            post.getId()
+                    );
+
+                    List<DailyPushLog> logs = targetFriends.stream()
+                            .map(f -> DailyPushLog.builder()
+                                    .userId(f.getId())
+                                    .date(today)
+                                    .build())
+                            .collect(Collectors.toList());
+                    dailyPushLogRepository.saveAll(logs);
+                }
             }
         } catch (Exception e) {
             log.error("게시글 작성 알림 발송 실패: {}", e.getMessage());
