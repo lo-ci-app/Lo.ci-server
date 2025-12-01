@@ -1,6 +1,6 @@
 package com.teamloci.loci.service;
 
-import com.google.firebase.FirebaseApp; 
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.*;
 import com.teamloci.loci.domain.Notification;
 import com.teamloci.loci.domain.NotificationType;
