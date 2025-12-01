@@ -2,7 +2,6 @@ package com.teamloci.loci.global.scheduler;
 
 import com.teamloci.loci.domain.DailyPushLog;
 import com.teamloci.loci.domain.User;
-import com.teamloci.loci.domain.UserStatus;
 import com.teamloci.loci.repository.DailyPushLogRepository;
 import com.teamloci.loci.repository.UserRepository;
 import com.teamloci.loci.service.NotificationService;
@@ -18,7 +17,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -32,35 +30,33 @@ public class LociTimeManager {
     private final DailyPushLogRepository dailyPushLogRepository;
     private final NotificationService notificationService;
 
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
+
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public void scheduleDailyLoci() {
         dailyPushLogRepository.truncateTable();
 
         long randomSeconds = ThreadLocalRandom.current().nextLong(9 * 3600, 22 * 3600);
-        LocalDateTime todayLociTime = LocalDateTime.of(LocalDate.now(), LocalTime.ofSecondOfDay(randomSeconds));
+        LocalDateTime todayLociTime = LocalDateTime.of(LocalDate.now(SEOUL_ZONE), LocalTime.ofSecondOfDay(randomSeconds));
 
         log.info("📅 오늘의 Loci Time: {}", todayLociTime);
 
-        taskScheduler.schedule(this::executeGlobalPush, todayLociTime.atZone(ZoneId.systemDefault()).toInstant());
+        taskScheduler.schedule(this::executeGlobalPush, todayLociTime.atZone(SEOUL_ZONE).toInstant());
     }
 
     @Transactional
     public void executeGlobalPush() {
         log.info("🔔 [Global Push] 로키 타임 알림 발송 시작!");
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(SEOUL_ZONE);
 
-        List<User> allUsers = userRepository.findAll().stream()
-                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                .filter(u -> u.getFcmToken() != null && !u.getFcmToken().isBlank())
-                .toList();
+        List<Long> excludedUserIds = dailyPushLogRepository.findAllUserIds();
 
-        Set<String> receivedUserIds = dailyPushLogRepository.findAll().stream()
-                .map(log -> log.getId().split("_")[1]) // ID 포맷: "2025-11-30_101"
-                .collect(Collectors.toSet());
-
-        List<User> targetUsers = allUsers.stream()
-                .filter(u -> !receivedUserIds.contains(String.valueOf(u.getId())))
-                .collect(Collectors.toList());
+        List<User> targetUsers;
+        if (excludedUserIds.isEmpty()) {
+            targetUsers = userRepository.findActiveUsersWithFcmToken();
+        } else {
+            targetUsers = userRepository.findActiveUsersWithFcmTokenExcludingIds(excludedUserIds);
+        }
 
         if (!targetUsers.isEmpty()) {
             notificationService.sendMulticast(
@@ -80,6 +76,6 @@ public class LociTimeManager {
             dailyPushLogRepository.saveAll(logs);
         }
 
-        log.info("🔔 [Global Push] 총 {}명에게 발송 완료 (이미 받은 {}명 제외)", targetUsers.size(), receivedUserIds.size());
+        log.info("🔔 [Global Push] 발송 완료: 총 {}명 (이미 받은 {}명 제외)", targetUsers.size(), excludedUserIds.size());
     }
 }

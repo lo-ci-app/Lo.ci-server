@@ -337,8 +337,6 @@ public class PostService {
             if (!friends.isEmpty()) {
                 LocalDate today = LocalDate.now();
 
-                List<User> targetFriends = new ArrayList<>();
-
                 List<String> checkIds = friends.stream()
                         .map(f -> today.toString() + "_" + f.getId())
                         .toList();
@@ -347,12 +345,9 @@ public class PostService {
                         .map(DailyPushLog::getId)
                         .collect(Collectors.toSet());
 
-                for (User friend : friends) {
-                    String key = today.toString() + "_" + friend.getId();
-                    if (!receivedLogIds.contains(key)) {
-                        targetFriends.add(friend);
-                    }
-                }
+                List<User> targetFriends = friends.stream()
+                        .filter(f -> !receivedLogIds.contains(today.toString() + "_" + f.getId()))
+                        .collect(Collectors.toList());
 
                 if (!targetFriends.isEmpty()) {
                     notificationService.sendMulticast(

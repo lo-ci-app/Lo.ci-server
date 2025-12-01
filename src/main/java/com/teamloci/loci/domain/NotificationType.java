@@ -6,5 +6,7 @@ public enum NotificationType {
     NEW_POST,
     POST_COMMENT,
     POST_TAGGED,
-    DIRECT_MESSAGE
+    DIRECT_MESSAGE,
+    COMMENT_LIKE,
+
 }

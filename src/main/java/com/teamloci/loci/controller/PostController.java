@@ -2,6 +2,7 @@ package com.teamloci.loci.controller;
 
 import java.util.List;
 
+import com.teamloci.loci.service.ReactionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,6 +41,7 @@ import lombok.RequiredArgsConstructor;
 public class PostController {
 
     private final PostService postService;
+    private final ReactionService reactionService;
 
     private Long getUserId(AuthenticatedUser user) {
         if (user == null) throw new CustomException(ErrorCode.UNAUTHORIZED);
@@ -255,5 +257,23 @@ public class PostController {
             @Valid @RequestBody PostDto.PostCreateRequest request
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.updatePost(getUserId(user), postId, request)));
+    }
+
+    @Operation(summary = "게시글 반응(이모지) 토글",
+            description = """
+                    게시글에 이모지 반응을 남기거나 취소/변경합니다.
+                    * 이미 누른 이모지면 -> **취소**
+                    * 다른 이모지면 -> **변경**
+                    * 없으면 -> **생성**
+                    """)
+    @PostMapping("/{postId}/reactions")
+    public ResponseEntity<CustomResponse<Void>> toggleReaction(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId,
+            @Parameter(description = "이모지 타입 (LIKE, LOVE, FUNNY, SURPRISED, SAD, ANGRY)", required = true)
+            @RequestParam com.teamloci.loci.domain.ReactionType type
+    ) {
+        reactionService.togglePostReaction(getUserId(user), postId, type);
+        return ResponseEntity.ok(CustomResponse.ok(null));
     }
 }

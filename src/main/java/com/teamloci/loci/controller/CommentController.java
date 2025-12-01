@@ -6,6 +6,7 @@ import com.teamloci.loci.global.exception.code.ErrorCode;
 import com.teamloci.loci.global.response.CustomResponse;
 import com.teamloci.loci.global.security.AuthenticatedUser;
 import com.teamloci.loci.service.CommentService;
+import com.teamloci.loci.service.ReactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class CommentController {
 
     private final CommentService commentService;
+    private final ReactionService reactionService;
 
     private Long getUserId(AuthenticatedUser user) {
         if (user == null) throw new CustomException(ErrorCode.UNAUTHORIZED);
@@ -145,6 +147,18 @@ public class CommentController {
             @PathVariable Long commentId
     ) {
         commentService.deleteComment(getUserId(user), postId, commentId);
+        return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "댓글 좋아요 토글",
+            description = "댓글에 좋아요를 누르거나 취소합니다.")
+    @PostMapping("/{commentId}/like")
+    public ResponseEntity<CustomResponse<Void>> toggleLike(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId,
+            @PathVariable Long commentId
+    ) {
+        reactionService.toggleCommentLike(getUserId(user), commentId);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 }

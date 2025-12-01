@@ -7,7 +7,7 @@ import lombok.*;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "post_reactions", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"post_id", "user_id"}) // 중복 방지
+        @UniqueConstraint(columnNames = {"post_id", "user_id"})
 })
 public class PostReaction extends BaseTimeEntity {
 
