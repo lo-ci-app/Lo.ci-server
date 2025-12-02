@@ -8,5 +8,6 @@ public enum NotificationType {
     POST_TAGGED,
     DIRECT_MESSAGE,
     COMMENT_LIKE,
-    POST_REACTION
+    POST_REACTION,
+    LOCI_TIME
 }

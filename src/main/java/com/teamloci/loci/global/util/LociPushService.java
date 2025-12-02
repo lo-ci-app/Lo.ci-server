@@ -57,7 +57,7 @@ public class LociPushService {
             if (!targetUsers.isEmpty()) {
                 notificationService.sendMulticast(
                         targetUsers,
-                        NotificationType.NEW_POST,
+                        NotificationType.LOCI_TIME,
                         "Time to Loci! 📸",
                         "지금 바로 친구들에게 일상을 공유하세요!",
                         null
