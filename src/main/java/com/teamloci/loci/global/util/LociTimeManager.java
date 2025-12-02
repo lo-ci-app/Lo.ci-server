@@ -51,8 +51,8 @@ public class LociTimeManager {
     private void schedulePushForDate(LocalDate date) {
         LocalDateTime now = LocalDateTime.now(SEOUL_ZONE);
 
-        LocalDateTime startRange = date.atTime(9, 0);
-        LocalDateTime endRange = date.atTime(22, 0);
+        LocalDateTime startRange = date.atTime(10, 0);
+        LocalDateTime endRange = date.atTime(20, 0);
 
         if (now.isAfter(endRange)) {
             log.info("🕒 [Schedule] 오늘의 발송 가능 시간(22:00)이 지났습니다.");
@@ -66,7 +66,9 @@ public class LociTimeManager {
             long randomSeconds = ThreadLocalRandom.current().nextLong(0, secondsLeft);
             scheduleTime = now.plusSeconds(randomSeconds);
         } else {
-            long randomSeconds = ThreadLocalRandom.current().nextLong(9 * 3600, 22 * 3600);
+            long startSeconds = 10 * 3600;
+            long endSeconds = 20 * 3600;
+            long randomSeconds = ThreadLocalRandom.current().nextLong(startSeconds, endSeconds);
             scheduleTime = date.atStartOfDay().plusSeconds(randomSeconds);
         }
 

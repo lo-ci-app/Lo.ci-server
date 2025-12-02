@@ -9,5 +9,5 @@ public enum NotificationType {
     DIRECT_MESSAGE,
     COMMENT_LIKE,
     POST_REACTION,
-    LOCI_TIME
+    LOCI_TIME,
 }
