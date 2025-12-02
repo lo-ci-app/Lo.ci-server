@@ -34,7 +34,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(List.of(
-                "https://api-dev.fiv5.app",
+                "https://api-dev.loci.my",
                 "http://localhost:8080",
                 "http://localhost:3000"
         ));

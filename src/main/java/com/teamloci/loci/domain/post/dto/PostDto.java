@@ -2,6 +2,7 @@ package com.teamloci.loci.domain.post.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,6 +11,7 @@ import com.teamloci.loci.domain.post.entity.MediaType;
 import com.teamloci.loci.domain.post.entity.Post;
 import com.teamloci.loci.domain.post.entity.PostCollaborator;
 import com.teamloci.loci.domain.post.entity.PostMedia;
+import com.teamloci.loci.domain.post.entity.ReactionType;
 import com.teamloci.loci.domain.user.UserDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
@@ -80,6 +82,19 @@ public class PostDto {
     }
 
     @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Schema(description = "반응(이모지) 요약 정보")
+    public static class ReactionSummary {
+        @Schema(description = "내가 누른 반응 타입 (없으면 null)", example = "LIKE")
+        private ReactionType myReaction;
+
+        @Schema(description = "반응별 카운트 (KEY: 반응타입, VALUE: 개수)", example = "{\"LIKE\": 10, \"LOVE\": 5}")
+        private Map<ReactionType, Long> counts;
+    }
+
+    @Getter
     @Setter
     @Builder
     @AllArgsConstructor
@@ -115,6 +130,9 @@ public class PostDto {
         private Boolean isArchived;
         @Schema(description = "이 게시물의 총 댓글 수", example = "5")
         private Long commentCount;
+
+        @Schema(description = "반응(이모지) 요약 정보")
+        private ReactionSummary reactions;
 
         public static PostDetailResponse from(Post post) {
             return PostDetailResponse.builder()

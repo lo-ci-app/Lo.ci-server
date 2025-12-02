@@ -20,9 +20,9 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI() {
         Info info = new Info()
-                .title("Fiv5 API Document")
+                .title("Loci API Document")
                 .version("v1.0.0")
-                .description("Fiv5 프로젝트 API 명세서");
+                .description("Loci 프로젝트 API 명세서");
 
         String jwtSchemeName = "jwtAuth";
         SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwtSchemeName);

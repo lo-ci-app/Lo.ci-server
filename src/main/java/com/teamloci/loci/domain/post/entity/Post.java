@@ -75,7 +75,7 @@ public class Post extends BaseTimeEntity {
     private PostStatus status;
 
     @Column(nullable = false)
-    private boolean isArchived; 
+    private boolean isArchived;
 
     @Builder
     public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, Boolean isArchived, String thumbnailUrl) {
@@ -116,5 +116,14 @@ public class Post extends BaseTimeEntity {
             this.isArchived = isArchived;
         }
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public void archive() {
+        this.status = PostStatus.ARCHIVED;
+    }
+
+    public void restore() {
+        this.status = PostStatus.ACTIVE;
+        this.isArchived = false;
     }
 }

@@ -39,6 +39,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             Pageable pageable
     );
 
+    @Query("SELECT DISTINCT p FROM Post p " +
+            "LEFT JOIN FETCH p.user " +
+            "WHERE p.user.id = :userId AND p.status = 'ARCHIVED' " +
+            "AND (:cursorId IS NULL OR p.id < :cursorId) " +
+            "ORDER BY p.id DESC")
+    List<Post> findArchivedPostsByUserIdWithCursor(
+            @Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
+
     @Query("SELECT p FROM Post p " +
             "JOIN FETCH p.user " +
             "WHERE p.user.id IN :userIds " +

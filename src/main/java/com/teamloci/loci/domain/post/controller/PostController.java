@@ -140,6 +140,18 @@ public class PostController {
         return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(myUserId, myUserId, cursor, size)));
     }
 
+    @Operation(summary = "내 보관함 조회 (무한 스크롤)",
+            description = "보관된(ARCHIVED) 나의 게시물 목록을 조회합니다.")
+    @GetMapping("/me/archived")
+    public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getMyArchivedPosts(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Parameter(description = "이전 페이지의 마지막 포스트 ID (첫 요청 시 null)")
+            @RequestParam(required = false) Long cursor,
+            @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(postService.getArchivedPosts(getUserId(user), cursor, size)));
+    }
+
     @Operation(summary = "유저별 포스트 목록 (무한 스크롤)",
             description = """
                     특정 유저(targetUserId)가 작성한 포스트들을 최신순으로 조회합니다.
@@ -270,6 +282,26 @@ public class PostController {
             @Valid @RequestBody PostDto.PostCreateRequest request
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.updatePost(getUserId(user), postId, request)));
+    }
+
+    @Operation(summary = "포스트 보관함으로 이동 (즉시)", description = "게시물을 즉시 보관함(ARCHIVED) 상태로 변경합니다.")
+    @PatchMapping("/{postId}/archive")
+    public ResponseEntity<CustomResponse<Void>> archivePost(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId
+    ) {
+        postService.archivePost(getUserId(user), postId);
+        return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "포스트 복구 (보관함 -> 피드)", description = "보관된 게시물을 다시 피드로 복구합니다. (자동 보관 설정이 꺼집니다)")
+    @PatchMapping("/{postId}/unarchive")
+    public ResponseEntity<CustomResponse<Void>> unarchivePost(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId
+    ) {
+        postService.unarchivePost(getUserId(user), postId);
+        return ResponseEntity.ok(CustomResponse.ok(null));
     }
 
     @Operation(summary = "게시글 반응(이모지) 토글",

@@ -7,11 +7,9 @@ import com.teamloci.loci.domain.notification.DailyPushLog;
 import com.teamloci.loci.domain.notification.DailyPushLogRepository;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.PostDto;
-import com.teamloci.loci.domain.post.entity.Post;
-import com.teamloci.loci.domain.post.entity.PostCollaborator;
-import com.teamloci.loci.domain.post.entity.PostMedia;
-import com.teamloci.loci.domain.post.entity.PostStatus;
+import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
+import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
@@ -42,6 +40,7 @@ public class PostService {
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
     private final PostCommentRepository commentRepository;
+    private final PostReactionRepository reactionRepository; // [New]
     private final NotificationService notificationService;
     private final DailyPushLogRepository dailyPushLogRepository;
     private final GeoUtils geoUtils;
@@ -145,6 +144,12 @@ public class PostService {
         return makeFeedResponse(posts, size, myUserId);
     }
 
+    public PostDto.FeedResponse getArchivedPosts(Long userId, Long cursorId, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<Post> posts = postRepository.findArchivedPostsByUserIdWithCursor(userId, cursorId, pageable);
+        return makeFeedResponse(posts, size, userId);
+    }
+
     @Transactional
     public void deletePost(Long currentUserId, Long postId) {
         Post post = findPostById(postId);
@@ -154,6 +159,24 @@ public class PostService {
         }
 
         postRepository.delete(post);
+    }
+
+    @Transactional
+    public void archivePost(Long userId, Long postId) {
+        Post post = findPostById(postId);
+        if (!post.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
+        }
+        post.archive();
+    }
+
+    @Transactional
+    public void unarchivePost(Long userId, Long postId) {
+        Post post = findPostById(postId);
+        if (!post.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
+        }
+        post.restore();
     }
 
     @Transactional
@@ -325,6 +348,20 @@ public class PostService {
         Map<Long, Long> commentCountMap = commentRepository.countByPostIdIn(postIds).stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
 
+        Map<Long, Map<ReactionType, Long>> reactionCounts = new HashMap<>();
+        reactionRepository.countReactionsByPostIds(postIds).forEach(row -> {
+            Long pid = (Long) row[0];
+            ReactionType type = (ReactionType) row[1];
+            Long count = (Long) row[2];
+
+            reactionCounts.computeIfAbsent(pid, k -> new HashMap<>()).put(type, count);
+        });
+
+        Map<Long, ReactionType> myReactions = new HashMap<>();
+        reactionRepository.findMyReactions(postIds, myUserId).forEach(row -> {
+            myReactions.put((Long) row[0], (ReactionType) row[1]);
+        });
+
         Map<Long, Long> friendCountMap = new HashMap<>();
         if (!targetUserIds.isEmpty()) {
             friendshipRepository.countFriendsByUserIds(new ArrayList<>(targetUserIds)).forEach(row ->
@@ -356,6 +393,11 @@ public class PostService {
 
         for (PostDto.PostDetailResponse p : posts) {
             p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
+
+            p.setReactions(new PostDto.ReactionSummary(
+                    myReactions.get(p.getId()),
+                    reactionCounts.getOrDefault(p.getId(), Collections.emptyMap())
+            ));
 
             fillUserInfo(p.getUser(), myUserId, friendshipMap, friendCountMap, postCountMap);
 

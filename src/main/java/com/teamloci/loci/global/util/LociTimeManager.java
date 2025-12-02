@@ -55,7 +55,7 @@ public class LociTimeManager {
         LocalDateTime endRange = date.atTime(20, 0);
 
         if (now.isAfter(endRange)) {
-            log.info("🕒 [Schedule] 오늘의 발송 가능 시간(22:00)이 지났습니다.");
+            log.info("🕒 [Schedule] 오늘의 발송 가능 시간(20:00)이 지났습니다.");
             return;
         }
 
