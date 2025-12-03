@@ -324,7 +324,12 @@ public class PostController {
     }
 
     @Operation(summary = "게시글 반응(이모지) 목록 조회",
-            description = "해당 게시물에 달린 반응 목록을 조회합니다. (누가 어떤 반응을 했는지)")
+            description = """
+                해당 게시물에 달린 반응 목록을 조회합니다.
+                
+                * **정렬:** **내가 누른 반응이 있다면 항상 리스트의 0번째 인덱스**에 위치합니다. 그 뒤로는 최신순입니다.
+                * **User Info:** 각 반응 객체(`user`)에는 나와의 친구 관계, 친구 수 등의 정보가 모두 포함됩니다.
+                """)
     @GetMapping("/{postId}/reactions")
     public ResponseEntity<CustomResponse<ReactionDto.ListResponse>> getReactions(
             @AuthenticationPrincipal AuthenticatedUser user,

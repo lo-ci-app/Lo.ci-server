@@ -24,4 +24,17 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, Long
             "AND (:cursorId IS NULL OR r.id < :cursorId) " +
             "ORDER BY r.id DESC")
     List<PostReaction> findByPostIdWithCursor(@Param("postId") Long postId, @Param("cursorId") Long cursorId, Pageable pageable);
+
+    @Query("SELECT r FROM PostReaction r " +
+            "JOIN FETCH r.user " +
+            "WHERE r.post.id = :postId " +
+            "AND r.user.id != :userId " +
+            "AND (:cursorId IS NULL OR r.id < :cursorId) " +
+            "ORDER BY r.id DESC")
+    List<PostReaction> findByPostIdAndUserIdNotWithCursor(
+            @Param("postId") Long postId,
+            @Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
 }

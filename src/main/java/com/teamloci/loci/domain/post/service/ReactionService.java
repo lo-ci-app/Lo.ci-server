@@ -81,17 +81,29 @@ public class ReactionService {
             throw new CustomException(ErrorCode.POST_NOT_FOUND);
         }
 
-        PageRequest pageable = PageRequest.of(0, size + 1);
-        List<PostReaction> reactions = postReactionRepository.findByPostIdWithCursor(postId, cursorId, pageable);
+        List<PostReaction> resultList = new ArrayList<>();
+
+        if (cursorId == null) {
+            postReactionRepository.findByPostIdAndUserId(postId, myUserId)
+                    .ifPresent(resultList::add);
+        }
+
+        int limit = (cursorId == null && !resultList.isEmpty()) ? size - 1 : size;
+
+        PageRequest pageable = PageRequest.of(0, limit + 1);
+        List<PostReaction> others = postReactionRepository.findByPostIdAndUserIdNotWithCursor(postId, myUserId, cursorId, pageable);
 
         boolean hasNext = false;
-        if (reactions.size() > size) {
+        if (others.size() > limit) {
             hasNext = true;
-            reactions.remove(size);
+            others.remove(limit);
         }
-        Long nextCursor = reactions.isEmpty() ? null : reactions.get(reactions.size() - 1).getId();
 
-        Set<Long> userIds = reactions.stream()
+        resultList.addAll(others);
+
+        Long nextCursor = others.isEmpty() ? null : others.get(others.size() - 1).getId();
+
+        Set<Long> userIds = resultList.stream()
                 .map(r -> r.getUser().getId())
                 .collect(Collectors.toSet());
 
@@ -121,7 +133,7 @@ public class ReactionService {
             );
         }
 
-        List<ReactionDto.Response> dtos = reactions.stream()
+        List<ReactionDto.Response> dtos = resultList.stream()
                 .map(r -> {
                     User u = r.getUser();
                     String status;

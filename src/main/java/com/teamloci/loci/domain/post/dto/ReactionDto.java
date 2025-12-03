@@ -21,8 +21,8 @@ public class ReactionDto {
         @Schema(description = "리액션 ID")
         private Long id;
 
-        @Schema(description = "반응 타입")
-        private ReactionType type;
+        @Schema(description = "반응 타입 (이모지 종류)", example = "LIKE")
+        private ReactionType reactionType;
 
         @Schema(description = "반응 남긴 유저 정보 (관계 및 통계 포함)")
         private UserDto.UserResponse user;
@@ -33,7 +33,7 @@ public class ReactionDto {
         public static Response of(PostReaction reaction, UserDto.UserResponse userResponse) {
             return Response.builder()
                     .id(reaction.getId())
-                    .type(reaction.getType())
+                    .reactionType(reaction.getType())
                     .user(userResponse)
                     .createdAt(reaction.getCreatedAt())
                     .build();
