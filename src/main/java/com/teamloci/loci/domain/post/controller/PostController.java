@@ -3,6 +3,7 @@ package com.teamloci.loci.domain.post.controller;
 import java.util.List;
 
 import com.teamloci.loci.domain.post.dto.PostDto;
+import com.teamloci.loci.domain.post.dto.ReactionDto;
 import com.teamloci.loci.domain.post.service.PostService;
 import com.teamloci.loci.domain.post.service.ReactionService;
 import com.teamloci.loci.domain.post.entity.ReactionType;
@@ -320,5 +321,19 @@ public class PostController {
     ) {
         reactionService.togglePostReaction(getUserId(user), postId, type);
         return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "게시글 반응(이모지) 목록 조회",
+            description = "해당 게시물에 달린 반응 목록을 조회합니다. (누가 어떤 반응을 했는지)")
+    @GetMapping("/{postId}/reactions")
+    public ResponseEntity<CustomResponse<ReactionDto.ListResponse>> getReactions(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId,
+            @Parameter(description = "이전 페이지의 마지막 리액션 ID") @RequestParam(required = false) Long cursorId,
+            @Parameter(description = "가져올 개수") @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(
+                reactionService.getReactions(postId, cursorId, size)
+        ));
     }
 }

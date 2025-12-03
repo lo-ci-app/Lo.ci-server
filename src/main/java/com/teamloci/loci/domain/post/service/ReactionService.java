@@ -1,6 +1,7 @@
 package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.notification.NotificationType;
+import com.teamloci.loci.domain.post.dto.ReactionDto;
 import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.post.repository.CommentLikeRepository;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
@@ -12,10 +13,13 @@ import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +38,7 @@ public class ReactionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
+    @Transactional
     public void togglePostReaction(Long userId, Long postId, ReactionType type) {
         User user = findUser(userId);
         Post post = postRepository.findById(postId)
@@ -65,6 +70,32 @@ public class ReactionService {
                 );
             }
         }
+    }
+
+    public ReactionDto.ListResponse getReactions(Long postId, Long cursorId, int size) {
+        if (!postRepository.existsById(postId)) {
+            throw new CustomException(ErrorCode.POST_NOT_FOUND);
+        }
+
+        PageRequest pageable = PageRequest.of(0, size + 1);
+        List<PostReaction> reactions = postReactionRepository.findByPostIdWithCursor(postId, cursorId, pageable);
+
+        boolean hasNext = false;
+        if (reactions.size() > size) {
+            hasNext = true;
+            reactions.remove(size);
+        }
+        Long nextCursor = reactions.isEmpty() ? null : reactions.get(reactions.size() - 1).getId();
+
+        List<ReactionDto.Response> dtos = reactions.stream()
+                .map(ReactionDto.Response::from)
+                .collect(Collectors.toList());
+
+        return ReactionDto.ListResponse.builder()
+                .reactions(dtos)
+                .hasNext(hasNext)
+                .nextCursor(nextCursor)
+                .build();
     }
 
     public void toggleCommentLike(Long userId, Long commentId) {
