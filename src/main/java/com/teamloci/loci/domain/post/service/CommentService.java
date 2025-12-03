@@ -90,6 +90,10 @@ public class CommentService {
         List<User> mentionedUsers = userRepository.findByHandleIn(new ArrayList<>(handles));
         Set<Long> notifiedUserIds = new HashSet<>();
 
+        String summary = content.length() > 30
+                ? content.substring(0, 30) + "..."
+                : content;
+
         mentionedUsers.stream()
                 .filter(u -> !u.getId().equals(sender.getId()))
                 .forEach(target -> {
@@ -97,10 +101,10 @@ public class CommentService {
                             target,
                             NotificationType.COMMENT_MENTION,
                             "회원님을 언급했습니다",
-                            sender.getNickname() + "님이 댓글에서 회원님을 언급했습니다: " + content,
+                            sender.getNickname() + "님이 댓글에서 회원님을 언급했습니다: " + summary,
                             post.getId()
                     );
-                    notifiedUserIds.add(target.getId()); 
+                    notifiedUserIds.add(target.getId());
                 });
 
         return notifiedUserIds;
