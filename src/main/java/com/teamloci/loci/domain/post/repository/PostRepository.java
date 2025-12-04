@@ -119,16 +119,22 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Object[]> countPostsByUserIds(@Param("userIds") List<Long> userIds, @Param("status") PostStatus status);
 
     @Query(value = """
-        SELECT p.beacon_id, 
-               MAX(p.location_name) as loc_name, 
-               COUNT(*) as cnt, 
-               MAX(p.thumbnail_url) as thumb, 
-               MAX(p.created_at) as last_visit
-        FROM posts p
-        WHERE p.user_id = :userId 
-          AND p.status = 'ACTIVE'
-        GROUP BY p.beacon_id
-        ORDER BY last_visit DESC
+        WITH RankedPosts AS (
+            SELECT
+                p.beacon_id,
+                p.location_name,
+                p.thumbnail_url,
+                p.created_at,
+                COUNT(*) OVER (PARTITION BY p.beacon_id) as cnt,
+                ROW_NUMBER() OVER (PARTITION BY p.beacon_id ORDER BY p.created_at DESC, p.id DESC) as rn
+            FROM posts p
+            WHERE p.user_id = :userId 
+              AND p.status = 'ACTIVE'
+        )
+        SELECT beacon_id, location_name, cnt, thumbnail_url, created_at
+        FROM RankedPosts
+        WHERE rn = 1
+        ORDER BY created_at DESC
         LIMIT :limit OFFSET :offset
         """, nativeQuery = true)
     List<Object[]> findVisitedPlacesByUserId(@Param("userId") Long userId,

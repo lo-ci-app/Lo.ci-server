@@ -518,9 +518,7 @@ public class PostService {
         List<Long> friendIds = friends.stream().map(User::getId).toList();
 
         PageRequest pageRequest = PageRequest.of(0, size);
-
         List<User> visitors = postRepository.findFriendsInBeacon(currentBeaconId, friendIds, pageRequest);
-        Long totalCount = postRepository.countFriendsInBeacon(currentBeaconId, friendIds);
 
         if (visitors.isEmpty()) {
             return PostDto.FriendVisitResponse.builder()
@@ -529,6 +527,8 @@ public class PostService {
                     .message("친구들에게 이 장소를 처음으로 소개해보세요!")
                     .build();
         }
+
+        Long totalCount = postRepository.countFriendsInBeacon(currentBeaconId, friendIds);
 
         String message;
         String firstVisitorName = visitors.get(0).getNickname();
