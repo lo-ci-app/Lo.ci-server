@@ -6,6 +6,7 @@ import com.teamloci.loci.global.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class GeoUtils {
@@ -46,4 +47,12 @@ public class GeoUtils {
         }
     }
 
+    public List<String> getHexagonNeighbors(String centerBeaconId) {
+        if (centerBeaconId == null) return List.of();
+        try {
+            return h3.gridDisk(centerBeaconId, 1);
+        } catch (Exception e) {
+            return List.of(centerBeaconId);
+        }
+    }
 }

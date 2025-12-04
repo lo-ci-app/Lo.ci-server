@@ -145,15 +145,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
         SELECT DISTINCT p.user 
         FROM Post p 
-        WHERE p.beaconId = :beaconId 
+        WHERE p.beaconId IN :beaconIds 
           AND p.user.id IN :friendIds 
           AND p.status = 'ACTIVE'
         ORDER BY p.createdAt DESC
         """)
-    List<User> findFriendsInBeacon(@Param("beaconId") String beaconId,
-                                   @Param("friendIds") List<Long> friendIds,
-                                   Pageable pageable);
+    List<User> findFriendsInBeacons(@Param("beaconIds") List<String> beaconIds,
+                                    @Param("friendIds") List<Long> friendIds,
+                                    Pageable pageable);
 
-    @Query("SELECT COUNT(DISTINCT p.user) FROM Post p WHERE p.beaconId = :beaconId AND p.user.id IN :friendIds AND p.status = 'ACTIVE'")
-    Long countFriendsInBeacon(@Param("beaconId") String beaconId, @Param("friendIds") List<Long> friendIds);
+    @Query("SELECT COUNT(DISTINCT p.user) FROM Post p WHERE p.beaconId IN :beaconIds AND p.user.id IN :friendIds AND p.status = 'ACTIVE'")
+    Long countFriendsInBeacons(@Param("beaconIds") List<String> beaconIds, @Param("friendIds") List<Long> friendIds);
+
+    boolean existsByBeaconIdInAndUserIdAndStatus(List<String> beaconIds, Long userId, PostStatus status);
 }

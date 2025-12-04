@@ -231,13 +231,13 @@ public class PostDto {
     @NoArgsConstructor
     @Schema(description = "이 장소에 방문했던 친구 정보")
     public static class FriendVisitResponse {
+        @Schema(description = "나의 방문 여부 (true: 나도 찍은 적 있음, false: 처음)", example = "false")
+        private boolean isVisitedByMe;
+
         @Schema(description = "방문했던 친구 목록 (최대 3~5명)")
         private List<UserDto.UserResponse> visitors;
 
         @Schema(description = "총 방문한 친구 수", example = "5")
         private Long totalCount;
-
-        @Schema(description = "대표 문구 예시", example = "행복한쿼카님 외 4명의 친구가 다녀갔어요!")
-        private String message;
     }
 }
