@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.teamloci.loci.domain.post.entity.Post;
 import com.teamloci.loci.domain.post.entity.PostStatus;
+import com.teamloci.loci.domain.user.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -116,4 +117,37 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "WHERE p.user.id IN :userIds AND p.status = :status " +
             "GROUP BY p.user.id")
     List<Object[]> countPostsByUserIds(@Param("userIds") List<Long> userIds, @Param("status") PostStatus status);
+
+    @Query(value = """
+        SELECT p.beacon_id, 
+               MAX(p.location_name) as loc_name, 
+               COUNT(*) as cnt, 
+               MAX(p.thumbnail_url) as thumb, 
+               MAX(p.created_at) as last_visit
+        FROM posts p
+        WHERE p.user_id = :userId 
+          AND p.status = 'ACTIVE'
+        GROUP BY p.beacon_id
+        ORDER BY last_visit DESC
+        LIMIT :limit OFFSET :offset
+        """, nativeQuery = true)
+    List<Object[]> findVisitedPlacesByUserId(@Param("userId") Long userId,
+                                             @Param("limit") int limit,
+                                             @Param("offset") int offset);
+
+
+    @Query("""
+        SELECT DISTINCT p.user 
+        FROM Post p 
+        WHERE p.beaconId = :beaconId 
+          AND p.user.id IN :friendIds 
+          AND p.status = 'ACTIVE'
+        ORDER BY p.createdAt DESC
+        """)
+    List<User> findFriendsInBeacon(@Param("beaconId") String beaconId,
+                                   @Param("friendIds") List<Long> friendIds,
+                                   Pageable pageable);
+
+    @Query("SELECT COUNT(DISTINCT p.user) FROM Post p WHERE p.beaconId = :beaconId AND p.user.id IN :friendIds AND p.status = 'ACTIVE'")
+    Long countFriendsInBeacon(@Param("beaconId") String beaconId, @Param("friendIds") List<Long> friendIds);
 }

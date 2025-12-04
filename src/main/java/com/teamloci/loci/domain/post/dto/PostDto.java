@@ -196,4 +196,42 @@ public class PostDto {
         @Schema(description = "다음 요청에 사용할 커서 (마지막 포스트의 작성 시간)", example = "2025-11-20T10:00:00")
         private Long nextCursor;
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Schema(description = "방문한 장소(Footprint) 응답")
+    public static class VisitedPlaceResponse {
+        @Schema(description = "비콘 ID", example = "89283082807ffff")
+        private String beaconId;
+
+        @Schema(description = "대표 장소명 (가장 최근 게시물 기준)", example = "서울시청")
+        private String locationName;
+
+        @Schema(description = "대표 썸네일 URL", example = "https://cdn.../image.jpg")
+        private String thumbnailUrl;
+
+        @Schema(description = "해당 장소에서의 포스트 개수", example = "3")
+        private Long postCount;
+
+        @Schema(description = "마지막 방문 일시")
+        private LocalDateTime lastVisitedAt;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Schema(description = "이 장소에 방문했던 친구 정보")
+    public static class FriendVisitResponse {
+        @Schema(description = "방문했던 친구 목록 (최대 3~5명)")
+        private List<UserDto.UserResponse> visitors;
+
+        @Schema(description = "총 방문한 친구 수", example = "5")
+        private Long totalCount;
+
+        @Schema(description = "대표 문구 예시", example = "행복한쿼카님 외 4명의 친구가 다녀갔어요!")
+        private String message;
+    }
 }

@@ -483,4 +483,66 @@ public class PostService {
             log.error("게시글 작성 알림 발송 실패: {}", e.getMessage());
         }
     }
+
+    public List<PostDto.VisitedPlaceResponse> getVisitedPlaces(Long userId, int page, int size) {
+        int offset = page * size;
+
+        List<Object[]> results = postRepository.findVisitedPlacesByUserId(userId, size, offset);
+
+        return results.stream()
+                .map(row -> {
+                    java.sql.Timestamp timestamp = (java.sql.Timestamp) row[4];
+
+                    return PostDto.VisitedPlaceResponse.builder()
+                            .beaconId((String) row[0])
+                            .locationName((String) row[1])
+                            .postCount(((Number) row[2]).longValue())
+                            .thumbnailUrl((String) row[3])
+                            .lastVisitedAt(timestamp != null ? timestamp.toLocalDateTime() : null)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    public PostDto.FriendVisitResponse checkFriendFootprints(Long myUserId, Double latitude, Double longitude, int size) {
+        String currentBeaconId = geoUtils.latLngToBeaconId(latitude, longitude);
+
+        List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
+        if (friends.isEmpty()) {
+            return PostDto.FriendVisitResponse.builder()
+                    .visitors(List.of())
+                    .totalCount(0L)
+                    .message("이곳을 방문한 첫 번째 친구가 되어보세요!")
+                    .build();
+        }
+        List<Long> friendIds = friends.stream().map(User::getId).toList();
+
+        PageRequest pageRequest = PageRequest.of(0, size);
+
+        List<User> visitors = postRepository.findFriendsInBeacon(currentBeaconId, friendIds, pageRequest);
+        Long totalCount = postRepository.countFriendsInBeacon(currentBeaconId, friendIds);
+
+        if (visitors.isEmpty()) {
+            return PostDto.FriendVisitResponse.builder()
+                    .visitors(List.of())
+                    .totalCount(0L)
+                    .message("친구들에게 이 장소를 처음으로 소개해보세요!")
+                    .build();
+        }
+
+        String message;
+        String firstVisitorName = visitors.get(0).getNickname();
+
+        if (totalCount > 1) {
+            message = String.format("%s님 외 %d명의 친구가 다녀갔어요!", firstVisitorName, totalCount - 1);
+        } else {
+            message = String.format("%s님이 다녀간 핫플레이스!", firstVisitorName);
+        }
+
+        return PostDto.FriendVisitResponse.builder()
+                .visitors(visitors.stream().map(UserDto.UserResponse::from).toList())
+                .totalCount(totalCount)
+                .message(message)
+                .build();
+    }
 }

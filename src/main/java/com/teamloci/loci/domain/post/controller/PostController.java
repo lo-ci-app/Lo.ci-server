@@ -343,4 +343,33 @@ public class PostController {
                 reactionService.getReactions(getUserId(user), postId, cursorId, size)
         ));
     }
+
+    @Operation(summary = "유저의 방문한 장소 목록 (Grid View용 탭)",
+            description = "유저가 방문했던 구역(Beacon)들을 최신순으로 묶어서 반환합니다.")
+    @GetMapping("/user/{userId}/visited-places")
+    public ResponseEntity<CustomResponse<List<PostDto.VisitedPlaceResponse>>> getVisitedPlaces(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(postService.getVisitedPlaces(userId, page, size)));
+    }
+
+    @Operation(summary = "촬영 전 친구 발자취 확인",
+            description = """
+                   현재 위치(위경도)를 보내면, 이곳에 방문했던 친구 정보를 반환합니다.
+                   * **size**: 반환받을 친구(방문자)의 최대 수 (기본값: 3)
+                   """)
+    @GetMapping("/check-location")
+    public ResponseEntity<CustomResponse<PostDto.FriendVisitResponse>> checkLocation(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @Parameter(description = "가져올 친구 수 (기본값 3)")
+            @RequestParam(defaultValue = "3") int size
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(
+                postService.checkFriendFootprints(getUserId(user), latitude, longitude, size)
+        ));
+    }
 }
