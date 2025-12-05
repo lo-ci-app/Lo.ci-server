@@ -81,6 +81,10 @@ public class UserService {
             newNickname = user.getNickname();
         }
 
+        if (request.getIsAutoArchive() != null) {
+            user.updateAutoArchive(request.getIsAutoArchive());
+        }
+
         user.updateProfile(newHandle, newNickname);
 
         return getUserProfile(userId, userId);

@@ -54,6 +54,9 @@ public class User {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
+    private boolean isAutoArchive = true;
+
     @Builder
     public User(String handle, String nickname, String profileUrl, String phoneEncrypted, String phoneSearchHash, String countryCode) {
         this.handle = handle;
@@ -91,5 +94,9 @@ public class User {
         this.status = UserStatus.DELETED;
         this.bluetoothToken = null;
         this.fcmToken = null;
+    }
+
+    public void updateAutoArchive(boolean isAutoArchive) {
+        this.isAutoArchive = isAutoArchive;
     }
 }

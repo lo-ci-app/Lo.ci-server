@@ -75,7 +75,6 @@ public class PostService {
                 .longitude(request.getLongitude())
                 .locationName(request.getLocationName())
                 .beaconId(beaconId)
-                .isArchived(request.getIsArchived())
                 .thumbnailUrl(thumbnailUrl)
                 .build();
 
@@ -219,7 +218,6 @@ public class PostService {
                 request.getLongitude(),
                 request.getLocationName(),
                 beaconId,
-                request.getIsArchived(),
                 thumbnailUrl
         );
 

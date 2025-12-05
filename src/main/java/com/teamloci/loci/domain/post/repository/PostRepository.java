@@ -144,8 +144,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.status = 'ARCHIVED' " +
             "WHERE p.status = 'ACTIVE' " +
-            "AND p.isArchived = true " +
-            "AND p.createdAt < :expiryDate")
+            "AND p.createdAt < :expiryDate " +
+            "AND p.user.id IN (SELECT u.id FROM User u WHERE u.isAutoArchive = true)")
     int archiveOldPosts(@Param("expiryDate") LocalDateTime expiryDate);
 
     long countByUserIdAndStatus(Long userId, PostStatus status);

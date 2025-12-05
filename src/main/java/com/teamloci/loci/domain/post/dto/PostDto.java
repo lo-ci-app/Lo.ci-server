@@ -153,7 +153,6 @@ public class PostDto {
                             .collect(Collectors.toList()))
                     .createdAt(post.getCreatedAt())
                     .updatedAt(post.getUpdatedAt())
-                    .isArchived(post.isArchived())
                     .commentCount(0L)
                     .reactionCount(0L)
                     .status(post.getStatus())

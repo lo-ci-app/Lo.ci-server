@@ -23,6 +23,9 @@ public class UserDto {
         @Schema(description = "변경할 표시 이름(닉네임). 한글 등 자유 형식. (null이면 기존 값 유지)", example = "행복한 쿼카")
         @Size(min = 1, message = "닉네임은 최소 1글자 이상이어야 합니다.")
         private String nickname;
+
+        @Schema(description = "자동 보관 설정 변경 (true: 30일 뒤 자동 보관, false: 영구 게시)", example = "true")
+        private Boolean isAutoArchive;
     }
 
     @Getter
@@ -80,6 +83,8 @@ public class UserDto {
         @Schema(description = "게시물 수", example = "5")
         private Long postCount;
 
+        @Schema(description = "자동 보관 설정 여부 (true: 켜짐, false: 꺼짐)")
+        private boolean isAutoArchive;
 
         public static UserResponse of(User user, String relationStatus, long friendCount, long postCount) {
             return UserResponse.builder()
@@ -91,6 +96,7 @@ public class UserDto {
                     .relationStatus(relationStatus)
                     .friendCount(friendCount)
                     .postCount(postCount)
+                    .isAutoArchive(user.isAutoArchive())
                     .build();
         }
 
@@ -104,6 +110,7 @@ public class UserDto {
                     .relationStatus("NONE")
                     .friendCount(0L)
                     .postCount(0L)
+                    .isAutoArchive(user.isAutoArchive())
                     .build();
         }
     }
