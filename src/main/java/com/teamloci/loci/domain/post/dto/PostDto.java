@@ -7,11 +7,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import com.teamloci.loci.domain.post.entity.MediaType;
-import com.teamloci.loci.domain.post.entity.Post;
-import com.teamloci.loci.domain.post.entity.PostCollaborator;
-import com.teamloci.loci.domain.post.entity.PostMedia;
-import com.teamloci.loci.domain.post.entity.ReactionType;
+import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.user.UserDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
@@ -137,6 +133,9 @@ public class PostDto {
         @Schema(description = "반응(이모지) 요약 정보")
         private ReactionSummary reactions;
 
+        @Schema(description = "게시글 현재 상태 (ACTIVE: 게시중, ARCHIVED: 보관됨)", example = "ACTIVE")
+        private PostStatus status;
+
         public static PostDetailResponse from(Post post) {
             return PostDetailResponse.builder()
                     .id(post.getId())
@@ -157,6 +156,7 @@ public class PostDto {
                     .isArchived(post.isArchived())
                     .commentCount(0L)
                     .reactionCount(0L)
+                    .status(post.getStatus())
                     .build();
         }
     }
