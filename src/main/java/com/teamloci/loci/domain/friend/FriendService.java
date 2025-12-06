@@ -112,6 +112,15 @@ public class FriendService {
                 .collect(Collectors.toList());
     }
 
+    public List<FriendDto.ContactResponse> getSyncedContacts(Long userId) {
+        return userContactRepository.findByUserId(userId).stream()
+                .map(c -> FriendDto.ContactResponse.builder()
+                        .name(c.getName())
+                        .phoneNumber(c.getPhoneNumber())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public void sendFriendRequest(Long myUserId, Long targetUserId) {
         if (myUserId.equals(targetUserId)) throw new CustomException(ErrorCode.SELF_FRIEND_REQUEST);

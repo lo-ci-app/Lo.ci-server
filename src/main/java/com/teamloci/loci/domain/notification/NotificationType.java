@@ -11,4 +11,5 @@ public enum NotificationType {
     POST_REACTION,
     LOCI_TIME,
     COMMENT_MENTION,
+    FRIEND_VISITED,
 }

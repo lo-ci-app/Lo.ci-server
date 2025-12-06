@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -24,14 +26,29 @@ public class FriendDto {
 
     @Getter
     @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "개별 연락처 정보")
     public static class ContactRequest {
         @Schema(description = "주소록에 저장된 이름 (필수)", example = "홍길동")
-        @NotBlank(message = "이름은 필수입니다.") // DB not null 조건 맞춤
+        @NotBlank(message = "이름은 필수입니다.")
         private String name;
 
         @Schema(description = "전화번호 (필수)", example = "010-1234-5678")
         @NotBlank(message = "전화번호는 필수입니다.")
+        private String phoneNumber;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "저장된 연락처 정보 응답")
+    public static class ContactResponse {
+        @Schema(description = "이름", example = "홍길동")
+        private String name;
+
+        @Schema(description = "전화번호", example = "010-1234-5678")
         private String phoneNumber;
     }
 
@@ -44,3 +61,4 @@ public class FriendDto {
         private Long targetUserId;
     }
 }
+

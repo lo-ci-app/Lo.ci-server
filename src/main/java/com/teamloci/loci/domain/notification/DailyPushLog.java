@@ -32,4 +32,10 @@ public class DailyPushLog {
         this.userId = userId;
         this.date = date;
     }
+
+    public DailyPushLog(String id, Long userId, LocalDate date) {
+        this.id = id;
+        this.userId = userId;
+        this.date = date;
+    }
 }

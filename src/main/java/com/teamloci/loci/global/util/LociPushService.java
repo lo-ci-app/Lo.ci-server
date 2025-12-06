@@ -4,6 +4,7 @@ import com.teamloci.loci.domain.notification.DailyPushLog;
 import com.teamloci.loci.domain.notification.DailyPushLogRepository;
 import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
+import com.teamloci.loci.domain.post.repository.PostRepository; // [추가]
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +30,7 @@ public class LociPushService {
     private final UserRepository userRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
     private final NotificationService notificationService;
+    private final PostRepository postRepository;
 
     private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
     private static final int BATCH_SIZE = 1000;
@@ -36,7 +40,15 @@ public class LociPushService {
         log.info("🔔 [Global Push] 로키 타임 알림 발송 시작!");
         LocalDate today = LocalDate.now(SEOUL_ZONE);
 
-        List<Long> excludedUserIds = dailyPushLogRepository.findAllUserIds();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
+
+        List<Long> excludedUserIds = new ArrayList<>(dailyPushLogRepository.findAllUserIds());
+
+        List<Long> postedUserIds = postRepository.findUserIdsWhoPostedBetween(startOfDay, endOfDay);
+        excludedUserIds.addAll(postedUserIds);
+
+        excludedUserIds = excludedUserIds.stream().distinct().toList();
 
         int pageNumber = 0;
         boolean hasNext = true;
@@ -78,6 +90,6 @@ public class LociPushService {
             pageNumber++;
         }
 
-        log.info("🔔 [Global Push] 발송 완료: 총 {}명 (이미 받은 {}명 제외)", totalProcessed, excludedUserIds.size());
+        log.info("🔔 [Global Push] 발송 완료: 총 {}명 (이미 받거나 작성한 {}명 제외)", totalProcessed, excludedUserIds.size());
     }
 }

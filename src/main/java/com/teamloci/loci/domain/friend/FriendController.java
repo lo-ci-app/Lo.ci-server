@@ -158,4 +158,12 @@ public class FriendController {
     ) {
         return ResponseEntity.ok(CustomResponse.ok(friendService.matchFriends(getUserId(user), request.getContacts())));
     }
+
+    @Operation(summary = "저장된 연락처 목록 불러오기", description = "서버에 동기화된 내 연락처 목록을 조회합니다.")
+    @GetMapping("/contacts")
+    public ResponseEntity<CustomResponse<List<FriendDto.ContactResponse>>> getSyncedContacts(
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(friendService.getSyncedContacts(getUserId(user))));
+    }
 }

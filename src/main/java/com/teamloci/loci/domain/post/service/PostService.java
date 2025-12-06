@@ -474,40 +474,77 @@ public class PostService {
                     });
 
             List<User> friends = friendshipRepository.findActiveFriendsByUserId(author.getId());
+            if (friends.isEmpty()) return;
 
-            if (!friends.isEmpty()) {
-                LocalDate today = LocalDate.now();
+            LocalDate today = LocalDate.now();
 
-                List<String> checkIds = friends.stream()
-                        .map(f -> today.toString() + "_" + f.getId())
+            List<String> newPostLogIds = friends.stream()
+                    .map(f -> today.toString() + "_" + f.getId())
+                    .toList();
+
+            Set<String> receivedLogIds = dailyPushLogRepository.findAllById(newPostLogIds).stream()
+                    .map(DailyPushLog::getId)
+                    .collect(Collectors.toSet());
+
+            List<User> targetNewPostFriends = friends.stream()
+                    .filter(f -> !receivedLogIds.contains(today.toString() + "_" + f.getId()))
+                    .collect(Collectors.toList());
+
+            if (!targetNewPostFriends.isEmpty()) {
+                notificationService.sendMulticast(
+                        targetNewPostFriends,
+                        NotificationType.NEW_POST,
+                        "새로운 Loci!",
+                        author.getNickname() + "님이 지금 순간을 공유했어요 📸",
+                        post.getId()
+                );
+
+                List<DailyPushLog> logs = targetNewPostFriends.stream()
+                        .map(f -> DailyPushLog.builder()
+                                .userId(f.getId())
+                                .date(today)
+                                .build())
+                        .collect(Collectors.toList());
+                dailyPushLogRepository.saveAll(logs);
+            }
+
+            List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
+
+            List<User> visitedFriends = postRepository.findUsersWhoPostedInBeacon(post.getBeaconId(), friendIds);
+
+            if (!visitedFriends.isEmpty()) {
+                List<String> visitLogIds = visitedFriends.stream()
+                        .map(f -> "VISIT_" + today.toString() + "_" + f.getId())
                         .toList();
 
-                Set<String> receivedLogIds = dailyPushLogRepository.findAllById(checkIds).stream()
+                Set<String> alreadySentIds = dailyPushLogRepository.findAllById(visitLogIds).stream()
                         .map(DailyPushLog::getId)
                         .collect(Collectors.toSet());
 
-                List<User> targetFriends = friends.stream()
-                        .filter(f -> !receivedLogIds.contains(today.toString() + "_" + f.getId()))
+                List<User> targetVisitedFriends = visitedFriends.stream()
+                        .filter(f -> !alreadySentIds.contains("VISIT_" + today.toString() + "_" + f.getId()))
                         .collect(Collectors.toList());
 
-                if (!targetFriends.isEmpty()) {
+                if (!targetVisitedFriends.isEmpty()) {
                     notificationService.sendMulticast(
-                            targetFriends,
-                            NotificationType.NEW_POST,
-                            "새로운 Loci!",
-                            author.getNickname() + "님이 지금 순간을 공유했어요 📸",
+                            targetVisitedFriends,
+                            NotificationType.FRIEND_VISITED,
+                            "반가운 발자취! 👣",
+                            author.getNickname() + "님이 회원님이 방문했던 곳에 다녀갔어요!",
                             post.getId()
                     );
 
-                    List<DailyPushLog> logs = targetFriends.stream()
-                            .map(f -> DailyPushLog.builder()
-                                    .userId(f.getId())
-                                    .date(today)
-                                    .build())
+                    List<DailyPushLog> logs = targetVisitedFriends.stream()
+                            .map(f -> new DailyPushLog(
+                                    "VISIT_" + today.toString() + "_" + f.getId(),
+                                    f.getId(),
+                                    today
+                            ))
                             .collect(Collectors.toList());
                     dailyPushLogRepository.saveAll(logs);
                 }
             }
+
         } catch (Exception e) {
             log.error("게시글 작성 알림 발송 실패: {}", e.getMessage());
         }

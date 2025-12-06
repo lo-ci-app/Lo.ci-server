@@ -141,6 +141,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     boolean existsByBeaconIdInAndUserId(List<String> beaconIds, Long userId);
 
+    @Query("SELECT DISTINCT p.user FROM Post p " +
+            "WHERE p.beaconId = :beaconId " +
+            "AND p.user.id IN :friendIds")
+    List<User> findUsersWhoPostedInBeacon(@Param("beaconId") String beaconId,
+                                          @Param("friendIds") List<Long> friendIds);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.status = 'ARCHIVED' " +
             "WHERE p.status = 'ACTIVE' " +
@@ -154,4 +160,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "WHERE p.user.id IN :userIds AND p.status = :status " +
             "GROUP BY p.user.id")
     List<Object[]> countPostsByUserIds(@Param("userIds") List<Long> userIds, @Param("status") PostStatus status);
+
+    @Query("SELECT DISTINCT p.user.id FROM Post p " +
+            "WHERE p.createdAt >= :startDateTime " +
+            "AND p.createdAt < :endDateTime")
+    List<Long> findUserIdsWhoPostedBetween(@Param("startDateTime") LocalDateTime startDateTime,
+                                           @Param("endDateTime") LocalDateTime endDateTime);
+
+    boolean existsByBeaconIdAndUserId(String beaconId, Long userId);
 }
