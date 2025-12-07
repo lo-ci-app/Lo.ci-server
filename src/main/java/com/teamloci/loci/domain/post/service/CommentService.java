@@ -1,21 +1,22 @@
 package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
+import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
+import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.CommentDto;
 import com.teamloci.loci.domain.post.entity.Post;
 import com.teamloci.loci.domain.post.entity.PostComment;
-import com.teamloci.loci.domain.post.entity.PostStatus;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
+import com.teamloci.loci.domain.user.UserDto;
+import com.teamloci.loci.domain.user.UserRepository;
+import com.teamloci.loci.domain.user.service.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
-import com.teamloci.loci.domain.friend.FriendshipRepository;
-import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class CommentService {
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
+    private final UserActivityService userActivityService;
 
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-z0-9._]+)");
 
@@ -71,10 +73,14 @@ public class CommentService {
             );
         }
 
-        long friendCount = friendshipRepository.countFriends(userId);
-        long postCount = postRepository.countByUserIdAndStatus(userId, PostStatus.ACTIVE);
+        var stats = userActivityService.getUserStats(userId);
 
-        return CommentDto.Response.of(savedComment, "SELF", friendCount, postCount);
+        return CommentDto.Response.builder()
+                .id(savedComment.getId())
+                .content(savedComment.getContent())
+                .user(UserDto.UserResponse.of(savedComment.getUser(), "SELF", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount()))
+                .createdAt(savedComment.getCreatedAt())
+                .build();
     }
 
     private Set<Long> sendMentionNotifications(User sender, Post post, String content) {
@@ -141,24 +147,13 @@ public class CommentService {
                     ));
         }
 
-        Map<Long, Long> friendCountMap = new HashMap<>();
-        Map<Long, Long> postCountMap = new HashMap<>();
-
-        if (!authorIds.isEmpty()) {
-            List<Long> authorIdList = new ArrayList<>(authorIds);
-
-            friendshipRepository.countFriendsByUserIds(authorIdList).forEach(row ->
-                    friendCountMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue())
-            );
-
-            postRepository.countPostsByUserIds(authorIdList, PostStatus.ACTIVE).forEach(row ->
-                    postCountMap.put((Long) row[0], (Long) row[1])
-            );
-        }
+        // [Bulk 조회 적용]
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(authorIds));
 
         List<CommentDto.Response> commentDtos = comments.stream()
                 .map(c -> {
                     Long userId = c.getUser().getId();
+                    var stats = statsMap.getOrDefault(userId, new UserActivityService.UserStats(0,0,0,0));
 
                     String status;
                     if (userId.equals(myUserId)) {
@@ -167,10 +162,19 @@ public class CommentService {
                         status = RelationUtil.resolveStatus(friendshipMap.get(userId), myUserId);
                     }
 
-                    Long fCount = friendCountMap.getOrDefault(userId, 0L);
-                    Long pCount = postCountMap.getOrDefault(userId, 0L);
-
-                    return CommentDto.Response.of(c, status, fCount, pCount);
+                    return CommentDto.Response.builder()
+                            .id(c.getId())
+                            .content(c.getContent())
+                            .user(UserDto.UserResponse.of(
+                                    c.getUser(),
+                                    status,
+                                    stats.friendCount(),
+                                    stats.postCount(),
+                                    stats.streakCount(),
+                                    stats.visitedPlaceCount()
+                            ))
+                            .createdAt(c.getCreatedAt())
+                            .build();
                 })
                 .collect(Collectors.toList());
 
@@ -198,16 +202,5 @@ public class CommentService {
         }
 
         commentRepository.delete(comment);
-    }
-
-    private String resolveStatus(Friendship f, Long myUserId) {
-        if (f == null) return "NONE";
-        if (f.getStatus() == FriendshipStatus.FRIENDSHIP) return "FRIEND";
-
-        if (f.getRequester().getId().equals(myUserId)) {
-            return "PENDING_SENT";
-        } else {
-            return "PENDING_RECEIVED";
-        }
     }
 }

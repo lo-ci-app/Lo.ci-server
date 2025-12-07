@@ -1,6 +1,7 @@
 package com.teamloci.loci.domain.post.repository;
 
 import java.time.LocalDateTime;
+import java.sql.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -104,7 +105,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findLatestPostsByUserIds(@Param("userIds") List<Long> userIds);
 
     @Query(value = """
-        WITH RankedPosts AS (
+
+            WITH RankedPosts AS (
             SELECT
                 p.beacon_id,
                 p.location_name,
@@ -168,4 +170,16 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                                            @Param("endDateTime") LocalDateTime endDateTime);
 
     boolean existsByBeaconIdAndUserId(String beaconId, Long userId);
+
+    @Query(value = "SELECT DISTINCT DATE(created_at) FROM posts WHERE user_id = :userId AND status = 'ACTIVE' ORDER BY created_at DESC", nativeQuery = true)
+    List<Date> findDistinctPostDates(@Param("userId") Long userId);
+
+    @Query(value = "SELECT user_id, DATE(created_at) as post_date FROM posts WHERE user_id IN :userIds AND status = 'ACTIVE' ORDER BY user_id, created_at DESC", nativeQuery = true)
+    List<Object[]> findPostDatesByUserIds(@Param("userIds") List<Long> userIds);
+
+    @Query("SELECT COUNT(DISTINCT p.beaconId) FROM Post p WHERE p.user.id = :userId AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED')")
+    long countDistinctBeaconsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT p.user.id, COUNT(DISTINCT p.beaconId) FROM Post p WHERE p.user.id IN :userIds AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED') GROUP BY p.user.id")
+    List<Object[]> countDistinctBeaconsByUserIds(@Param("userIds") List<Long> userIds);
 }

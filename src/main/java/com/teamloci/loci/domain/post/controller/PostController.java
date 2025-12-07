@@ -70,44 +70,7 @@ public class PostController {
                     """))
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "생성 성공",
-                    content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "timestamp": "2025-11-24T12:00:00",
-                              "isSuccess": true,
-                              "code": "COMMON201",
-                              "message": "성공적으로 객체를 생성했습니다.",
-                              "result": {
-                                "id": 101,
-                                "beaconId": "89283082807ffff",
-                                "latitude": 37.5665,
-                                "longitude": 126.9780,
-                                "locationName": "서울시청",
-                                "user": { 
-                                  "id": 1, 
-                                  "handle": "my_handle", 
-                                  "nickname": "내닉네임", 
-                                  "profileUrl": "https://dagvorl6p9q6m.cloudfront.net/w100/profiles/me.jpg",
-                                  "createdAt": "2025-11-24T12:00:00",
-                                  "relationStatus": "SELF",
-                                  "friendCount": 150,
-                                  "postCount": 23
-                                },
-                                "mediaList": [{ 
-                                  "id": 50, 
-                                  "mediaUrl": "https://dagvorl6p9q6m.cloudfront.net/posts/uuid_image.webp", 
-                                  "mediaType": "IMAGE", 
-                                  "sortOrder": 1 
-                                }],
-                                "collaborators": [],
-                                "createdAt": "2025-11-24T12:00:00",
-                                "updatedAt": "2025-11-24T12:00:00",
-                                "isArchived": true,
-                                "commentCount": 0,
-                                "reactionCount": 0
-                              }
-                            }
-                            """)))
+            @ApiResponse(responseCode = "201", description = "생성 성공")
     })
     @PostMapping
     public ResponseEntity<CustomResponse<PostDto.PostDetailResponse>> createPost(
@@ -158,46 +121,6 @@ public class PostController {
             description = """
                     특정 유저(targetUserId)가 작성한 포스트들을 최신순으로 조회합니다.
                     """)
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "timestamp": "2025-11-24T12:05:00",
-                              "isSuccess": true,
-                              "code": "COMMON200",
-                              "message": "성공적으로 요청을 수행했습니다.",
-                              "result": {
-                                "posts": [
-                                  {
-                                    "id": 105,
-                                    "beaconId": "89283082807ffff",
-                                    "latitude": 37.5665,
-                                    "longitude": 126.9780,
-                                    "locationName": "한강공원",
-                                    "user": { 
-                                      "id": 5, 
-                                      "handle": "happy_panda", 
-                                      "nickname": "즐거운판다", 
-                                      "profileUrl": "...",
-                                      "createdAt": "2025-11-24T10:00:00",
-                                      "relationStatus": "FRIEND",
-                                      "friendCount": 42,
-                                      "postCount": 10
-                                    },
-                                    "mediaList": [],
-                                    "createdAt": "2025-11-24T10:00:00",
-                                    "updatedAt": "2025-11-24T10:00:00",
-                                    "isArchived": false,
-                                    "commentCount": 3,
-                                    "reactionCount": 15
-                                  }
-                                ],
-                                "hasNext": true,
-                                "nextCursor": 98
-                              }
-                            }
-                            """)))
-    })
     @GetMapping("/user/{userId}")
     public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getPostsByUser(
             @AuthenticationPrincipal AuthenticatedUser user,
@@ -353,6 +276,19 @@ public class PostController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.getVisitedPlaces(userId, page, size)));
+    }
+
+    @Operation(summary = "내 방문한 장소 목록 (Grid View용 탭)",
+            description = "내가 방문했던 구역(Beacon)들을 최신순으로 묶어서 반환합니다. (/user/{내ID}/.. 와 동일)")
+    @GetMapping("/me/visited-places")
+    public ResponseEntity<CustomResponse<List<PostDto.VisitedPlaceResponse>>> getMyVisitedPlaces(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(
+                postService.getVisitedPlaces(getUserId(user), page, size)
+        ));
     }
 
     @Operation(summary = "촬영 전 친구 발자취 확인",

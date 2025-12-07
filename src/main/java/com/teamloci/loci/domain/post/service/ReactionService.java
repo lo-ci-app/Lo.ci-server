@@ -2,6 +2,7 @@ package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.ReactionDto;
 import com.teamloci.loci.domain.post.entity.*;
@@ -12,9 +13,9 @@ import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
+import com.teamloci.loci.domain.user.service.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
-import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +37,7 @@ public class ReactionService {
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
+    private final UserActivityService userActivityService;
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
@@ -120,18 +122,8 @@ public class ReactionService {
                     ));
         }
 
-        Map<Long, Long> friendCountMap = new HashMap<>();
-        Map<Long, Long> postCountMap = new HashMap<>();
-
-        if (!userIds.isEmpty()) {
-            List<Long> userIdList = new ArrayList<>(userIds);
-            friendshipRepository.countFriendsByUserIds(userIdList).forEach(row ->
-                    friendCountMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue())
-            );
-            postRepository.countPostsByUserIds(userIdList, PostStatus.ACTIVE).forEach(row ->
-                    postCountMap.put((Long) row[0], (Long) row[1])
-            );
-        }
+        // [Bulk 조회 적용]
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(userIds));
 
         List<ReactionDto.Response> dtos = resultList.stream()
                 .map(r -> {
@@ -144,10 +136,11 @@ public class ReactionService {
                         status = RelationUtil.resolveStatus(friendshipMap.get(u.getId()), myUserId);
                     }
 
-                    Long fCount = friendCountMap.getOrDefault(u.getId(), 0L);
-                    Long pCount = postCountMap.getOrDefault(u.getId(), 0L);
+                    var stats = statsMap.getOrDefault(u.getId(), new UserActivityService.UserStats(0,0,0,0));
 
-                    UserDto.UserResponse userResponse = UserDto.UserResponse.of(u, status, fCount, pCount);
+                    UserDto.UserResponse userResponse = UserDto.UserResponse.of(
+                            u, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount()
+                    );
 
                     return ReactionDto.Response.of(r, userResponse);
                 })

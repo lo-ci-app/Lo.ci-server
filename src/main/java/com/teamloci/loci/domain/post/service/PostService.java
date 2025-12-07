@@ -5,6 +5,7 @@ import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
 import com.teamloci.loci.domain.notification.DailyPushLog;
 import com.teamloci.loci.domain.notification.DailyPushLogRepository;
+import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.PostDto;
 import com.teamloci.loci.domain.post.entity.*;
@@ -12,13 +13,13 @@ import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
-import com.teamloci.loci.domain.user.UserRepository;
 import com.teamloci.loci.domain.user.UserDto;
+import com.teamloci.loci.domain.user.UserRepository;
+import com.teamloci.loci.domain.user.service.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.GeoUtils;
 import com.teamloci.loci.global.util.RelationUtil;
-import com.teamloci.loci.domain.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,7 @@ public class PostService {
     private final NotificationService notificationService;
     private final DailyPushLogRepository dailyPushLogRepository;
     private final GeoUtils geoUtils;
+    private final UserActivityService userActivityService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -389,19 +391,6 @@ public class PostService {
             myReactions.put((Long) row[0], (ReactionType) row[1]);
         });
 
-        Map<Long, Long> friendCountMap = new HashMap<>();
-        Map<Long, Long> postCountMap = new HashMap<>();
-
-        if (!targetUserIds.isEmpty()) {
-            List<Long> userIdList = new ArrayList<>(targetUserIds);
-            friendshipRepository.countFriendsByUserIds(userIdList).forEach(row ->
-                    friendCountMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue())
-            );
-            postRepository.countPostsByUserIds(userIdList, PostStatus.ACTIVE).forEach(row ->
-                    postCountMap.put((Long) row[0], (Long) row[1])
-            );
-        }
-
         Set<Long> otherUserIds = targetUserIds.stream()
                 .filter(id -> !id.equals(myUserId))
                 .collect(Collectors.toSet());
@@ -416,6 +405,9 @@ public class PostService {
                             f -> f
                     ));
         }
+
+        // [Bulk 조회 적용]
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(targetUserIds));
 
         for (PostDto.PostDetailResponse p : posts) {
             p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
@@ -432,11 +424,11 @@ public class PostService {
                     .sum();
             p.setReactionCount(totalReactions);
 
-            fillUserInfo(p.getUser(), myUserId, friendshipMap, friendCountMap, postCountMap);
+            fillUserInfo(p.getUser(), myUserId, friendshipMap, statsMap);
 
             if (p.getCollaborators() != null) {
                 p.getCollaborators().forEach(c ->
-                        fillUserInfo(c, myUserId, friendshipMap, friendCountMap, postCountMap)
+                        fillUserInfo(c, myUserId, friendshipMap, statsMap)
                 );
             }
         }
@@ -444,8 +436,7 @@ public class PostService {
 
     private void fillUserInfo(UserDto.UserResponse userRes, Long myUserId,
                               Map<Long, Friendship> friendshipMap,
-                              Map<Long, Long> friendCountMap,
-                              Map<Long, Long> postCountMap) {
+                              Map<Long, UserActivityService.UserStats> statsMap) {
 
         if (userRes.getId().equals(myUserId)) {
             userRes.setRelationStatus("SELF");
@@ -454,8 +445,12 @@ public class PostService {
             userRes.setRelationStatus(RelationUtil.resolveStatus(f, myUserId));
         }
 
-        userRes.setFriendCount(friendCountMap.getOrDefault(userRes.getId(), 0L));
-        userRes.setPostCount(postCountMap.getOrDefault(userRes.getId(), 0L));
+        UserActivityService.UserStats stats = statsMap.getOrDefault(userRes.getId(), new UserActivityService.UserStats(0,0,0,0));
+
+        userRes.setFriendCount(stats.friendCount());
+        userRes.setPostCount(stats.postCount());
+        userRes.setStreakCount(stats.streakCount());
+        userRes.setVisitedPlaceCount(stats.visitedPlaceCount());
     }
 
     private void sendPostNotifications(User author, Post post) {

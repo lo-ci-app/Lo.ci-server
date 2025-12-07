@@ -5,6 +5,7 @@ import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserStatus;
 import com.teamloci.loci.domain.user.UserDto;
+import com.teamloci.loci.domain.user.service.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.AesUtil;
@@ -35,6 +36,7 @@ public class FriendService {
     private final NotificationService notificationService;
     private final UserContactRepository userContactRepository;
     private final AesUtil aesUtil;
+    private final UserActivityService userActivityService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -103,11 +105,13 @@ public class FriendService {
 
         List<Long> targetIds = matchedUsers.stream().map(User::getId).toList();
         Map<Long, Friendship> friendshipMap = getFriendshipMap(myUserId, targetIds);
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(targetIds);
 
         return matchedUsers.stream()
                 .map(user -> {
                     String status = resolveRelationStatus(friendshipMap.get(user.getId()), myUserId);
-                    return UserDto.UserResponse.of(user, status, 0L, 0L);
+                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
+                    return UserDto.UserResponse.of(user, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
                 })
                 .collect(Collectors.toList());
     }
@@ -209,24 +213,54 @@ public class FriendService {
     }
 
     public List<UserDto.UserResponse> getMyFriends(Long myUserId) {
-        return friendshipRepository.findAllFriendsWithUsers(myUserId)
+        List<User> friends = friendshipRepository.findAllFriendsWithUsers(myUserId)
                 .stream()
                 .map(f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver() : f.getRequester())
-                .map(user -> UserDto.UserResponse.of(user, "FRIEND", 0L, 0L))
+                .collect(Collectors.toList());
+
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(
+                friends.stream().map(User::getId).collect(Collectors.toList())
+        );
+
+        return friends.stream()
+                .map(user -> {
+                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
+                    return UserDto.UserResponse.of(user, "FRIEND", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
+                })
                 .collect(Collectors.toList());
     }
 
     public List<UserDto.UserResponse> getReceivedRequests(Long myUserId) {
-        return friendshipRepository.findReceivedRequests(myUserId).stream()
+        List<User> requesters = friendshipRepository.findReceivedRequests(myUserId).stream()
                 .map(Friendship::getRequester)
-                .map(user -> UserDto.UserResponse.of(user, "PENDING_RECEIVED", 0L, 0L))
+                .collect(Collectors.toList());
+
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(
+                requesters.stream().map(User::getId).collect(Collectors.toList())
+        );
+
+        return requesters.stream()
+                .map(user -> {
+                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
+                    return UserDto.UserResponse.of(user, "PENDING_RECEIVED", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
+                })
                 .collect(Collectors.toList());
     }
 
     public List<UserDto.UserResponse> getSentRequests(Long myUserId) {
-        return friendshipRepository.findSentRequests(myUserId).stream()
+        List<User> receivers = friendshipRepository.findSentRequests(myUserId).stream()
                 .map(Friendship::getReceiver)
-                .map(user -> UserDto.UserResponse.of(user, "PENDING_SENT", 0L, 0L))
+                .collect(Collectors.toList());
+
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(
+                receivers.stream().map(User::getId).collect(Collectors.toList())
+        );
+
+        return receivers.stream()
+                .map(user -> {
+                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
+                    return UserDto.UserResponse.of(user, "PENDING_SENT", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
+                })
                 .collect(Collectors.toList());
     }
 
@@ -250,14 +284,16 @@ public class FriendService {
 
         List<Long> targetIds = foundUsers.stream().map(User::getId).collect(Collectors.toList());
         Map<Long, Friendship> friendshipMap = getFriendshipMap(myUserId, targetIds);
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(targetIds);
 
         List<UserDto.UserResponse> userDtos = foundUsers.stream()
                 .map(user -> {
+                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
                     if (user.getId().equals(myUserId)) {
-                        return UserDto.UserResponse.of(user, "SELF", 0L, 0L);
+                        return UserDto.UserResponse.of(user, "SELF", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
                     }
                     String status = resolveRelationStatus(friendshipMap.get(user.getId()), myUserId);
-                    return UserDto.UserResponse.of(user, status, 0L, 0L);
+                    return UserDto.UserResponse.of(user, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
                 })
                 .collect(Collectors.toList());
 

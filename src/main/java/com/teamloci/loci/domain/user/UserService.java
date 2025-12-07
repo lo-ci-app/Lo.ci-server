@@ -2,18 +2,16 @@ package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
-import com.teamloci.loci.domain.post.entity.PostStatus;
+import com.teamloci.loci.domain.user.service.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.infra.S3UploadService;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
-import com.teamloci.loci.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.SecureRandom;
 import java.util.Optional;
 
 @Service
@@ -24,8 +22,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final S3UploadService s3UploadService;
     private final FriendshipRepository friendshipRepository;
-    private final PostRepository postRepository;
-    private static final SecureRandom random = new SecureRandom();
+    private final UserActivityService userActivityService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -39,8 +36,7 @@ public class UserService {
     public UserDto.UserResponse getUserProfile(Long myUserId, Long targetUserId) {
         User targetUser = findUserById(targetUserId);
 
-        long friendCount = friendshipRepository.countFriends(targetUserId);
-        long postCount = postRepository.countByUserIdAndStatus(targetUserId, PostStatus.ACTIVE);
+        var stats = userActivityService.getUserStats(targetUserId);
 
         String relationStatus = "NONE";
         if (myUserId.equals(targetUserId)) {
@@ -59,7 +55,14 @@ public class UserService {
             }
         }
 
-        return UserDto.UserResponse.of(targetUser, relationStatus, friendCount, postCount);
+        return UserDto.UserResponse.of(
+                targetUser,
+                relationStatus,
+                stats.friendCount(),
+                stats.postCount(),
+                stats.streakCount(),
+                stats.visitedPlaceCount()
+        );
     }
 
     @Transactional
