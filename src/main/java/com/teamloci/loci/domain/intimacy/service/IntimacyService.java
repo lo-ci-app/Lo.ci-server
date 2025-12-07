@@ -4,9 +4,11 @@ import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.intimacy.dto.IntimacyDto;
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
+import com.teamloci.loci.domain.intimacy.entity.IntimacyLevel;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyLog;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
+import com.teamloci.loci.domain.intimacy.repository.IntimacyLevelRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLogRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -32,14 +35,17 @@ public class IntimacyService {
 
     private final FriendshipIntimacyRepository intimacyRepository;
     private final IntimacyLogRepository logRepository;
+    private final IntimacyLevelRepository levelRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
     private final UserActivityService userActivityService;
+
 
     public void accumulatePoint(Long actorId, Long targetId, IntimacyType type, String relatedBeaconId) {
         if (actorId.equals(targetId)) return;
 
         if (isLimited(actorId, targetId, type, relatedBeaconId)) {
+            log.info("⛔ 친밀도 적립 제한됨: {} -> {}, 타입: {}", actorId, targetId, type);
             return;
         }
 
@@ -53,11 +59,14 @@ public class IntimacyService {
 
         int point = type.getPoint();
         int oldLevel = intimacy.getLevel();
+        long newTotalScore = intimacy.getTotalScore() + point;
+
+        int newLevel = calculateLevel(newTotalScore);
 
         intimacy.addScore(point);
-
-        if (intimacy.getLevel() > oldLevel) {
-            log.info("🎉 레벨업! {} & {} -> Lv.{}", actorId, targetId, intimacy.getLevel());
+        if (newLevel > oldLevel) {
+            intimacy.updateLevel(newLevel);
+            log.info("🎉 레벨업! {} & {} : Lv.{} -> Lv.{}", actorId, targetId, oldLevel, newLevel);
         }
 
         logRepository.save(IntimacyLog.builder()
@@ -67,6 +76,58 @@ public class IntimacyService {
                 .earnedPoint(point)
                 .relatedBeaconId(relatedBeaconId)
                 .build());
+    }
+
+    @Transactional(readOnly = true)
+    public IntimacyDto.DetailResponse getIntimacyDetail(Long myUserId, Long targetUserId) {
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Long u1 = Math.min(myUserId, targetUserId);
+        Long u2 = Math.max(myUserId, targetUserId);
+
+        Optional<FriendshipIntimacy> intimacyOpt = intimacyRepository.findByUserAIdAndUserBId(u1, u2);
+
+        int currentLevel = intimacyOpt.map(FriendshipIntimacy::getLevel).orElse(1);
+        Long currentScore = intimacyOpt.map(FriendshipIntimacy::getTotalScore).orElse(0L);
+
+        Integer myTotalLevel = intimacyRepository.sumLevelByUserId(myUserId);
+        if (myTotalLevel == null) myTotalLevel = 0;
+
+        IntimacyLevel nextLevelInfo = levelRepository.findByLevel(currentLevel + 1).orElse(null);
+        Long nextLevelScore = nextLevelInfo != null ? Long.valueOf(nextLevelInfo.getRequiredTotalScore()) : null;
+
+        var stats = userActivityService.getUserStats(targetUserId);
+        Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
+        String relationStatus = RelationUtil.resolveStatus(friendship.orElse(null), myUserId);
+
+        UserDto.UserResponse userResponse = UserDto.UserResponse.of(
+                targetUser,
+                relationStatus,
+                stats.friendCount(),
+                stats.postCount(),
+                stats.streakCount(),
+                stats.visitedPlaceCount()
+        );
+
+        return IntimacyDto.DetailResponse.builder()
+                .targetUser(userResponse)
+                .level(currentLevel)
+                .score(currentScore)
+                .nextLevelScore(nextLevelScore)
+                .myTotalLevel(myTotalLevel)
+                .build();
+    }
+
+    private int calculateLevel(long currentScore) {
+        List<IntimacyLevel> levels = levelRepository.findAllByOrderByLevelDesc();
+
+        for (IntimacyLevel lv : levels) {
+            if (currentScore >= lv.getRequiredTotalScore()) {
+                return lv.getLevel();
+            }
+        }
+        return 1;
     }
 
     private boolean isLimited(Long actorId, Long targetId, IntimacyType type, String beaconId) {
@@ -90,40 +151,5 @@ public class IntimacyService {
             default:
                 return false;
         }
-    }
-
-    @Transactional(readOnly = true)
-    public IntimacyDto.DetailResponse getIntimacyDetail(Long myUserId, Long targetUserId) {
-        User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        // 1. 친밀도 조회 (없으면 기본값 0점, Lv.1)
-        Long u1 = Math.min(myUserId, targetUserId);
-        Long u2 = Math.max(myUserId, targetUserId);
-
-        Optional<FriendshipIntimacy> intimacyOpt = intimacyRepository.findByUserAIdAndUserBId(u1, u2);
-
-        int level = intimacyOpt.map(FriendshipIntimacy::getLevel).orElse(1);
-        Long score = intimacyOpt.map(FriendshipIntimacy::getTotalScore).orElse(0L);
-
-        Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
-        String relationStatus = RelationUtil.resolveStatus(friendship.orElse(null), myUserId);
-
-        var stats = userActivityService.getUserStats(targetUserId);
-
-        UserDto.UserResponse userResponse = UserDto.UserResponse.of(
-                targetUser,
-                relationStatus,
-                stats.friendCount(),
-                stats.postCount(),
-                stats.streakCount(),
-                stats.visitedPlaceCount()
-        );
-
-        return IntimacyDto.DetailResponse.builder()
-                .targetUser(userResponse)
-                .level(level)
-                .score(score)
-                .build();
     }
 }

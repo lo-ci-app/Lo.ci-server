@@ -1,31 +1,28 @@
 package com.teamloci.loci.domain.intimacy.entity;
 
-import lombok.AllArgsConstructor;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
 
-import java.util.Arrays;
-
+@Entity
 @Getter
-@RequiredArgsConstructor
-public enum IntimacyLevel {
-    LEVEL_1(1, 0),
-    LEVEL_2(2, 50),
-    LEVEL_3(3, 150),
-    LEVEL_4(4, 300);
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "intimacy_levels")
+public class IntimacyLevel {
 
-    private final int level;
-    private final long requiredTotalScore;
+    @Id
+    @Column(nullable = false)
+    private Integer level;
 
-    private static final IntimacyLevel[] CACHED_VALUES = values();
+    @Column(nullable = false)
+    private Integer requiredTotalScore;
 
-    public static int calculateLevel(long currentScore) {
-        IntimacyLevel[] levels = values();
-        for (int i = levels.length - 1; i >= 0; i--) {
-            if (currentScore >= levels[i].requiredTotalScore) {
-                return levels[i].level;
-            }
-        }
-        return 1;
+    public IntimacyLevel(Integer level, Integer requiredTotalScore) {
+        this.level = level;
+        this.requiredTotalScore = requiredTotalScore;
     }
 }

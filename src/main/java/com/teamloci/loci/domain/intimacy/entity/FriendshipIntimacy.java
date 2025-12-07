@@ -46,6 +46,9 @@ public class FriendshipIntimacy extends BaseTimeEntity {
 
     public void addScore(int score) {
         this.totalScore += score;
-        this.level = IntimacyLevel.calculateLevel(this.totalScore);
+    }
+
+    public void updateLevel(int level) {
+        this.level = level;
     }
 }
