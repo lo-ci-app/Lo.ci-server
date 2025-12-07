@@ -34,28 +34,37 @@ public class IntimacyController {
         return user.getUserId();
     }
 
-    @Operation(summary = "친밀도 조회 (With 유저 정보)",
+    @Operation(summary = "친밀도 상세 조회",
             description = """
-                    특정 유저와의 친밀도 레벨, 점수, 그리고 상대방의 프로필 정보를 함께 조회합니다.
-                    친밀도 기록이 없는 경우 점수 0, 레벨 1로 반환됩니다.
+                    특정 유저와의 **친밀도 상태**와 **나의 전체 레벨 합** 정보를 조회합니다.
+                    
+                    ### [Response Fields 설명]
+                    * **level**: 현재 이 친구와의 친밀도 레벨 (예: 3)
+                    * **totalScore**: 현재까지 쌓은 누적 점수 (예: 250) -> **게이지 바 현재 값**
+                    * **nextLevelScore**: 다음 레벨이 되기 위한 목표 점수 (예: 376) -> **게이지 바 최대 값**
+                    * **myTotalLevel**: 내 모든 친구 관계의 레벨 총합 (예: 15) -> **마이페이지/메인 스탯용**
+                    * **targetUser**: 상대방의 프로필 정보
                     """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(examples = @ExampleObject(value = """
                             {
                               "code": "COMMON200",
+                              "message": "성공적으로 요청을 수행했습니다.",
                               "result": {
                                 "targetUser": {
                                   "id": 2,
                                   "handle": "friend_handle",
                                   "nickname": "단짝친구",
-                                  "profileUrl": "https://...",
+                                  "profileUrl": "https://loci-assets.s3.ap-northeast-2.amazonaws.com/profiles/sample.jpg",
                                   "relationStatus": "FRIEND",
                                   "friendCount": 150,
                                   "postCount": 20
                                 },
                                 "level": 3,
-                                "score": 250
+                                "totalScore": 250,
+                                "nextLevelScore": 376,
+                                "myTotalLevel": 15
                               }
                             }
                             """))),
