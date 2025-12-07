@@ -2,31 +2,30 @@ package com.teamloci.loci.domain.intimacy.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
 
 @Getter
-@AllArgsConstructor
+@RequiredArgsConstructor
 public enum IntimacyLevel {
-    LV1(1, 0),
-    LV2(2, 100),
-    LV3(3, 220),
-    LV4(4, 376),
-    LV5(5, 594),
-    LV6(6, 922),
-    LV7(7, 1413),
-    LV8(8, 2175),
-    LV9(9, 3393),
-    LV10(10, 5404);
+    LEVEL_1(1, 0),
+    LEVEL_2(2, 50),
+    LEVEL_3(3, 150),
+    LEVEL_4(4, 300);
 
     private final int level;
-    private final int requiredTotalScore;
+    private final long requiredTotalScore;
+
+    private static final IntimacyLevel[] CACHED_VALUES = values();
 
     public static int calculateLevel(long currentScore) {
-        return Arrays.stream(values())
-                .filter(l -> currentScore >= l.requiredTotalScore)
-                .mapToInt(IntimacyLevel::getLevel)
-                .max()
-                .orElse(1);
+        IntimacyLevel[] levels = values();
+        for (int i = levels.length - 1; i >= 0; i--) {
+            if (currentScore >= levels[i].requiredTotalScore) {
+                return levels[i].level;
+            }
+        }
+        return 1;
     }
 }

@@ -71,9 +71,7 @@ public class ReactionService {
 
             if (!post.getUser().getId().equals(userId)) {
                 intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.REACTION, null);
-            }
 
-            if (!post.getUser().getId().equals(userId)) {
                 notificationService.send(
                         post.getUser(),
                         NotificationType.POST_REACTION,
