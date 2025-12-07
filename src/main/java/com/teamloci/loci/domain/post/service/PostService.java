@@ -3,6 +3,8 @@ package com.teamloci.loci.domain.post.service;
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
+import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
+import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.DailyPushLog;
 import com.teamloci.loci.domain.notification.DailyPushLogRepository;
 import com.teamloci.loci.domain.notification.NotificationService;
@@ -46,6 +48,7 @@ public class PostService {
     private final DailyPushLogRepository dailyPushLogRepository;
     private final GeoUtils geoUtils;
     private final UserActivityService userActivityService;
+    private final IntimacyService intimacyService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -116,6 +119,22 @@ public class PostService {
         }
 
         Post savedPost = postRepository.save(post);
+
+        if (savedPost.getCollaborators() != null) {
+            for (PostCollaborator collaborator : savedPost.getCollaborators()) {
+                Long collaboratorId = collaborator.getUser().getId();
+                intimacyService.accumulatePoint(authorId, collaboratorId, IntimacyType.COLLABORATOR, null);
+            }
+        }
+
+        List<User> friends = friendshipRepository.findActiveFriendsByUserId(authorId);
+        List<Long> friendIds = friends.stream().map(User::getId).toList();
+
+        List<User> visitedFriends = postRepository.findUsersWhoPostedInBeacon(savedPost.getBeaconId(), friendIds);
+
+        for (User friend : visitedFriends) {
+            intimacyService.accumulatePoint(authorId, friend.getId(), IntimacyType.VISIT, savedPost.getBeaconId());
+        }
 
         sendPostNotifications(author, savedPost);
 

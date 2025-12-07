@@ -3,6 +3,8 @@ package com.teamloci.loci.domain.post.service;
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
+import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
+import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.CommentDto;
@@ -38,6 +40,7 @@ public class CommentService {
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
     private final UserActivityService userActivityService;
+    private final IntimacyService intimacyService;
 
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-z0-9._]+)");
 
@@ -55,6 +58,10 @@ public class CommentService {
                 .content(request.getContent())
                 .build();
         PostComment savedComment = commentRepository.save(comment);
+
+        if (!post.getUser().getId().equals(userId)) {
+            intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.COMMENT, null);
+        }
 
         Set<Long> mentionedUserIds = sendMentionNotifications(user, post, request.getContent());
 

@@ -1,6 +1,8 @@
 package com.teamloci.loci.domain.friend;
 
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
+import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserStatus;
@@ -37,6 +39,7 @@ public class FriendService {
     private final UserContactRepository userContactRepository;
     private final AesUtil aesUtil;
     private final UserActivityService userActivityService;
+    private final IntimacyService intimacyService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -194,6 +197,8 @@ public class FriendService {
 
         User requester = friendship.getRequester();
         User me = friendship.getReceiver();
+
+        intimacyService.accumulatePoint(myUserId, requesterId, IntimacyType.FRIEND_MADE, null);
 
         notificationService.send(
                 requester,

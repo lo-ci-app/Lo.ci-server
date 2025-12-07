@@ -2,6 +2,8 @@ package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
+import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.ReactionDto;
@@ -38,6 +40,7 @@ public class ReactionService {
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
     private final UserActivityService userActivityService;
+    private final IntimacyService intimacyService;
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
@@ -65,6 +68,10 @@ public class ReactionService {
                     .user(user)
                     .type(type)
                     .build());
+
+            if (!post.getUser().getId().equals(userId)) {
+                intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.REACTION, null);
+            }
 
             if (!post.getUser().getId().equals(userId)) {
                 notificationService.send(
