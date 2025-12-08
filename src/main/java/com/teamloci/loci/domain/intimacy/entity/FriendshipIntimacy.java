@@ -19,10 +19,10 @@ public class FriendshipIntimacy extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "user_id_a", nullable = false)
     private Long userAId;
 
-    @Column(nullable = false)
+    @Column(name = "user_id_b", nullable = false)
     private Long userBId;
 
     @Column(nullable = false)
