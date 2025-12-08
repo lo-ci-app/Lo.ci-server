@@ -67,8 +67,12 @@ public class LociPushService {
             List<User> targetUsers = userSlice.getContent();
 
             if (!targetUsers.isEmpty()) {
+                List<Long> targetIds = targetUsers.stream()
+                        .map(User::getId)
+                        .toList();
+
                 notificationService.sendMulticast(
-                        targetUsers,
+                        targetIds,
                         NotificationType.LOCI_TIME,
                         "Time to Loci! 📸",
                         "지금 바로 친구들에게 일상을 공유하세요!",

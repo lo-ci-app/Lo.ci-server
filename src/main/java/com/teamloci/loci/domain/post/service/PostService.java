@@ -425,7 +425,6 @@ public class PostService {
                     ));
         }
 
-        // [Bulk 조회 적용]
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(targetUserIds));
 
         for (PostDto.PostDetailResponse p : posts) {
@@ -505,8 +504,12 @@ public class PostService {
                     .collect(Collectors.toList());
 
             if (!targetNewPostFriends.isEmpty()) {
+                List<Long> targetIds = targetNewPostFriends.stream()
+                        .map(User::getId)
+                        .toList();
+
                 notificationService.sendMulticast(
-                        targetNewPostFriends,
+                        targetIds,
                         NotificationType.NEW_POST,
                         "새로운 Loci!",
                         author.getNickname() + "님이 지금 순간을 공유했어요 📸",
@@ -523,7 +526,6 @@ public class PostService {
             }
 
             List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
-
             List<User> visitedFriends = postRepository.findUsersWhoPostedInBeacon(post.getBeaconId(), friendIds);
 
             if (!visitedFriends.isEmpty()) {
@@ -540,8 +542,12 @@ public class PostService {
                         .collect(Collectors.toList());
 
                 if (!targetVisitedFriends.isEmpty()) {
+                    List<Long> targetIds = targetVisitedFriends.stream()
+                            .map(User::getId)
+                            .toList();
+
                     notificationService.sendMulticast(
-                            targetVisitedFriends,
+                            targetIds,
                             NotificationType.FRIEND_VISITED,
                             "반가운 발자취! 👣",
                             author.getNickname() + "님이 회원님이 방문했던 곳에 다녀갔어요!",

@@ -1,8 +1,8 @@
 package com.teamloci.loci.domain.notification;
 
-import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.*;
 import com.teamloci.loci.domain.user.User;
+import com.teamloci.loci.domain.user.UserRepository;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
 
     public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
         PageRequest pageable = PageRequest.of(0, size + 1);
@@ -75,10 +76,14 @@ public class NotificationService {
         }
     }
 
-    @Async
+    @Async("taskExecutor")
     @Transactional
-    public void sendMulticast(List<User> receivers, NotificationType type, String title, String body, Long relatedId) {
-        if (receivers == null || receivers.isEmpty()) return;
+    public void sendMulticast(List<Long> receiverIds, NotificationType type, String title, String body, Long relatedId) {
+        if (receiverIds == null || receiverIds.isEmpty()) return;
+
+        List<User> receivers = userRepository.findAllById(receiverIds);
+
+        if (receivers.isEmpty()) return;
 
         List<Notification> entities = receivers.stream()
                 .map(r -> Notification.builder()
@@ -118,12 +123,7 @@ public class NotificationService {
 
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
-            log.error(">>> [FCM Single Send Error] <<<");
-            log.error("Active Project ID: {}", FirebaseApp.getInstance().getOptions().getProjectId());
-            log.error("Service Account: {}", FirebaseApp.getInstance().getOptions().getServiceAccountId());
-            log.error("Target Token: {}", token);
-            log.error("Exception Message: {}", e.getMessage());
-            log.error("Full StackTrace: ", e);
+            log.error(">>> [FCM Single Send Error] Exception: {}", e.getMessage());
         }
     }
 
@@ -145,19 +145,7 @@ public class NotificationService {
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
 
             if (response.getFailureCount() > 0) {
-                log.warn(">>> [FCM Multicast Partial Failure] <<<");
-                log.warn("Success: {}, Failure: {}", response.getSuccessCount(), response.getFailureCount());
-                log.warn("Active Project ID: {}", FirebaseApp.getInstance().getOptions().getProjectId());
-
-                List<SendResponse> responses = response.getResponses();
-                for (int i = 0; i < responses.size(); i++) {
-                    SendResponse r = responses.get(i);
-                    if (!r.isSuccessful()) {
-                        log.error("--- Failure Detail (Index: {}) ---", i);
-                        log.error("Target Token: {}", tokens.get(i));
-                        log.error("Reason: {}", r.getException().getMessage());
-                    }
-                }
+                log.warn(">>> [FCM Multicast] Success: {}, Failure: {}", response.getSuccessCount(), response.getFailureCount());
             }
 
         } catch (Exception e) {
@@ -178,10 +166,7 @@ public class NotificationService {
                     .build();
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
-            log.error(">>> [DM FCM Send Error] <<<");
-            log.error("Active Project ID: {}", FirebaseApp.getInstance().getOptions().getProjectId());
-            log.error("Target Token: {}", targetFcmToken);
-            log.error("Exception: ", e);
+            log.error(">>> [DM FCM Send Error] Exception: ", e);
         }
     }
 }
