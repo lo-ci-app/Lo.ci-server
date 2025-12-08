@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.friend;
 
+import com.teamloci.loci.domain.user.UserDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -59,6 +60,31 @@ public class FriendDto {
         @Schema(description = "상대방 User ID", example = "2")
         @NotNull
         private Long targetUserId;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @Schema(description = "친구 정보 + 친밀도 정보 응답")
+    public static class FriendWithIntimacyResponse {
+
+        @Schema(description = "친구 유저 정보")
+        private UserDto.UserResponse user;
+
+        @Schema(description = "친밀도 정보")
+        private IntimacyInfo intimacy;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @Schema(description = "친밀도 요약 정보")
+    public static class IntimacyInfo {
+        @Schema(description = "현재 레벨", example = "3")
+        private int level;
+
+        @Schema(description = "현재 누적 점수", example = "250")
+        private Long totalScore;
     }
 }
 

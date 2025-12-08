@@ -108,7 +108,8 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(friendService.getSentRequests(getUserId(user))));
     }
 
-    @Operation(summary = "내 친구 목록", description = "서로 친구(FRIENDSHIP) 상태인 유저 목록을 반환합니다.")
+    @Operation(summary = "내 친구 목록 (친밀도 포함)",
+            description = "서로 친구(FRIENDSHIP) 상태인 유저 목록을 반환합니다. `intimacyLevel`, `intimacyScore` 필드가 포함됩니다.")
     @GetMapping
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getMyFriends(
             @AuthenticationPrincipal AuthenticatedUser user

@@ -1,7 +1,9 @@
 package com.teamloci.loci.domain.friend;
 
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
+import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.user.User;
@@ -20,10 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +36,7 @@ public class FriendService {
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
     private final UserContactRepository userContactRepository;
+    private final FriendshipIntimacyRepository intimacyRepository;
     private final AesUtil aesUtil;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
@@ -223,14 +223,45 @@ public class FriendService {
                 .map(f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver() : f.getRequester())
                 .collect(Collectors.toList());
 
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(
-                friends.stream().map(User::getId).collect(Collectors.toList())
-        );
+        if (friends.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> friendIds = friends.stream().map(User::getId).toList();
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(friendIds);
+
+        List<FriendshipIntimacy> intimacies = intimacyRepository.findAllByUserId(myUserId);
+
+        Map<Long, FriendshipIntimacy> intimacyMap = new HashMap<>();
+        for (FriendshipIntimacy fi : intimacies) {
+            Long friendId = fi.getUserAId().equals(myUserId) ? fi.getUserBId() : fi.getUserAId();
+            intimacyMap.put(friendId, fi);
+        }
 
         return friends.stream()
                 .map(user -> {
-                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
-                    return UserDto.UserResponse.of(user, "FRIEND", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
+                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0, 0, 0, 0));
+
+                    UserDto.UserResponse userResponse = UserDto.UserResponse.of(
+                            user,
+                            "FRIEND",
+                            stats.friendCount(),
+                            stats.postCount(),
+                            stats.streakCount(),
+                            stats.visitedPlaceCount()
+                    );
+
+                    // 친밀도 정보 주입 (값이 없으면 기본값 1Lv, 0점)
+                    FriendshipIntimacy intimacy = intimacyMap.get(user.getId());
+                    if (intimacy != null) {
+                        userResponse.setIntimacyLevel(intimacy.getLevel());
+                        userResponse.setIntimacyScore(intimacy.getTotalScore());
+                    } else {
+                        userResponse.setIntimacyLevel(1);
+                        userResponse.setIntimacyScore(0L);
+                    }
+
+                    return userResponse;
                 })
                 .collect(Collectors.toList());
     }

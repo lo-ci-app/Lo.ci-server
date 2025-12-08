@@ -89,6 +89,12 @@ public class UserDto {
         @Schema(description = "방문한 장소 수 (Flags) 🚩", example = "7")
         private Long visitedPlaceCount;
 
+        @Schema(description = "친밀도 레벨 (친구 목록 조회 시 포함)", example = "3")
+        private Integer intimacyLevel;
+
+        @Schema(description = "친밀도 점수 (친구 목록 조회 시 포함)", example = "250")
+        private Long intimacyScore;
+
         @Schema(description = "자동 보관 설정 여부")
         private boolean isAutoArchive;
 
