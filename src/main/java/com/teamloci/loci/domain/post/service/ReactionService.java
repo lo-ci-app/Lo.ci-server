@@ -148,19 +148,7 @@ public class ReactionService {
                             u, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount()
                     );
 
-                    if ("FRIEND".equals(status)) {
-                        userResponse.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-                        FriendshipIntimacy fi = intimacyMap.get(u.getId());
-                        if (fi != null) {
-                            userResponse.setIntimacyLevel(fi.getLevel());
-                            userResponse.setIntimacyScore(fi.getTotalScore());
-                        } else {
-                            userResponse.setIntimacyLevel(1);
-                            userResponse.setIntimacyScore(0L);
-                        }
-                    } else if ("SELF".equals(status)) {
-                        userResponse.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-                    }
+                    userResponse.applyIntimacyInfo(intimacyMap.get(u.getId()), stats.totalIntimacyLevel());
 
                     return ReactionDto.Response.of(r, userResponse);
                 })

@@ -2,6 +2,7 @@ package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.friend.FriendshipStatus;
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
@@ -178,19 +179,7 @@ public class CommentService {
                             stats.visitedPlaceCount()
                     );
 
-                    if ("FRIEND".equals(status)) {
-                        userResp.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-                        FriendshipIntimacy fi = intimacyMap.get(userId);
-                        if (fi != null) {
-                            userResp.setIntimacyLevel(fi.getLevel());
-                            userResp.setIntimacyScore(fi.getTotalScore());
-                        } else {
-                            userResp.setIntimacyLevel(1);
-                            userResp.setIntimacyScore(0L);
-                        }
-                    } else if ("SELF".equals(status)) {
-                        userResp.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-                    }
+                    userResp.applyIntimacyInfo(intimacyMap.get(userId), stats.totalIntimacyLevel());
 
                     return CommentDto.Response.builder()
                             .id(c.getId())

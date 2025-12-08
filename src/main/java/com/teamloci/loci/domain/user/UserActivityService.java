@@ -2,6 +2,7 @@ package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
+import com.teamloci.loci.domain.intimacy.repository.UserLevelSum;
 import com.teamloci.loci.domain.post.entity.PostStatus;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,9 +52,10 @@ public class UserActivityService {
         Map<Long, Long> streakCounts = calculateStreakBulk(distinctIds);
 
         Map<Long, Integer> totalLevelCounts = new HashMap<>();
-        intimacyRepository.sumLevelsByUserIds(distinctIds).forEach(row ->
-                totalLevelCounts.put(((Number) row[0]).longValue(), ((Number) row[1]).intValue())
-        );
+        List<UserLevelSum> sums = intimacyRepository.sumLevelsByUserIds(distinctIds);
+        for (UserLevelSum s : sums) {
+            totalLevelCounts.put(s.getUserId(), s.getTotalLevel());
+        }
 
         Map<Long, UserStats> result = new HashMap<>();
         for (Long userId : distinctIds) {

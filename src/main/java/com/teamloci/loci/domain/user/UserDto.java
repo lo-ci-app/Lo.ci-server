@@ -2,6 +2,7 @@ package com.teamloci.loci.domain.user;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -137,6 +138,21 @@ public class UserDto {
                     .visitedPlaceCount(0L)
                     .isAutoArchive(user.isAutoArchive())
                     .build();
+        }
+
+        public void applyIntimacyInfo(FriendshipIntimacy intimacy, int totalLevel) {
+            if ("FRIEND".equals(this.relationStatus)) {
+                this.totalIntimacyLevel = totalLevel;
+                if (intimacy != null) {
+                    this.intimacyLevel = intimacy.getLevel();
+                    this.intimacyScore = intimacy.getTotalScore();
+                } else {
+                    this.intimacyLevel = 1;
+                    this.intimacyScore = 0L;
+                }
+            } else if ("SELF".equals(this.relationStatus)) {
+                this.totalIntimacyLevel = totalLevel;
+            }
         }
     }
 

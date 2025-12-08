@@ -3,18 +3,18 @@ package com.teamloci.loci.domain.friend;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
-import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
+import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.user.User;
-import com.teamloci.loci.domain.user.UserStatus;
 import com.teamloci.loci.domain.user.UserDto;
-import com.teamloci.loci.domain.user.service.UserActivityService;
+import com.teamloci.loci.domain.user.UserRepository;
+import com.teamloci.loci.domain.user.UserStatus;
+import com.teamloci.loci.domain.user.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.AesUtil;
-import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.notification.NotificationService;
+import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,7 +36,6 @@ public class FriendService {
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
     private final UserContactRepository userContactRepository;
-    private final FriendshipIntimacyRepository intimacyRepository;
     private final AesUtil aesUtil;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
@@ -63,13 +62,12 @@ public class FriendService {
                         return null;
                     }
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
 
         List<String> allPhoneNumbers = new ArrayList<>(newContactsMap.keySet());
 
         List<UserContact> existingContacts = userContactRepository.findByUserId(myUserId);
-
         List<UserContact> toDelete = existingContacts.stream()
                 .filter(ec -> !newContactsMap.containsKey(ec.getPhoneNumber()))
                 .collect(Collectors.toList());
@@ -78,7 +76,6 @@ public class FriendService {
         for (UserContact existing : existingContacts) {
             if (newContactsMap.containsKey(existing.getPhoneNumber())) {
                 String newName = newContactsMap.get(existing.getPhoneNumber());
-
                 if (!newName.equals(existing.getName())) {
                     existing.updateName(newName);
                 }
@@ -106,17 +103,7 @@ public class FriendService {
                 .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                 .collect(Collectors.toList());
 
-        List<Long> targetIds = matchedUsers.stream().map(User::getId).toList();
-        Map<Long, Friendship> friendshipMap = getFriendshipMap(myUserId, targetIds);
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(targetIds);
-
-        return matchedUsers.stream()
-                .map(user -> {
-                    String status = resolveRelationStatus(friendshipMap.get(user.getId()), myUserId);
-                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
-                    return UserDto.UserResponse.of(user, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
-                })
-                .collect(Collectors.toList());
+        return buildUserResponses(myUserId, matchedUsers);
     }
 
     public List<FriendDto.ContactResponse> getSyncedContacts(Long userId) {
@@ -148,7 +135,6 @@ public class FriendService {
                         friendshipRepository.countFriends(targetUserId) >= MAX_FRIEND_LIMIT) {
                     throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
                 }
-
                 f.accept();
                 return;
             }
@@ -223,58 +209,7 @@ public class FriendService {
                 .map(f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver() : f.getRequester())
                 .collect(Collectors.toList());
 
-        if (friends.isEmpty()) {
-            return List.of();
-        }
-
-        List<Long> friendIds = friends.stream().map(User::getId).toList();
-
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(friendIds);
-
-        List<FriendshipIntimacy> myIntimacies = intimacyRepository.findAllByUserId(myUserId);
-        Map<Long, FriendshipIntimacy> myIntimacyMap = new HashMap<>();
-        for (FriendshipIntimacy fi : myIntimacies) {
-            Long friendId = fi.getUserAId().equals(myUserId) ? fi.getUserBId() : fi.getUserAId();
-            myIntimacyMap.put(friendId, fi);
-        }
-
-        Map<Long, Integer> totalLevelMap = new HashMap<>();
-        if (!friendIds.isEmpty()) {
-            List<Object[]> rows = intimacyRepository.sumLevelsByUserIds(friendIds);
-            for (Object[] row : rows) {
-                Long uId = ((Number) row[0]).longValue();
-                Integer sum = ((Number) row[1]).intValue();
-                totalLevelMap.put(uId, sum);
-            }
-        }
-
-        return friends.stream()
-                .map(user -> {
-                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0, 0, 0, 0));
-
-                    UserDto.UserResponse userResponse = UserDto.UserResponse.of(
-                            user,
-                            "FRIEND",
-                            stats.friendCount(),
-                            stats.postCount(),
-                            stats.streakCount(),
-                            stats.visitedPlaceCount()
-                    );
-
-                    FriendshipIntimacy intimacy = myIntimacyMap.get(user.getId());
-                    if (intimacy != null) {
-                        userResponse.setIntimacyLevel(intimacy.getLevel());
-                        userResponse.setIntimacyScore(intimacy.getTotalScore());
-                    } else {
-                        userResponse.setIntimacyLevel(1);
-                        userResponse.setIntimacyScore(0L);
-                    }
-
-                    userResponse.setTotalIntimacyLevel(totalLevelMap.getOrDefault(user.getId(), 0));
-
-                    return userResponse;
-                })
-                .collect(Collectors.toList());
+        return buildUserResponses(myUserId, friends);
     }
 
     public List<UserDto.UserResponse> getReceivedRequests(Long myUserId) {
@@ -282,16 +217,7 @@ public class FriendService {
                 .map(Friendship::getRequester)
                 .collect(Collectors.toList());
 
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(
-                requesters.stream().map(User::getId).collect(Collectors.toList())
-        );
-
-        return requesters.stream()
-                .map(user -> {
-                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
-                    return UserDto.UserResponse.of(user, "PENDING_RECEIVED", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
-                })
-                .collect(Collectors.toList());
+        return buildUserResponses(myUserId, requesters);
     }
 
     public List<UserDto.UserResponse> getSentRequests(Long myUserId) {
@@ -299,16 +225,7 @@ public class FriendService {
                 .map(Friendship::getReceiver)
                 .collect(Collectors.toList());
 
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(
-                receivers.stream().map(User::getId).collect(Collectors.toList())
-        );
-
-        return receivers.stream()
-                .map(user -> {
-                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
-                    return UserDto.UserResponse.of(user, "PENDING_SENT", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
-                })
-                .collect(Collectors.toList());
+        return buildUserResponses(myUserId, receivers);
     }
 
     public UserDto.UserSearchResponse searchUsers(Long myUserId, String keyword, Long cursorId, int size) {
@@ -317,7 +234,6 @@ public class FriendService {
         }
 
         long currentCursor = (cursorId == null) ? Long.MAX_VALUE : cursorId;
-
         Pageable pageable = PageRequest.of(0, size + 1);
         List<User> foundUsers = userRepository.searchByKeywordWithCursor(keyword, currentCursor, pageable);
 
@@ -326,23 +242,9 @@ public class FriendService {
             hasNext = true;
             foundUsers.remove(size);
         }
-
         Long nextCursor = foundUsers.isEmpty() ? null : foundUsers.get(foundUsers.size() - 1).getId();
 
-        List<Long> targetIds = foundUsers.stream().map(User::getId).collect(Collectors.toList());
-        Map<Long, Friendship> friendshipMap = getFriendshipMap(myUserId, targetIds);
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(targetIds);
-
-        List<UserDto.UserResponse> userDtos = foundUsers.stream()
-                .map(user -> {
-                    var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0));
-                    if (user.getId().equals(myUserId)) {
-                        return UserDto.UserResponse.of(user, "SELF", stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
-                    }
-                    String status = resolveRelationStatus(friendshipMap.get(user.getId()), myUserId);
-                    return UserDto.UserResponse.of(user, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount());
-                })
-                .collect(Collectors.toList());
+        List<UserDto.UserResponse> userDtos = buildUserResponses(myUserId, foundUsers);
 
         return UserDto.UserSearchResponse.builder()
                 .users(userDtos)
@@ -351,23 +253,39 @@ public class FriendService {
                 .build();
     }
 
-    private Map<Long, Friendship> getFriendshipMap(Long myUserId, List<Long> targetIds) {
-        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, targetIds);
-        return friendships.stream()
+    private List<UserDto.UserResponse> buildUserResponses(Long myUserId, List<User> users) {
+        if (users.isEmpty()) return List.of();
+
+        List<Long> userIds = users.stream().map(User::getId).toList();
+
+        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, userIds);
+        Map<Long, Friendship> friendshipMap = friendships.stream()
                 .collect(Collectors.toMap(
                         f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
                         f -> f
                 ));
-    }
 
-    private String resolveRelationStatus(Friendship friendship, Long myUserId) {
-        if (friendship == null) return "NONE";
-        if (friendship.getStatus() == FriendshipStatus.FRIENDSHIP) return "FRIEND";
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(userIds);
+        Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId);
 
-        if (friendship.getRequester().getId().equals(myUserId)) {
-            return "PENDING_SENT";
-        } else {
-            return "PENDING_RECEIVED";
-        }
+        return users.stream().map(user -> {
+            var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0,0));
+
+            String status = "NONE";
+            if (user.getId().equals(myUserId)) {
+                status = "SELF";
+            } else {
+                Friendship f = friendshipMap.get(user.getId());
+                status = RelationUtil.resolveStatus(f, myUserId);
+            }
+
+            UserDto.UserResponse response = UserDto.UserResponse.of(
+                    user, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount()
+            );
+
+            response.applyIntimacyInfo(myIntimacyMap.get(user.getId()), stats.totalIntimacyLevel());
+
+            return response;
+        }).collect(Collectors.toList());
     }
 }

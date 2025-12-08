@@ -1,12 +1,12 @@
 package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.friend.Friendship;
-import com.teamloci.loci.domain.user.UserActivityService;
+import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
+import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.infra.S3UploadService;
-import com.teamloci.loci.domain.friend.FriendshipRepository;
-import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ public class UserService {
     private final S3UploadService s3UploadService;
     private final FriendshipRepository friendshipRepository;
     private final UserActivityService userActivityService;
-    private final IntimacyService intimacyService;
+    private final FriendshipIntimacyRepository intimacyRepository;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -41,12 +41,10 @@ public class UserService {
         var stats = userActivityService.getUserStats(targetUserId);
 
         String relationStatus = "NONE";
-        Optional<Friendship> friendship = Optional.empty();
-
         if (myUserId.equals(targetUserId)) {
             relationStatus = "SELF";
         } else {
-            friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
+            Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
             relationStatus = RelationUtil.resolveStatus(friendship.orElse(null), myUserId);
         }
 
@@ -59,14 +57,14 @@ public class UserService {
                 stats.visitedPlaceCount()
         );
 
+        FriendshipIntimacy intimacy = null;
         if ("FRIEND".equals(relationStatus)) {
-            response.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-            var intimacyDetail = intimacyService.getIntimacyDetail(myUserId, targetUserId);
-            response.setIntimacyLevel(intimacyDetail.getLevel());
-            response.setIntimacyScore(intimacyDetail.getScore());
-        } else if ("SELF".equals(relationStatus)) {
-            response.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+            Long u1 = Math.min(myUserId, targetUserId);
+            Long u2 = Math.max(myUserId, targetUserId);
+            intimacy = intimacyRepository.findByUserAIdAndUserBId(u1, u2).orElse(null);
         }
+
+        response.applyIntimacyInfo(intimacy, stats.totalIntimacyLevel());
 
         return response;
     }

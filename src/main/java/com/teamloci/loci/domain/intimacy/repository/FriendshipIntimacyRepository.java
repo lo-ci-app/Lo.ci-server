@@ -11,15 +11,14 @@ import java.util.Optional;
 public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIntimacy, Long> {
     Optional<FriendshipIntimacy> findByUserAIdAndUserBId(Long userAId, Long userBId);
 
-    @Query("SELECT COALESCE(SUM(fi.level), 0) FROM FriendshipIntimacy fi " +
-            "WHERE fi.userAId = :userId OR fi.userBId = :userId")
+    @Query("SELECT COALESCE(SUM(fi.level), 0) FROM FriendshipIntimacy fi WHERE fi.userAId = :userId OR fi.userBId = :userId")
     Integer sumLevelByUserId(@Param("userId") Long userId);
 
     @Query("SELECT fi FROM FriendshipIntimacy fi WHERE fi.userAId = :userId OR fi.userBId = :userId")
     List<FriendshipIntimacy> findAllByUserId(@Param("userId") Long userId);
 
     @Query(value = """
-        SELECT user_id, SUM(lvl) 
+        SELECT user_id AS userId, SUM(lvl) AS totalLevel
         FROM (
             SELECT user_id_a AS user_id, level AS lvl FROM friendship_intimacies WHERE user_id_a IN :userIds
             UNION ALL
@@ -27,5 +26,5 @@ public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIn
         ) AS all_levels
         GROUP BY user_id
     """, nativeQuery = true)
-    List<Object[]> sumLevelsByUserIds(@Param("userIds") List<Long> userIds);
+    List<UserLevelSum> sumLevelsByUserIds(@Param("userIds") List<Long> userIds);
 }

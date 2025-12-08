@@ -475,21 +475,7 @@ public class PostService {
         userRes.setStreakCount(stats.streakCount());
         userRes.setVisitedPlaceCount(stats.visitedPlaceCount());
 
-        if ("FRIEND".equals(relationStatus)) {
-            userRes.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-
-            FriendshipIntimacy fi = intimacyMap.get(userRes.getId());
-            if (fi != null) {
-                userRes.setIntimacyLevel(fi.getLevel());
-                userRes.setIntimacyScore(fi.getTotalScore());
-            } else {
-                userRes.setIntimacyLevel(1);
-                userRes.setIntimacyScore(0L);
-            }
-        }
-        if ("SELF".equals(relationStatus)) {
-            userRes.setTotalIntimacyLevel(stats.totalIntimacyLevel());
-        }
+        userRes.applyIntimacyInfo(intimacyMap.get(userRes.getId()), stats.totalIntimacyLevel());
     }
 
     private void sendPostNotifications(User author, Post post) {
