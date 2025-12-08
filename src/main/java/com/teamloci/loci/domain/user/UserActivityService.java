@@ -1,6 +1,7 @@
-package com.teamloci.loci.domain.user.service;
+package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.post.entity.PostStatus;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,11 +18,12 @@ public class UserActivityService {
 
     private final PostRepository postRepository;
     private final FriendshipRepository friendshipRepository;
+    private final FriendshipIntimacyRepository intimacyRepository;
 
-    public record UserStats(long friendCount, long postCount, long streakCount, long visitedPlaceCount) {}
+    public record UserStats(long friendCount, long postCount, long streakCount, long visitedPlaceCount, int totalIntimacyLevel) {}
 
     public UserStats getUserStats(Long userId) {
-        return getUserStatsMap(List.of(userId)).getOrDefault(userId, new UserStats(0, 0, 0, 0));
+        return getUserStatsMap(List.of(userId)).getOrDefault(userId, new UserStats(0, 0, 0, 0, 0));
     }
 
     public Map<Long, UserStats> getUserStatsMap(List<Long> userIds) {
@@ -49,13 +50,19 @@ public class UserActivityService {
 
         Map<Long, Long> streakCounts = calculateStreakBulk(distinctIds);
 
+        Map<Long, Integer> totalLevelCounts = new HashMap<>();
+        intimacyRepository.sumLevelsByUserIds(distinctIds).forEach(row ->
+                totalLevelCounts.put(((Number) row[0]).longValue(), ((Number) row[1]).intValue())
+        );
+
         Map<Long, UserStats> result = new HashMap<>();
         for (Long userId : distinctIds) {
             result.put(userId, new UserStats(
                     friendCounts.getOrDefault(userId, 0L),
                     postCounts.getOrDefault(userId, 0L),
                     streakCounts.getOrDefault(userId, 0L),
-                    visitedPlaceCounts.getOrDefault(userId, 0L)
+                    visitedPlaceCounts.getOrDefault(userId, 0L),
+                    totalLevelCounts.getOrDefault(userId, 0)
             ));
         }
         return result;

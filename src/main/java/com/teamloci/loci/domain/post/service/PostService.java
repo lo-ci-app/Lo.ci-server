@@ -3,6 +3,7 @@ package com.teamloci.loci.domain.post.service;
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
+import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.DailyPushLog;
@@ -17,7 +18,7 @@ import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.user.service.UserActivityService;
+import com.teamloci.loci.domain.user.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.GeoUtils;
@@ -426,6 +427,7 @@ public class PostService {
         }
 
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(targetUserIds));
+        Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId);
 
         for (PostDto.PostDetailResponse p : posts) {
             p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
@@ -442,11 +444,11 @@ public class PostService {
                     .sum();
             p.setReactionCount(totalReactions);
 
-            fillUserInfo(p.getUser(), myUserId, friendshipMap, statsMap);
+            fillUserInfo(p.getUser(), myUserId, friendshipMap, statsMap, myIntimacyMap);
 
             if (p.getCollaborators() != null) {
                 p.getCollaborators().forEach(c ->
-                        fillUserInfo(c, myUserId, friendshipMap, statsMap)
+                        fillUserInfo(c, myUserId, friendshipMap, statsMap, myIntimacyMap)
                 );
             }
         }
@@ -454,21 +456,40 @@ public class PostService {
 
     private void fillUserInfo(UserDto.UserResponse userRes, Long myUserId,
                               Map<Long, Friendship> friendshipMap,
-                              Map<Long, UserActivityService.UserStats> statsMap) {
+                              Map<Long, UserActivityService.UserStats> statsMap,
+                              Map<Long, FriendshipIntimacy> intimacyMap) {
 
+        String relationStatus = "NONE";
         if (userRes.getId().equals(myUserId)) {
-            userRes.setRelationStatus("SELF");
+            relationStatus = "SELF";
         } else {
             Friendship f = friendshipMap.get(userRes.getId());
-            userRes.setRelationStatus(RelationUtil.resolveStatus(f, myUserId));
+            relationStatus = RelationUtil.resolveStatus(f, myUserId);
         }
+        userRes.setRelationStatus(relationStatus);
 
-        UserActivityService.UserStats stats = statsMap.getOrDefault(userRes.getId(), new UserActivityService.UserStats(0,0,0,0));
+        UserActivityService.UserStats stats = statsMap.getOrDefault(userRes.getId(), new UserActivityService.UserStats(0,0,0,0,0));
 
         userRes.setFriendCount(stats.friendCount());
         userRes.setPostCount(stats.postCount());
         userRes.setStreakCount(stats.streakCount());
         userRes.setVisitedPlaceCount(stats.visitedPlaceCount());
+
+        if ("FRIEND".equals(relationStatus)) {
+            userRes.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+
+            FriendshipIntimacy fi = intimacyMap.get(userRes.getId());
+            if (fi != null) {
+                userRes.setIntimacyLevel(fi.getLevel());
+                userRes.setIntimacyScore(fi.getTotalScore());
+            } else {
+                userRes.setIntimacyLevel(1);
+                userRes.setIntimacyScore(0L);
+            }
+        }
+        if ("SELF".equals(relationStatus)) {
+            userRes.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+        }
     }
 
     private void sendPostNotifications(User author, Post post) {

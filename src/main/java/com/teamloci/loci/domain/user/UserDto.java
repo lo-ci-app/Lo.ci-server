@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.user;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
@@ -58,6 +59,7 @@ public class UserDto {
     @Builder
     @AllArgsConstructor
     @Schema(description = "사용자 정보 응답")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class UserResponse {
         @Schema(description = "유저 고유 ID", example = "1")
         private Long id;
@@ -94,6 +96,9 @@ public class UserDto {
 
         @Schema(description = "친밀도 점수 (친구 목록 조회 시 포함)", example = "250")
         private Long intimacyScore;
+
+        @Schema(description = "해당 유저의 총 친밀도 레벨 합", example = "15")
+        private Integer totalIntimacyLevel;
 
         @Schema(description = "자동 보관 설정 여부")
         private boolean isAutoArchive;

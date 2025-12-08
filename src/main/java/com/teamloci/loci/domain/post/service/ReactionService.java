@@ -2,6 +2,7 @@ package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.NotificationService;
@@ -15,7 +16,7 @@ import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.user.service.UserActivityService;
+import com.teamloci.loci.domain.user.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
@@ -127,8 +128,8 @@ public class ReactionService {
                     ));
         }
 
-        // [Bulk 조회 적용]
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(userIds));
+        Map<Long, FriendshipIntimacy> intimacyMap = intimacyService.getIntimacyMap(myUserId);
 
         List<ReactionDto.Response> dtos = resultList.stream()
                 .map(r -> {
@@ -141,11 +142,25 @@ public class ReactionService {
                         status = RelationUtil.resolveStatus(friendshipMap.get(u.getId()), myUserId);
                     }
 
-                    var stats = statsMap.getOrDefault(u.getId(), new UserActivityService.UserStats(0,0,0,0));
+                    var stats = statsMap.getOrDefault(u.getId(), new UserActivityService.UserStats(0,0,0,0,0));
 
                     UserDto.UserResponse userResponse = UserDto.UserResponse.of(
                             u, status, stats.friendCount(), stats.postCount(), stats.streakCount(), stats.visitedPlaceCount()
                     );
+
+                    if ("FRIEND".equals(status)) {
+                        userResponse.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+                        FriendshipIntimacy fi = intimacyMap.get(u.getId());
+                        if (fi != null) {
+                            userResponse.setIntimacyLevel(fi.getLevel());
+                            userResponse.setIntimacyScore(fi.getTotalScore());
+                        } else {
+                            userResponse.setIntimacyLevel(1);
+                            userResponse.setIntimacyScore(0L);
+                        }
+                    } else if ("SELF".equals(status)) {
+                        userResponse.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+                    }
 
                     return ReactionDto.Response.of(r, userResponse);
                 })

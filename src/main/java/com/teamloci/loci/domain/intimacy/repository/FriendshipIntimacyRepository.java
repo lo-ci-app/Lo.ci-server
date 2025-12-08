@@ -17,4 +17,15 @@ public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIn
 
     @Query("SELECT fi FROM FriendshipIntimacy fi WHERE fi.userAId = :userId OR fi.userBId = :userId")
     List<FriendshipIntimacy> findAllByUserId(@Param("userId") Long userId);
+
+    @Query(value = """
+        SELECT user_id, SUM(lvl) 
+        FROM (
+            SELECT user_id_a AS user_id, level AS lvl FROM friendship_intimacies WHERE user_id_a IN :userIds
+            UNION ALL
+            SELECT user_id_b AS user_id, level AS lvl FROM friendship_intimacies WHERE user_id_b IN :userIds
+        ) AS all_levels
+        GROUP BY user_id
+    """, nativeQuery = true)
+    List<Object[]> sumLevelsByUserIds(@Param("userIds") List<Long> userIds);
 }

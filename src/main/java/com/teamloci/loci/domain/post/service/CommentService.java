@@ -2,7 +2,7 @@ package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
-import com.teamloci.loci.domain.friend.FriendshipStatus;
+import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.notification.NotificationService;
@@ -15,7 +15,7 @@ import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.user.service.UserActivityService;
+import com.teamloci.loci.domain.user.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
@@ -154,13 +154,13 @@ public class CommentService {
                     ));
         }
 
-        // [Bulk 조회 적용]
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(authorIds));
+        Map<Long, FriendshipIntimacy> intimacyMap = intimacyService.getIntimacyMap(myUserId);
 
         List<CommentDto.Response> commentDtos = comments.stream()
                 .map(c -> {
                     Long userId = c.getUser().getId();
-                    var stats = statsMap.getOrDefault(userId, new UserActivityService.UserStats(0,0,0,0));
+                    var stats = statsMap.getOrDefault(userId, new UserActivityService.UserStats(0,0,0,0,0));
 
                     String status;
                     if (userId.equals(myUserId)) {
@@ -169,17 +169,33 @@ public class CommentService {
                         status = RelationUtil.resolveStatus(friendshipMap.get(userId), myUserId);
                     }
 
+                    UserDto.UserResponse userResp = UserDto.UserResponse.of(
+                            c.getUser(),
+                            status,
+                            stats.friendCount(),
+                            stats.postCount(),
+                            stats.streakCount(),
+                            stats.visitedPlaceCount()
+                    );
+
+                    if ("FRIEND".equals(status)) {
+                        userResp.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+                        FriendshipIntimacy fi = intimacyMap.get(userId);
+                        if (fi != null) {
+                            userResp.setIntimacyLevel(fi.getLevel());
+                            userResp.setIntimacyScore(fi.getTotalScore());
+                        } else {
+                            userResp.setIntimacyLevel(1);
+                            userResp.setIntimacyScore(0L);
+                        }
+                    } else if ("SELF".equals(status)) {
+                        userResp.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+                    }
+
                     return CommentDto.Response.builder()
                             .id(c.getId())
                             .content(c.getContent())
-                            .user(UserDto.UserResponse.of(
-                                    c.getUser(),
-                                    status,
-                                    stats.friendCount(),
-                                    stats.postCount(),
-                                    stats.streakCount(),
-                                    stats.visitedPlaceCount()
-                            ))
+                            .user(userResp)
                             .createdAt(c.getCreatedAt())
                             .build();
                 })

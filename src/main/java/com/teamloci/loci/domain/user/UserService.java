@@ -1,12 +1,13 @@
 package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.friend.Friendship;
-import com.teamloci.loci.domain.friend.FriendshipStatus;
-import com.teamloci.loci.domain.user.service.UserActivityService;
+import com.teamloci.loci.domain.user.UserActivityService;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.infra.S3UploadService;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
+import com.teamloci.loci.domain.intimacy.service.IntimacyService;
+import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class UserService {
     private final S3UploadService s3UploadService;
     private final FriendshipRepository friendshipRepository;
     private final UserActivityService userActivityService;
+    private final IntimacyService intimacyService;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -39,23 +41,16 @@ public class UserService {
         var stats = userActivityService.getUserStats(targetUserId);
 
         String relationStatus = "NONE";
+        Optional<Friendship> friendship = Optional.empty();
+
         if (myUserId.equals(targetUserId)) {
             relationStatus = "SELF";
         } else {
-            Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
-            if (friendship.isPresent()) {
-                Friendship f = friendship.get();
-                if (f.getStatus() == FriendshipStatus.FRIENDSHIP) {
-                    relationStatus = "FRIEND";
-                } else if (f.getRequester().getId().equals(myUserId)) {
-                    relationStatus = "PENDING_SENT";
-                } else {
-                    relationStatus = "PENDING_RECEIVED";
-                }
-            }
+            friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
+            relationStatus = RelationUtil.resolveStatus(friendship.orElse(null), myUserId);
         }
 
-        return UserDto.UserResponse.of(
+        UserDto.UserResponse response = UserDto.UserResponse.of(
                 targetUser,
                 relationStatus,
                 stats.friendCount(),
@@ -63,6 +58,17 @@ public class UserService {
                 stats.streakCount(),
                 stats.visitedPlaceCount()
         );
+
+        if ("FRIEND".equals(relationStatus)) {
+            response.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+            var intimacyDetail = intimacyService.getIntimacyDetail(myUserId, targetUserId);
+            response.setIntimacyLevel(intimacyDetail.getLevel());
+            response.setIntimacyScore(intimacyDetail.getScore());
+        } else if ("SELF".equals(relationStatus)) {
+            response.setTotalIntimacyLevel(stats.totalIntimacyLevel());
+        }
+
+        return response;
     }
 
     @Transactional

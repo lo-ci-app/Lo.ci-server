@@ -228,14 +228,24 @@ public class FriendService {
         }
 
         List<Long> friendIds = friends.stream().map(User::getId).toList();
+
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(friendIds);
 
-        List<FriendshipIntimacy> intimacies = intimacyRepository.findAllByUserId(myUserId);
-
-        Map<Long, FriendshipIntimacy> intimacyMap = new HashMap<>();
-        for (FriendshipIntimacy fi : intimacies) {
+        List<FriendshipIntimacy> myIntimacies = intimacyRepository.findAllByUserId(myUserId);
+        Map<Long, FriendshipIntimacy> myIntimacyMap = new HashMap<>();
+        for (FriendshipIntimacy fi : myIntimacies) {
             Long friendId = fi.getUserAId().equals(myUserId) ? fi.getUserBId() : fi.getUserAId();
-            intimacyMap.put(friendId, fi);
+            myIntimacyMap.put(friendId, fi);
+        }
+
+        Map<Long, Integer> totalLevelMap = new HashMap<>();
+        if (!friendIds.isEmpty()) {
+            List<Object[]> rows = intimacyRepository.sumLevelsByUserIds(friendIds);
+            for (Object[] row : rows) {
+                Long uId = ((Number) row[0]).longValue();
+                Integer sum = ((Number) row[1]).intValue();
+                totalLevelMap.put(uId, sum);
+            }
         }
 
         return friends.stream()
@@ -251,8 +261,7 @@ public class FriendService {
                             stats.visitedPlaceCount()
                     );
 
-                    // 친밀도 정보 주입 (값이 없으면 기본값 1Lv, 0점)
-                    FriendshipIntimacy intimacy = intimacyMap.get(user.getId());
+                    FriendshipIntimacy intimacy = myIntimacyMap.get(user.getId());
                     if (intimacy != null) {
                         userResponse.setIntimacyLevel(intimacy.getLevel());
                         userResponse.setIntimacyScore(intimacy.getTotalScore());
@@ -260,6 +269,8 @@ public class FriendService {
                         userResponse.setIntimacyLevel(1);
                         userResponse.setIntimacyScore(0L);
                     }
+
+                    userResponse.setTotalIntimacyLevel(totalLevelMap.getOrDefault(user.getId(), 0));
 
                     return userResponse;
                 })
