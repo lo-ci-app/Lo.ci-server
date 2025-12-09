@@ -119,8 +119,10 @@ public class FriendService {
     public void sendFriendRequest(Long myUserId, Long targetUserId) {
         if (myUserId.equals(targetUserId)) throw new CustomException(ErrorCode.SELF_FRIEND_REQUEST);
 
-        User me = findUserById(myUserId);
-        User target = findUserById(targetUserId);
+        User me = userRepository.findByIdWithLock(myUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User target = userRepository.findByIdWithLock(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         Optional<Friendship> existing = friendshipRepository.findFriendshipBetween(myUserId, targetUserId);
         if (existing.isPresent()) {
@@ -131,8 +133,7 @@ public class FriendService {
             if (f.getRequester().getId().equals(myUserId)) {
                 throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
             } else {
-                if (friendshipRepository.countFriends(myUserId) >= MAX_FRIEND_LIMIT ||
-                        friendshipRepository.countFriends(targetUserId) >= MAX_FRIEND_LIMIT) {
+                if (me.getFriendCount() >= MAX_FRIEND_LIMIT || target.getFriendCount() >= MAX_FRIEND_LIMIT) {
                     throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
                 }
                 f.accept();
@@ -142,7 +143,7 @@ public class FriendService {
             }
         }
 
-        if (friendshipRepository.countFriends(myUserId) >= MAX_FRIEND_LIMIT) {
+        if (me.getFriendCount() >= MAX_FRIEND_LIMIT) {
             throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
         }
 
@@ -165,6 +166,11 @@ public class FriendService {
 
     @Transactional
     public void acceptFriendRequest(Long myUserId, Long requesterId) {
+        User me = userRepository.findByIdWithLock(myUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User requester = userRepository.findByIdWithLock(requesterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         Friendship friendship = friendshipRepository.findFriendshipBetween(myUserId, requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
 
@@ -176,8 +182,7 @@ public class FriendService {
             throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
         }
 
-        if (friendshipRepository.countFriends(myUserId) >= MAX_FRIEND_LIMIT ||
-                friendshipRepository.countFriends(requesterId) >= MAX_FRIEND_LIMIT) {
+        if (me.getFriendCount() >= MAX_FRIEND_LIMIT || requester.getFriendCount() >= MAX_FRIEND_LIMIT) {
             throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
         }
 
@@ -185,9 +190,6 @@ public class FriendService {
 
         userRepository.increaseFriendCount(myUserId);
         userRepository.increaseFriendCount(requesterId);
-
-        User requester = friendship.getRequester();
-        User me = friendship.getReceiver();
 
         intimacyService.accumulatePoint(myUserId, requesterId, IntimacyType.FRIEND_MADE, null);
 

@@ -86,7 +86,7 @@ public class PostEventListener {
         try {
             userRepository.increasePostCount(userId);
 
-            Optional<User> userOpt = userRepository.findById(userId);
+            Optional<User> userOpt = userRepository.findByIdWithLock(userId);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
                 LocalDate today = LocalDate.now();
