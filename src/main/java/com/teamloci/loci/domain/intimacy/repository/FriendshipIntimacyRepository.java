@@ -1,7 +1,9 @@
 package com.teamloci.loci.domain.intimacy.repository;
 
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,7 +11,12 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIntimacy, Long> {
+
     Optional<FriendshipIntimacy> findByUserAIdAndUserBId(Long userAId, Long userBId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT fi FROM FriendshipIntimacy fi WHERE fi.userAId = :userAId AND fi.userBId = :userBId")
+    Optional<FriendshipIntimacy> findByUserAIdAndUserBIdWithLock(@Param("userAId") Long userAId, @Param("userBId") Long userBId);
 
     @Query("SELECT COALESCE(SUM(fi.level), 0) FROM FriendshipIntimacy fi WHERE fi.userAId = :userId OR fi.userBId = :userId")
     Integer sumLevelByUserId(@Param("userId") Long userId);

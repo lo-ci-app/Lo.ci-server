@@ -52,7 +52,7 @@ public class IntimacyService {
         Long u1 = Math.min(actorId, targetId);
         Long u2 = Math.max(actorId, targetId);
 
-        FriendshipIntimacy intimacy = intimacyRepository.findByUserAIdAndUserBId(u1, u2)
+        FriendshipIntimacy intimacy = intimacyRepository.findByUserAIdAndUserBIdWithLock(u1, u2)
                 .orElseGet(() -> intimacyRepository.save(
                         FriendshipIntimacy.builder().user1Id(u1).user2Id(u2).build()
                 ));
@@ -112,7 +112,6 @@ public class IntimacyService {
         int currentLevel = intimacyOpt.map(FriendshipIntimacy::getLevel).orElse(1);
         Long currentScore = intimacyOpt.map(FriendshipIntimacy::getTotalScore).orElse(0L);
 
-        // 반정규화된 값 사용 (기존 쿼리 대체)
         User me = userRepository.findById(myUserId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         Integer myTotalLevel = me.getTotalIntimacyLevel();
 
