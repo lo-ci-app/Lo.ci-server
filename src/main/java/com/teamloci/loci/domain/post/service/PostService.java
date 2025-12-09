@@ -432,16 +432,17 @@ public class PostService {
     private void enrichPostUserData(List<PostDto.PostDetailResponse> posts, Long myUserId) {
         if (posts.isEmpty()) return;
 
-        Set<Long> targetUserIds = new HashSet<>();
+        Set<Long> targetUserIdsSet = new HashSet<>();
         List<Long> postIds = new ArrayList<>();
 
         for (PostDto.PostDetailResponse p : posts) {
             postIds.add(p.getId());
-            targetUserIds.add(p.getUser().getId());
+            targetUserIdsSet.add(p.getUser().getId());
             if (p.getCollaborators() != null) {
-                p.getCollaborators().forEach(c -> targetUserIds.add(c.getId()));
+                p.getCollaborators().forEach(c -> targetUserIdsSet.add(c.getId()));
             }
         }
+        List<Long> targetUserIds = new ArrayList<>(targetUserIdsSet);
 
         Map<Long, Long> commentCountMap = commentRepository.countByPostIdIn(postIds).stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
@@ -475,7 +476,7 @@ public class PostService {
         }
 
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(targetUserIds));
-        Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId);
+        Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId, targetUserIds);
 
         for (PostDto.PostDetailResponse p : posts) {
             p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));

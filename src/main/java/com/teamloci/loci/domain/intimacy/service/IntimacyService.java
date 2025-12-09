@@ -7,6 +7,7 @@ import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyLevel;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyLog;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
+import com.teamloci.loci.domain.intimacy.event.IntimacyLevelUpEvent;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLevelRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLogRepository;
@@ -21,15 +22,13 @@ import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -42,8 +41,8 @@ public class IntimacyService {
     private final IntimacyLevelRepository levelRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
-    private final NotificationService notificationService;
     private final UserActivityService userActivityService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void accumulatePoint(Long actorId, Long targetId, IntimacyType type, String relatedBeaconId) {
         if (actorId.equals(targetId)) return;
@@ -69,7 +68,7 @@ public class IntimacyService {
         intimacy.addScore(point);
         if (newLevel > oldLevel) {
             intimacy.updateLevel(newLevel);
-            sendLevelUpNotification(actorId, targetId, newLevel);
+            eventPublisher.publishEvent(new IntimacyLevelUpEvent(actorId, targetId, newLevel));
         }
 
         logRepository.save(IntimacyLog.builder()
@@ -81,24 +80,20 @@ public class IntimacyService {
                 .build());
     }
 
-    private void sendLevelUpNotification(Long actorId, Long targetId, int newLevel) {
-        try {
-            User actor = userRepository.findById(actorId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-            User target = userRepository.findById(targetId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            notificationService.send(
-                    target,
-                    NotificationType.INTIMACY_LEVEL_UP,
-                    "친밀도 레벨 UP! 🔥",
-                    actor.getNickname() + "님과의 친밀도가 " + newLevel + "레벨이 되었어요!",
-                    actorId
-            );
-
-        } catch (Exception e) {
-            log.error("레벨업 알림 발송 실패: {}", e.getMessage());
+    @Transactional(readOnly = true)
+    public Map<Long, FriendshipIntimacy> getIntimacyMap(Long myUserId, List<Long> targetUserIds) {
+        if (targetUserIds == null || targetUserIds.isEmpty()) {
+            return Collections.emptyMap();
         }
+
+        List<FriendshipIntimacy> intimacies = intimacyRepository.findByUserIdAndTargetIdsIn(myUserId, targetUserIds);
+
+        Map<Long, FriendshipIntimacy> map = new HashMap<>();
+        for (FriendshipIntimacy fi : intimacies) {
+            Long partnerId = fi.getUserAId().equals(myUserId) ? fi.getUserBId() : fi.getUserAId();
+            map.put(partnerId, fi);
+        }
+        return map;
     }
 
     @Transactional(readOnly = true)

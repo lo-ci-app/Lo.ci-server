@@ -266,7 +266,7 @@ public class FriendService {
                 ));
 
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(userIds);
-        Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId);
+        Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId, userIds);
 
         return users.stream().map(user -> {
             var stats = statsMap.getOrDefault(user.getId(), new UserActivityService.UserStats(0,0,0,0,0));

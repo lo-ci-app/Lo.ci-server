@@ -142,6 +142,7 @@ public class CommentService {
         Set<Long> authorIds = comments.stream()
                 .map(c -> c.getUser().getId())
                 .collect(Collectors.toSet());
+        List<Long> targetUserIds = new ArrayList<>(authorIds);
 
         Set<Long> otherIds = authorIds.stream().filter(id -> !id.equals(myUserId)).collect(Collectors.toSet());
         Map<Long, Friendship> friendshipMap;
@@ -156,7 +157,7 @@ public class CommentService {
         }
 
         Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(new ArrayList<>(authorIds));
-        Map<Long, FriendshipIntimacy> intimacyMap = intimacyService.getIntimacyMap(myUserId);
+        Map<Long, FriendshipIntimacy> intimacyMap = intimacyService.getIntimacyMap(myUserId, targetUserIds);
 
         List<CommentDto.Response> commentDtos = comments.stream()
                 .map(c -> {

@@ -27,4 +27,12 @@ public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIn
         GROUP BY user_id
     """, nativeQuery = true)
     List<UserLevelSum> sumLevelsByUserIds(@Param("userIds") List<Long> userIds);
+
+    @Query("SELECT fi FROM FriendshipIntimacy fi " +
+            "WHERE (fi.userAId = :myUserId AND fi.userBId IN :targetUserIds) " +
+            "OR (fi.userBId = :myUserId AND fi.userAId IN :targetUserIds)")
+    List<FriendshipIntimacy> findByUserIdAndTargetIdsIn(
+            @Param("myUserId") Long myUserId,
+            @Param("targetUserIds") List<Long> targetUserIds
+    );
 }
