@@ -46,31 +46,31 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByHandleIn(List<String> handles);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.friendCount = u.friendCount + 1 WHERE u.id = :id")
     void increaseFriendCount(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.friendCount = u.friendCount - 1 WHERE u.id = :id AND u.friendCount > 0")
     void decreaseFriendCount(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.postCount = u.postCount + 1 WHERE u.id = :id")
     void increasePostCount(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.postCount = u.postCount - 1 WHERE u.id = :id AND u.postCount > 0")
     void decreasePostCount(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.streakCount = :streak, u.lastPostDate = :date WHERE u.id = :id")
     void updateStreak(@Param("id") Long id, @Param("streak") Long streak, @Param("date") LocalDate date);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.visitedPlaceCount = u.visitedPlaceCount + 1 WHERE u.id = :id")
     void increaseVisitedPlaceCount(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("UPDATE User u SET u.totalIntimacyLevel = u.totalIntimacyLevel + :delta WHERE u.id = :id")
     void increaseTotalIntimacy(@Param("id") Long id, @Param("delta") int delta);
 }

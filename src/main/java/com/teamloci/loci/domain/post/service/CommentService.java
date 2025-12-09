@@ -49,7 +49,7 @@ public class CommentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        Post post = postRepository.findById(postId)
+        Post post = postRepository.findByIdWithDetails(postId)
                 .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
         PostComment comment = PostComment.builder()
