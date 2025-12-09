@@ -1,7 +1,9 @@
 package com.teamloci.loci.domain.stat.repository;
 
 import com.teamloci.loci.domain.stat.entity.UserBeaconStats;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,6 +12,7 @@ import java.util.Optional;
 
 public interface UserBeaconStatsRepository extends JpaRepository<UserBeaconStats, Long> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<UserBeaconStats> findByUserIdAndBeaconId(Long userId, String beaconId);
 
     @Query(value = """

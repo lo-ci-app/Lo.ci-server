@@ -12,4 +12,5 @@ public enum NotificationType {
     LOCI_TIME,
     COMMENT_MENTION,
     FRIEND_VISITED,
+    INTIMACY_LEVEL_UP,
 }

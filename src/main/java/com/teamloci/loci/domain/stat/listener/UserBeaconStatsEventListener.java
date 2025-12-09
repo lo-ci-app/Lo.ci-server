@@ -21,7 +21,7 @@ public class UserBeaconStatsEventListener {
 
     @Async
     @EventListener
-    @Transactional
+    @Transactional(noRollbackFor = DataIntegrityViolationException.class)
     public void handlePostCreated(PostCreatedEvent event) {
         Post post = event.getPost();
 

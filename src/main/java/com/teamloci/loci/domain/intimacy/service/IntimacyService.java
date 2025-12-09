@@ -10,6 +10,8 @@ import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLevelRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLogRepository;
+import com.teamloci.loci.domain.notification.NotificationService;
+import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
@@ -40,6 +42,7 @@ public class IntimacyService {
     private final IntimacyLevelRepository levelRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final NotificationService notificationService;
     private final UserActivityService userActivityService;
 
     public void accumulatePoint(Long actorId, Long targetId, IntimacyType type, String relatedBeaconId) {
@@ -66,6 +69,7 @@ public class IntimacyService {
         intimacy.addScore(point);
         if (newLevel > oldLevel) {
             intimacy.updateLevel(newLevel);
+            sendLevelUpNotification(actorId, targetId, newLevel);
         }
 
         logRepository.save(IntimacyLog.builder()
@@ -75,6 +79,26 @@ public class IntimacyService {
                 .earnedPoint(point)
                 .relatedBeaconId(relatedBeaconId)
                 .build());
+    }
+
+    private void sendLevelUpNotification(Long actorId, Long targetId, int newLevel) {
+        try {
+            User actor = userRepository.findById(actorId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+            User target = userRepository.findById(targetId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            notificationService.send(
+                    target,
+                    NotificationType.INTIMACY_LEVEL_UP,
+                    "친밀도 레벨 UP! 🔥",
+                    actor.getNickname() + "님과의 친밀도가 " + newLevel + "레벨이 되었어요!",
+                    actorId
+            );
+
+        } catch (Exception e) {
+            log.error("레벨업 알림 발송 실패: {}", e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

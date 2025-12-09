@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "user_beacon_stats", indexes = {
         @Index(name = "idx_user_beacon", columnList = "user_id, beacon_id"),
-        @Index(name = "idx_location", columnList = "latitude, longitude")
+        @Index(name = "idx_location", columnList = "latitude, longitude"),
+        @Index(name = "idx_beacon_user_posted_at", columnList = "beacon_id, user_id, latest_posted_at")
 }, uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "beacon_id"})
 })
