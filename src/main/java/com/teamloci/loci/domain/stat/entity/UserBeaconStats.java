@@ -3,12 +3,16 @@ package com.teamloci.loci.domain.stat.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "user_beacon_stats", indexes = {
         @Index(name = "idx_user_beacon", columnList = "user_id, beacon_id"),
         @Index(name = "idx_location", columnList = "latitude, longitude")
+}, uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "beacon_id"})
 })
 public class UserBeaconStats {
 
@@ -31,20 +35,27 @@ public class UserBeaconStats {
     @Column(columnDefinition = "TEXT")
     private String latestThumbnailUrl;
 
+    private LocalDateTime latestPostedAt;
+
     @Builder
-    public UserBeaconStats(Long userId, String beaconId, Double latitude, Double longitude, Long postCount, String latestThumbnailUrl) {
+    public UserBeaconStats(Long userId, String beaconId, Double latitude, Double longitude, Long postCount, String latestThumbnailUrl, LocalDateTime latestPostedAt) {
         this.userId = userId;
         this.beaconId = beaconId;
         this.latitude = latitude;
         this.longitude = longitude;
         this.postCount = postCount;
         this.latestThumbnailUrl = latestThumbnailUrl;
+        this.latestPostedAt = latestPostedAt;
     }
 
-    public void incrementCount(String newThumbnailUrl) {
+    public void updateStats(String newThumbnailUrl, LocalDateTime postedAt) {
         this.postCount++;
-        if (newThumbnailUrl != null) {
-            this.latestThumbnailUrl = newThumbnailUrl;
+
+        if (this.latestPostedAt == null || (postedAt != null && postedAt.isAfter(this.latestPostedAt))) {
+            this.latestPostedAt = postedAt;
+            if (newThumbnailUrl != null) {
+                this.latestThumbnailUrl = newThumbnailUrl;
+            }
         }
     }
 }

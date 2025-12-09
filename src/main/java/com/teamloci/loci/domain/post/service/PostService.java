@@ -29,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -296,8 +297,10 @@ public class PostService {
         if (useNewMapMarker) {
             try {
                 return getMapMarkersOptimized(minLat, maxLat, minLon, maxLon, myUserId);
+            } catch (DataAccessException e) {
+                log.warn("[Map Optimization DB Error] 기존 로직으로 대체 실행", e);
             } catch (Exception e) {
-                log.error("[Map Optimization Failed] 기존 로직으로 대체 실행", e);
+                log.error("[Map Optimization Code Error] 로직 버그 발생! 기존 로직으로 대체", e);
             }
         }
 
