@@ -12,9 +12,11 @@ import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.PostDto;
 import com.teamloci.loci.domain.post.entity.*;
+import com.teamloci.loci.domain.post.event.PostCreatedEvent;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
+import com.teamloci.loci.domain.stat.repository.UserBeaconStatsRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
@@ -25,6 +27,8 @@ import com.teamloci.loci.global.util.GeoUtils;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,6 +54,11 @@ public class PostService {
     private final GeoUtils geoUtils;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final UserBeaconStatsRepository userBeaconStatsRepository;
+
+    @Value("${feature.use-new-map-marker:false}")
+    private boolean useNewMapMarker;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -121,12 +130,7 @@ public class PostService {
 
         Post savedPost = postRepository.save(post);
 
-        if (savedPost.getCollaborators() != null) {
-            for (PostCollaborator collaborator : savedPost.getCollaborators()) {
-                Long collaboratorId = collaborator.getUser().getId();
-                intimacyService.accumulatePoint(authorId, collaboratorId, IntimacyType.COLLABORATOR, null);
-            }
-        }
+        eventPublisher.publishEvent(new PostCreatedEvent(savedPost));
 
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(authorId);
         List<Long> friendIds = friends.stream().map(User::getId).toList();
@@ -289,8 +293,49 @@ public class PostService {
     }
 
     public List<PostDto.MapMarkerResponse> getMapMarkers(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {
-        List<Object[]> results = postRepository.findMapMarkers(minLat, maxLat, minLon, maxLon, myUserId);
+        if (useNewMapMarker) {
+            try {
+                return getMapMarkersOptimized(minLat, maxLat, minLon, maxLon, myUserId);
+            } catch (Exception e) {
+                log.error("[Map Optimization Failed] 기존 로직으로 대체 실행", e);
+            }
+        }
 
+        List<Object[]> results = postRepository.findMapMarkers(minLat, maxLat, minLon, maxLon, myUserId);
+        return mapToMarkerResponse(results);
+    }
+
+    private List<PostDto.MapMarkerResponse> getMapMarkersOptimized(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {
+        List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
+        List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
+        friendIds.add(myUserId);
+
+        List<Object[]> results = userBeaconStatsRepository.findMarkersByFriendsInArea(
+                friendIds, minLat, maxLat, minLon, maxLon
+        );
+
+        return results.stream()
+                .map(row -> {
+                    String beaconId = (String) row[0];
+                    Long count = ((Number) row[1]).longValue();
+                    String thumbnail = (String) row[2];
+
+                    GeoUtils.Pair<Double, Double> latLng = geoUtils.beaconIdToLatLng(beaconId);
+                    if (latLng == null) return null;
+
+                    return PostDto.MapMarkerResponse.builder()
+                            .beaconId(beaconId)
+                            .latitude(latLng.lat)
+                            .longitude(latLng.lng)
+                            .count(count)
+                            .thumbnailImageUrl(thumbnail)
+                            .build();
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private List<PostDto.MapMarkerResponse> mapToMarkerResponse(List<Object[]> results) {
         return results.stream()
                 .map(row -> {
                     String beaconId = (String) row[0];
