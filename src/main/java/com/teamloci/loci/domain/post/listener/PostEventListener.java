@@ -16,6 +16,8 @@ import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -36,6 +38,8 @@ public class PostEventListener {
     private final FriendshipRepository friendshipRepository;
     private final PostRepository postRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
+
+    private final CacheManager cacheManager;
 
     @Async
     @EventListener
@@ -72,6 +76,20 @@ public class PostEventListener {
         }
 
         sendNotifications(post, friends, visitedFriends);
+
+        evictUserStats(authorId);
+    }
+
+    private void evictUserStats(Long userId) {
+        try {
+            Cache cache = cacheManager.getCache("userStats");
+            if (cache != null) {
+                cache.evict(userId);
+                log.info("사용자 통계 캐시 삭제 완료: userId={}", userId);
+            }
+        } catch (Exception e) {
+            log.error("캐시 삭제 실패", e);
+        }
     }
 
     private void sendNotifications(Post post, List<User> friends, List<User> visitedFriends) {

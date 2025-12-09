@@ -6,6 +6,7 @@ import com.teamloci.loci.domain.intimacy.repository.UserLevelSum;
 import com.teamloci.loci.domain.post.entity.PostStatus;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class UserActivityService {
 
     public record UserStats(long friendCount, long postCount, long streakCount, long visitedPlaceCount, int totalIntimacyLevel) {}
 
+    @Cacheable(value = "userStats", key = "#userId")
     public UserStats getUserStats(Long userId) {
         return getUserStatsMap(List.of(userId)).getOrDefault(userId, new UserStats(0, 0, 0, 0, 0));
     }

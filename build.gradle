@@ -60,6 +60,8 @@ dependencies {
     implementation 'com.uber:h3:4.1.1'
 
     implementation 'com.googlecode.libphonenumber:libphonenumber:8.13.26'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }
 
 tasks.named('test') {
