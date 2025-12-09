@@ -11,8 +11,6 @@ import com.teamloci.loci.domain.intimacy.event.IntimacyLevelUpEvent;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLevelRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLogRepository;
-import com.teamloci.loci.domain.notification.NotificationService;
-import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
 import com.teamloci.loci.domain.user.UserRepository;
@@ -68,6 +66,11 @@ public class IntimacyService {
         intimacy.addScore(point);
         if (newLevel > oldLevel) {
             intimacy.updateLevel(newLevel);
+
+            int levelDiff = newLevel - oldLevel;
+            userRepository.increaseTotalIntimacy(actorId, levelDiff);
+            userRepository.increaseTotalIntimacy(targetId, levelDiff);
+
             eventPublisher.publishEvent(new IntimacyLevelUpEvent(actorId, targetId, newLevel));
         }
 
@@ -109,8 +112,9 @@ public class IntimacyService {
         int currentLevel = intimacyOpt.map(FriendshipIntimacy::getLevel).orElse(1);
         Long currentScore = intimacyOpt.map(FriendshipIntimacy::getTotalScore).orElse(0L);
 
-        Integer myTotalLevel = intimacyRepository.sumLevelByUserId(myUserId);
-        if (myTotalLevel == null) myTotalLevel = 0;
+        // 반정규화된 값 사용 (기존 쿼리 대체)
+        User me = userRepository.findById(myUserId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Integer myTotalLevel = me.getTotalIntimacyLevel();
 
         IntimacyLevel nextLevelInfo = levelRepository.findByLevel(currentLevel + 1).orElse(null);
         Long nextLevelScore = nextLevelInfo != null ? Long.valueOf(nextLevelInfo.getRequiredTotalScore()) : null;

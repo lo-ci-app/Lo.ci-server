@@ -198,4 +198,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.reactionCount = p.reactionCount - 1 WHERE p.id = :postId AND p.reactionCount > 0")
     void decreaseReactionCount(@Param("postId") Long postId);
+
+    long countByUserIdAndBeaconId(Long userId, String beaconId);
 }

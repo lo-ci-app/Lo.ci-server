@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.user;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -7,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,4 +45,32 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Slice<User> findActiveUsersWithFcmTokenExcludingIds(@Param("excludedIds") List<Long> excludedIds, Pageable pageable);
 
     List<User> findByHandleIn(List<String> handles);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.friendCount = u.friendCount + 1 WHERE u.id = :id")
+    void increaseFriendCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.friendCount = u.friendCount - 1 WHERE u.id = :id AND u.friendCount > 0")
+    void decreaseFriendCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.postCount = u.postCount + 1 WHERE u.id = :id")
+    void increasePostCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.postCount = u.postCount - 1 WHERE u.id = :id AND u.postCount > 0")
+    void decreasePostCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.streakCount = :streak, u.lastPostDate = :date WHERE u.id = :id")
+    void updateStreak(@Param("id") Long id, @Param("streak") Long streak, @Param("date") LocalDate date);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.visitedPlaceCount = u.visitedPlaceCount + 1 WHERE u.id = :id")
+    void increaseVisitedPlaceCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.totalIntimacyLevel = u.totalIntimacyLevel + :delta WHERE u.id = :id")
+    void increaseTotalIntimacy(@Param("id") Long id, @Param("delta") int delta);
 }

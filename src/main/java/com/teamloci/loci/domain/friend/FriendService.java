@@ -136,6 +136,8 @@ public class FriendService {
                     throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
                 }
                 f.accept();
+                userRepository.increaseFriendCount(myUserId);
+                userRepository.increaseFriendCount(targetUserId);
                 return;
             }
         }
@@ -181,6 +183,9 @@ public class FriendService {
 
         friendship.accept();
 
+        userRepository.increaseFriendCount(myUserId);
+        userRepository.increaseFriendCount(requesterId);
+
         User requester = friendship.getRequester();
         User me = friendship.getReceiver();
 
@@ -199,6 +204,11 @@ public class FriendService {
     public void deleteFriendship(Long myUserId, Long targetUserId) {
         Friendship friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
+
+        if (friendship.getStatus() == FriendshipStatus.FRIENDSHIP) {
+            userRepository.decreaseFriendCount(myUserId);
+            userRepository.decreaseFriendCount(targetUserId);
+        }
 
         friendshipRepository.delete(friendship);
     }

@@ -1,32 +1,35 @@
 package com.teamloci.loci.domain.user;
 
-import com.teamloci.loci.domain.friend.FriendshipRepository;
-import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
-import com.teamloci.loci.domain.intimacy.repository.UserLevelSum;
-import com.teamloci.loci.domain.post.entity.PostStatus;
-import com.teamloci.loci.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserActivityService {
 
-    private final PostRepository postRepository;
-    private final FriendshipRepository friendshipRepository;
-    private final FriendshipIntimacyRepository intimacyRepository;
+    private final UserRepository userRepository;
 
     public record UserStats(long friendCount, long postCount, long streakCount, long visitedPlaceCount, int totalIntimacyLevel) {}
 
     @Cacheable(value = "userStats", key = "#userId")
     public UserStats getUserStats(Long userId) {
-        return getUserStatsMap(List.of(userId)).getOrDefault(userId, new UserStats(0, 0, 0, 0, 0));
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return new UserStats(0, 0, 0, 0, 0);
+        }
+        return new UserStats(
+                user.getFriendCount(),
+                user.getPostCount(),
+                user.getStreakCount(),
+                user.getVisitedPlaceCount(),
+                user.getTotalIntimacyLevel()
+        );
     }
 
     public Map<Long, UserStats> getUserStatsMap(List<Long> userIds) {
@@ -34,87 +37,17 @@ public class UserActivityService {
             return Collections.emptyMap();
         }
 
-        List<Long> distinctIds = userIds.stream().distinct().toList();
+        List<User> users = userRepository.findAllById(userIds);
 
-        Map<Long, Long> friendCounts = new HashMap<>();
-        friendshipRepository.countFriendsByUserIds(distinctIds).forEach(row ->
-                friendCounts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue())
-        );
-
-        Map<Long, Long> postCounts = new HashMap<>();
-        postRepository.countPostsByUserIds(distinctIds, PostStatus.ACTIVE).forEach(row ->
-                postCounts.put((Long) row[0], (Long) row[1])
-        );
-
-        Map<Long, Long> visitedPlaceCounts = new HashMap<>();
-        postRepository.countDistinctBeaconsByUserIds(distinctIds).forEach(row ->
-                visitedPlaceCounts.put((Long) row[0], (Long) row[1])
-        );
-
-        Map<Long, Long> streakCounts = calculateStreakBulk(distinctIds);
-
-        Map<Long, Integer> totalLevelCounts = new HashMap<>();
-        List<UserLevelSum> sums = intimacyRepository.sumLevelsByUserIds(distinctIds);
-        for (UserLevelSum s : sums) {
-            totalLevelCounts.put(s.getUserId(), s.getTotalLevel());
-        }
-
-        Map<Long, UserStats> result = new HashMap<>();
-        for (Long userId : distinctIds) {
-            result.put(userId, new UserStats(
-                    friendCounts.getOrDefault(userId, 0L),
-                    postCounts.getOrDefault(userId, 0L),
-                    streakCounts.getOrDefault(userId, 0L),
-                    visitedPlaceCounts.getOrDefault(userId, 0L),
-                    totalLevelCounts.getOrDefault(userId, 0)
-            ));
-        }
-        return result;
-    }
-
-    private Map<Long, Long> calculateStreakBulk(List<Long> userIds) {
-        List<Object[]> rows = postRepository.findPostDatesByUserIds(userIds);
-
-        Map<Long, List<LocalDate>> userPostDates = new HashMap<>();
-        for (Object[] row : rows) {
-            Long userId = ((Number) row[0]).longValue();
-            java.sql.Date sqlDate = (java.sql.Date) row[1];
-            userPostDates.computeIfAbsent(userId, k -> new ArrayList<>()).add(sqlDate.toLocalDate());
-        }
-
-        Map<Long, Long> streaks = new HashMap<>();
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
-
-        for (Long userId : userIds) {
-            List<LocalDate> dates = userPostDates.getOrDefault(userId, Collections.emptyList());
-
-            if (dates.isEmpty()) {
-                streaks.put(userId, 0L);
-                continue;
-            }
-
-            List<LocalDate> uniqueDates = dates.stream().distinct().toList();
-
-            LocalDate lastPostDate = uniqueDates.get(0);
-            if (!lastPostDate.equals(today) && !lastPostDate.equals(yesterday)) {
-                streaks.put(userId, 0L);
-                continue;
-            }
-
-            long streak = 0;
-            LocalDate checkDate = lastPostDate.equals(today) ? today : yesterday;
-
-            for (LocalDate date : uniqueDates) {
-                if (date.equals(checkDate)) {
-                    streak++;
-                    checkDate = checkDate.minusDays(1);
-                } else {
-                    break;
-                }
-            }
-            streaks.put(userId, streak);
-        }
-        return streaks;
+        return users.stream().collect(Collectors.toMap(
+                User::getId,
+                u -> new UserStats(
+                        u.getFriendCount(),
+                        u.getPostCount(),
+                        u.getStreakCount(),
+                        u.getVisitedPlaceCount(),
+                        u.getTotalIntimacyLevel()
+                )
+        ));
     }
 }

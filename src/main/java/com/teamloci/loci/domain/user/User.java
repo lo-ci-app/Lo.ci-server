@@ -5,8 +5,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -58,6 +60,28 @@ public class User {
 
     @Column(nullable = false)
     private boolean isAutoArchive = true;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long friendCount = 0;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long postCount = 0;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long streakCount = 0;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long visitedPlaceCount = 0;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private int totalIntimacyLevel = 0;
+
+    private LocalDate lastPostDate;
 
     @Builder
     public User(String handle, String nickname, String profileUrl, String phoneEncrypted, String phoneSearchHash, String countryCode) {
