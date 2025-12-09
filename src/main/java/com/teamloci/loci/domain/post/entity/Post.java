@@ -34,7 +34,7 @@ import org.hibernate.annotations.ColumnDefault;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "posts", indexes = {
         @Index(name = "idx_beacon_id", columnList = "beacon_id"),
-        @Index(name = "idx_user_id", columnList = "user_id")
+        @Index(name = "idx_post_feed", columnList = "user_id, status, id DESC")
 })
 public class Post extends BaseTimeEntity {
 

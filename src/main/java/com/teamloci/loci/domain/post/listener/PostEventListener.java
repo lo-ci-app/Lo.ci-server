@@ -12,20 +12,18 @@ import com.teamloci.loci.domain.post.entity.PostCollaborator;
 import com.teamloci.loci.domain.post.event.PostCreatedEvent;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
-import com.teamloci.loci.domain.user.UserRepository;
+import com.teamloci.loci.domain.user.UserActivityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -40,16 +38,15 @@ public class PostEventListener {
     private final PostRepository postRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
     private final CacheManager cacheManager;
-    private final UserRepository userRepository;
+    private final UserActivityService userActivityService;
 
     @Async
-    @Transactional
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostBusinessLogic(PostCreatedEvent event) {
         Post post = event.getPost();
         Long authorId = post.getUser().getId();
 
-        updateUserStats(authorId, post.getBeaconId());
+        userActivityService.updateUserStats(authorId, post.getBeaconId());
 
         if (post.getCollaborators() != null) {
             for (PostCollaborator collaborator : post.getCollaborators()) {
@@ -81,39 +78,6 @@ public class PostEventListener {
         sendNotifications(post, friends, visitedFriends);
 
         evictUserStats(authorId);
-    }
-
-    private void updateUserStats(Long userId, String beaconId) {
-        try {
-            userRepository.increasePostCount(userId);
-
-            // 비관적 락 사용 (상위 메서드의 @Transactional 덕분에 락이 유지됨)
-            Optional<User> userOpt = userRepository.findByIdWithLock(userId);
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
-                LocalDate today = LocalDate.now();
-                LocalDate lastPostDate = user.getLastPostDate();
-                long currentStreak = user.getStreakCount();
-
-                if (lastPostDate == null) {
-                    userRepository.updateStreak(userId, 1L, today);
-                } else if (lastPostDate.equals(today)) {
-                    // 이미 오늘 올렸으면 패스
-                } else if (lastPostDate.equals(today.minusDays(1))) {
-                    userRepository.updateStreak(userId, currentStreak + 1, today);
-                } else {
-                    userRepository.updateStreak(userId, 1L, today);
-                }
-            }
-
-            long existingPostsInBeacon = postRepository.countByUserIdAndBeaconId(userId, beaconId);
-            if (existingPostsInBeacon == 1) {
-                userRepository.increaseVisitedPlaceCount(userId);
-            }
-
-        } catch (Exception e) {
-            log.error("유저 통계 업데이트 실패: {}", e.getMessage());
-        }
     }
 
     private void evictUserStats(Long userId) {
