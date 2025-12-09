@@ -2,7 +2,6 @@ package com.teamloci.loci.domain.post.service;
 
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
-import com.teamloci.loci.domain.friend.FriendshipStatus;
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
@@ -60,6 +59,8 @@ public class CommentService {
                 .build();
         PostComment savedComment = commentRepository.save(comment);
 
+        postRepository.increaseCommentCount(postId);
+
         if (!post.getUser().getId().equals(userId)) {
             intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.COMMENT, null);
         }
@@ -76,7 +77,7 @@ public class CommentService {
                     postOwner,
                     NotificationType.POST_COMMENT,
                     "새로운 댓글",
-                    user.getNickname() + "님: " + summary,
+                    user.getNickname() + "님이: " + summary,
                     postId
             );
         }
@@ -215,5 +216,6 @@ public class CommentService {
         }
 
         commentRepository.delete(comment);
+        postRepository.decreaseCommentCount(postId);
     }
 }

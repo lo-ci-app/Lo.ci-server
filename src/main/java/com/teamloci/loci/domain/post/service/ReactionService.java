@@ -60,6 +60,7 @@ public class ReactionService {
             PostReaction reaction = existing.get();
             if (reaction.getType() == type) {
                 postReactionRepository.delete(reaction);
+                postRepository.decreaseReactionCount(postId);
             } else {
                 reaction.changeType(type);
             }
@@ -69,6 +70,8 @@ public class ReactionService {
                     .user(user)
                     .type(type)
                     .build());
+
+            postRepository.increaseReactionCount(postId);
 
             if (!post.getUser().getId().equals(userId)) {
                 intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.REACTION, null);

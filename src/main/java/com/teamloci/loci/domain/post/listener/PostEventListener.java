@@ -1,5 +1,3 @@
-// src/main/java/com/teamloci/loci/domain/post/listener/PostEventListener.java
-
 package com.teamloci.loci.domain.post.listener;
 
 import com.teamloci.loci.domain.friend.FriendshipRepository;
@@ -18,10 +16,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -38,12 +36,10 @@ public class PostEventListener {
     private final FriendshipRepository friendshipRepository;
     private final PostRepository postRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
-
     private final CacheManager cacheManager;
 
     @Async
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostBusinessLogic(PostCreatedEvent event) {
         Post post = event.getPost();
         Long authorId = post.getUser().getId();
@@ -85,7 +81,6 @@ public class PostEventListener {
             Cache cache = cacheManager.getCache("userStats");
             if (cache != null) {
                 cache.evict(userId);
-                log.info("사용자 통계 캐시 삭제 완료: userId={}", userId);
             }
         } catch (Exception e) {
             log.error("캐시 삭제 실패", e);

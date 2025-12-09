@@ -146,8 +146,8 @@ public class PostDto {
                             .collect(Collectors.toList()))
                     .createdAt(post.getCreatedAt())
                     .updatedAt(post.getUpdatedAt())
-                    .commentCount(0L)
-                    .reactionCount(0L)
+                    .commentCount(post.getCommentCount())
+                    .reactionCount(post.getReactionCount())
                     .status(post.getStatus())
                     .build();
         }

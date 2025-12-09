@@ -27,6 +27,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Getter
@@ -75,6 +76,13 @@ public class Post extends BaseTimeEntity {
     @Column(nullable = false)
     private PostStatus status;
 
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long commentCount = 0;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long reactionCount = 0;
 
     @Builder
     public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, String thumbnailUrl) {

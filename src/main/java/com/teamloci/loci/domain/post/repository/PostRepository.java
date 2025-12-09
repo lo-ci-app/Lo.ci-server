@@ -182,4 +182,20 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p.user.id, COUNT(DISTINCT p.beaconId) FROM Post p WHERE p.user.id IN :userIds AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED') GROUP BY p.user.id")
     List<Object[]> countDistinctBeaconsByUserIds(@Param("userIds") List<Long> userIds);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.commentCount = p.commentCount + 1 WHERE p.id = :postId")
+    void increaseCommentCount(@Param("postId") Long postId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.commentCount = p.commentCount - 1 WHERE p.id = :postId AND p.commentCount > 0")
+    void decreaseCommentCount(@Param("postId") Long postId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.reactionCount = p.reactionCount + 1 WHERE p.id = :postId")
+    void increaseReactionCount(@Param("postId") Long postId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.reactionCount = p.reactionCount - 1 WHERE p.id = :postId AND p.reactionCount > 0")
+    void decreaseReactionCount(@Param("postId") Long postId);
 }

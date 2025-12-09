@@ -4,12 +4,7 @@ import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
-import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
-import com.teamloci.loci.domain.notification.DailyPushLog;
-import com.teamloci.loci.domain.notification.DailyPushLogRepository;
-import com.teamloci.loci.domain.notification.NotificationService;
-import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.PostDto;
 import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.post.event.PostCreatedEvent;
@@ -35,7 +30,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,8 +44,6 @@ public class PostService {
     private final FriendshipRepository friendshipRepository;
     private final PostCommentRepository commentRepository;
     private final PostReactionRepository reactionRepository;
-    private final NotificationService notificationService;
-    private final DailyPushLogRepository dailyPushLogRepository;
     private final GeoUtils geoUtils;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
@@ -132,17 +124,6 @@ public class PostService {
         Post savedPost = postRepository.save(post);
 
         eventPublisher.publishEvent(new PostCreatedEvent(savedPost));
-
-        List<User> friends = friendshipRepository.findActiveFriendsByUserId(authorId);
-        List<Long> friendIds = friends.stream().map(User::getId).toList();
-
-        List<User> visitedFriends = postRepository.findUsersWhoPostedInBeacon(savedPost.getBeaconId(), friendIds);
-
-        for (User friend : visitedFriends) {
-            intimacyService.accumulatePoint(authorId, friend.getId(), IntimacyType.VISIT, savedPost.getBeaconId());
-        }
-
-        sendPostNotifications(author, savedPost);
 
         PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(findPostById(savedPost.getId()));
 
@@ -444,9 +425,6 @@ public class PostService {
         }
         List<Long> targetUserIds = new ArrayList<>(targetUserIdsSet);
 
-        Map<Long, Long> commentCountMap = commentRepository.countByPostIdIn(postIds).stream()
-                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
-
         Map<Long, Map<ReactionType, Long>> reactionCounts = new HashMap<>();
         reactionRepository.countReactionsByPostIds(postIds).forEach(row -> {
             Long pid = (Long) row[0];
@@ -479,19 +457,12 @@ public class PostService {
         Map<Long, FriendshipIntimacy> myIntimacyMap = intimacyService.getIntimacyMap(myUserId, targetUserIds);
 
         for (PostDto.PostDetailResponse p : posts) {
-            p.setCommentCount(commentCountMap.getOrDefault(p.getId(), 0L));
-
             Map<ReactionType, Long> postReactions = reactionCounts.getOrDefault(p.getId(), Collections.emptyMap());
 
             p.setReactions(new PostDto.ReactionSummary(
                     myReactions.get(p.getId()),
                     postReactions
             ));
-
-            long totalReactions = postReactions.values().stream()
-                    .mapToLong(Long::longValue)
-                    .sum();
-            p.setReactionCount(totalReactions);
 
             fillUserInfo(p.getUser(), myUserId, friendshipMap, statsMap, myIntimacyMap);
 
@@ -525,105 +496,6 @@ public class PostService {
         userRes.setVisitedPlaceCount(stats.visitedPlaceCount());
 
         userRes.applyIntimacyInfo(intimacyMap.get(userRes.getId()), stats.totalIntimacyLevel());
-    }
-
-    private void sendPostNotifications(User author, Post post) {
-        try {
-            post.getCollaborators().stream()
-                    .map(PostCollaborator::getUser)
-                    .filter(u -> !u.getId().equals(author.getId()))
-                    .forEach(taggedUser -> {
-                        notificationService.send(
-                                taggedUser,
-                                NotificationType.POST_TAGGED,
-                                "함께한 순간",
-                                author.getNickname() + "님이 회원님을 게시물에 태그했습니다.",
-                                post.getId()
-                        );
-                    });
-
-            List<User> friends = friendshipRepository.findActiveFriendsByUserId(author.getId());
-            if (friends.isEmpty()) return;
-
-            LocalDate today = LocalDate.now();
-
-            List<String> newPostLogIds = friends.stream()
-                    .map(f -> today.toString() + "_" + f.getId())
-                    .toList();
-
-            Set<String> receivedLogIds = dailyPushLogRepository.findAllById(newPostLogIds).stream()
-                    .map(DailyPushLog::getId)
-                    .collect(Collectors.toSet());
-
-            List<User> targetNewPostFriends = friends.stream()
-                    .filter(f -> !receivedLogIds.contains(today.toString() + "_" + f.getId()))
-                    .collect(Collectors.toList());
-
-            if (!targetNewPostFriends.isEmpty()) {
-                List<Long> targetIds = targetNewPostFriends.stream()
-                        .map(User::getId)
-                        .toList();
-
-                notificationService.sendMulticast(
-                        targetIds,
-                        NotificationType.NEW_POST,
-                        "새로운 Loci!",
-                        author.getNickname() + "님이 지금 순간을 공유했어요 📸",
-                        post.getId()
-                );
-
-                List<DailyPushLog> logs = targetNewPostFriends.stream()
-                        .map(f -> DailyPushLog.builder()
-                                .userId(f.getId())
-                                .date(today)
-                                .build())
-                        .collect(Collectors.toList());
-                dailyPushLogRepository.saveAll(logs);
-            }
-
-            List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
-            List<User> visitedFriends = postRepository.findUsersWhoPostedInBeacon(post.getBeaconId(), friendIds);
-
-            if (!visitedFriends.isEmpty()) {
-                List<String> visitLogIds = visitedFriends.stream()
-                        .map(f -> "VISIT_" + today.toString() + "_" + f.getId())
-                        .toList();
-
-                Set<String> alreadySentIds = dailyPushLogRepository.findAllById(visitLogIds).stream()
-                        .map(DailyPushLog::getId)
-                        .collect(Collectors.toSet());
-
-                List<User> targetVisitedFriends = visitedFriends.stream()
-                        .filter(f -> !alreadySentIds.contains("VISIT_" + today.toString() + "_" + f.getId()))
-                        .collect(Collectors.toList());
-
-                if (!targetVisitedFriends.isEmpty()) {
-                    List<Long> targetIds = targetVisitedFriends.stream()
-                            .map(User::getId)
-                            .toList();
-
-                    notificationService.sendMulticast(
-                            targetIds,
-                            NotificationType.FRIEND_VISITED,
-                            "반가운 발자취! 👣",
-                            author.getNickname() + "님이 회원님이 방문했던 곳에 다녀갔어요!",
-                            post.getId()
-                    );
-
-                    List<DailyPushLog> logs = targetVisitedFriends.stream()
-                            .map(f -> new DailyPushLog(
-                                    "VISIT_" + today.toString() + "_" + f.getId(),
-                                    f.getId(),
-                                    today
-                            ))
-                            .collect(Collectors.toList());
-                    dailyPushLogRepository.saveAll(logs);
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("게시글 작성 알림 발송 실패: {}", e.getMessage());
-        }
     }
 
     public List<PostDto.VisitedPlaceResponse> getVisitedPlaces(Long userId, int page, int size) {
