@@ -95,7 +95,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("myUserId") Long myUserId
     );
 
-    @Query("SELECT p FROM Post p " +
+    @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.mediaList " +
             "WHERE p.id IN (" +
             "  SELECT MAX(p2.id) FROM Post p2 " +
