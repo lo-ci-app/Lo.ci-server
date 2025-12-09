@@ -133,9 +133,14 @@ public class FriendService {
             if (f.getRequester().getId().equals(myUserId)) {
                 throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
             } else {
-                if (me.getFriendCount() >= MAX_FRIEND_LIMIT || target.getFriendCount() >= MAX_FRIEND_LIMIT) {
+                // [수정] 상대방이 이미 보낸 요청을 수락하는 경우 -> 양쪽 제한 확인 (에러 분리)
+                if (me.getFriendCount() >= MAX_FRIEND_LIMIT) {
                     throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
                 }
+                if (target.getFriendCount() >= MAX_FRIEND_LIMIT) {
+                    throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
+                }
+
                 f.accept();
                 userRepository.increaseFriendCount(myUserId);
                 userRepository.increaseFriendCount(targetUserId);
@@ -145,6 +150,9 @@ public class FriendService {
 
         if (me.getFriendCount() >= MAX_FRIEND_LIMIT) {
             throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+        }
+        if (target.getFriendCount() >= MAX_FRIEND_LIMIT) {
+            throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
         }
 
         Friendship friendship = Friendship.builder()
@@ -182,8 +190,11 @@ public class FriendService {
             throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
         }
 
-        if (me.getFriendCount() >= MAX_FRIEND_LIMIT || requester.getFriendCount() >= MAX_FRIEND_LIMIT) {
+        if (me.getFriendCount() >= MAX_FRIEND_LIMIT) {
             throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+        }
+        if (requester.getFriendCount() >= MAX_FRIEND_LIMIT) {
+            throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
         }
 
         friendship.accept();

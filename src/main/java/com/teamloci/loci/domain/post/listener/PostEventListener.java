@@ -19,11 +19,11 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -43,6 +43,7 @@ public class PostEventListener {
     private final UserRepository userRepository;
 
     @Async
+    @Transactional
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostBusinessLogic(PostCreatedEvent event) {
         Post post = event.getPost();
@@ -86,6 +87,7 @@ public class PostEventListener {
         try {
             userRepository.increasePostCount(userId);
 
+            // 비관적 락 사용 (상위 메서드의 @Transactional 덕분에 락이 유지됨)
             Optional<User> userOpt = userRepository.findByIdWithLock(userId);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
