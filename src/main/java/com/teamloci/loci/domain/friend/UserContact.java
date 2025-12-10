@@ -29,14 +29,22 @@ public class UserContact {
     @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
 
+    @Column(name = "phone_search_hash")
+    private String phoneSearchHash;
+
     @Builder
-    public UserContact(User user, String name, String phoneNumber) {
+    public UserContact(User user, String name, String phoneNumber, String phoneSearchHash) {
         this.user = user;
         this.name = name;
         this.phoneNumber = phoneNumber;
+        this.phoneSearchHash = phoneSearchHash;
     }
 
     public void updateName(String name) {
         this.name = name;
+    }
+
+    public void updatePhoneSearchHash(String phoneSearchHash) {
+        this.phoneSearchHash = phoneSearchHash;
     }
 }

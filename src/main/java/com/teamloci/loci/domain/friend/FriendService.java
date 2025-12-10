@@ -103,11 +103,17 @@ public class FriendService {
                 if (!inputName.equals(existing.getName())) {
                     existing.updateName(inputName);
                 }
+                if (existing.getPhoneSearchHash() == null) {
+                    existing.updatePhoneSearchHash(aesUtil.hash(inputPhone));
+                }
             } else {
                 String encryptedPhone = aesUtil.encrypt(inputPhone);
+                String phoneHash = aesUtil.hash(inputPhone);
+
                 toSave.add(UserContact.builder()
                         .user(me)
                         .phoneNumber(encryptedPhone)
+                        .phoneSearchHash(phoneHash)
                         .name(inputName)
                         .build());
             }
@@ -129,22 +135,7 @@ public class FriendService {
     }
 
     public List<UserDto.UserResponse> getSyncedContacts(Long userId) {
-        List<UserContact> contacts = userContactRepository.findByUserId(userId);
-        if (contacts.isEmpty()) {
-            return List.of();
-        }
-
-        List<String> phoneHashes = contacts.stream()
-                .map(c -> {
-                    try {
-                        String decrypted = aesUtil.decrypt(c.getPhoneNumber());
-                        return aesUtil.hash(decrypted);
-                    } catch (Exception e) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList();
+        List<String> phoneHashes = userContactRepository.findPhoneSearchHashesByUserId(userId);
 
         if (phoneHashes.isEmpty()) {
             return List.of();
