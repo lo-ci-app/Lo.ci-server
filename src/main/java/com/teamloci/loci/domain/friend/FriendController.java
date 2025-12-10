@@ -160,9 +160,13 @@ public class FriendController {
         return ResponseEntity.ok(CustomResponse.ok(friendService.matchFriends(getUserId(user), request.getContacts())));
     }
 
-    @Operation(summary = "저장된 연락처 목록 불러오기", description = "서버에 동기화된 내 연락처 목록을 조회합니다.")
+    @Operation(summary = "동기화된 연락처 중 가입된 친구 목록 조회",
+            description = """
+                    서버에 동기화된 내 연락처를 기반으로, **실제 가입된 유저 목록**을 반환합니다.
+                    (기존 단순 연락처 목록 반환에서 변경됨)
+                    """)
     @GetMapping("/contacts")
-    public ResponseEntity<CustomResponse<List<FriendDto.ContactResponse>>> getSyncedContacts(
+    public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getSyncedContacts(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
         return ResponseEntity.ok(CustomResponse.ok(friendService.getSyncedContacts(getUserId(user))));

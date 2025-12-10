@@ -16,6 +16,7 @@ import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.AesUtil;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -65,34 +67,54 @@ public class FriendService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
 
-        List<String> allPhoneNumbers = new ArrayList<>(newContactsMap.keySet());
+        List<String> allInputPhoneNumbers = new ArrayList<>(newContactsMap.keySet());
 
         List<UserContact> existingContacts = userContactRepository.findByUserId(myUserId);
-        List<UserContact> toDelete = existingContacts.stream()
-                .filter(ec -> !newContactsMap.containsKey(ec.getPhoneNumber()))
-                .collect(Collectors.toList());
-        userContactRepository.deleteAll(toDelete);
 
-        for (UserContact existing : existingContacts) {
-            if (newContactsMap.containsKey(existing.getPhoneNumber())) {
-                String newName = newContactsMap.get(existing.getPhoneNumber());
-                if (!newName.equals(existing.getName())) {
-                    existing.updateName(newName);
+        Map<String, UserContact> existingDecryptedMap = new HashMap<>();
+        for (UserContact contact : existingContacts) {
+            try {
+                String decrypted = aesUtil.decrypt(contact.getPhoneNumber());
+                if (decrypted != null) {
+                    existingDecryptedMap.put(decrypted, contact);
                 }
-                newContactsMap.remove(existing.getPhoneNumber());
+            } catch (Exception e) {
+                log.warn("연락처 복호화 실패 (ID: {}): {}", contact.getId(), e.getMessage());
             }
         }
 
-        List<UserContact> toSave = newContactsMap.entrySet().stream()
-                .map(entry -> UserContact.builder()
+        List<UserContact> toDelete = new ArrayList<>();
+        for (Map.Entry<String, UserContact> entry : existingDecryptedMap.entrySet()) {
+            String existingPhone = entry.getKey();
+            if (!newContactsMap.containsKey(existingPhone)) {
+                toDelete.add(entry.getValue());
+            }
+        }
+        userContactRepository.deleteAll(toDelete);
+
+        List<UserContact> toSave = new ArrayList<>();
+
+        for (Map.Entry<String, String> entry : newContactsMap.entrySet()) {
+            String inputPhone = entry.getKey();
+            String inputName = entry.getValue();
+
+            if (existingDecryptedMap.containsKey(inputPhone)) {
+                UserContact existing = existingDecryptedMap.get(inputPhone);
+                if (!inputName.equals(existing.getName())) {
+                    existing.updateName(inputName);
+                }
+            } else {
+                String encryptedPhone = aesUtil.encrypt(inputPhone);
+                toSave.add(UserContact.builder()
                         .user(me)
-                        .phoneNumber(entry.getKey())
-                        .name(entry.getValue())
-                        .build())
-                .collect(Collectors.toList());
+                        .phoneNumber(encryptedPhone)
+                        .name(inputName)
+                        .build());
+            }
+        }
         userContactRepository.saveAll(toSave);
 
-        List<String> allPhoneHashes = allPhoneNumbers.stream()
+        List<String> allPhoneHashes = allInputPhoneNumbers.stream()
                 .map(aesUtil::hash)
                 .collect(Collectors.toList());
 
@@ -106,13 +128,34 @@ public class FriendService {
         return buildUserResponses(myUserId, matchedUsers);
     }
 
-    public List<FriendDto.ContactResponse> getSyncedContacts(Long userId) {
-        return userContactRepository.findByUserId(userId).stream()
-                .map(c -> FriendDto.ContactResponse.builder()
-                        .name(c.getName())
-                        .phoneNumber(c.getPhoneNumber())
-                        .build())
+    public List<UserDto.UserResponse> getSyncedContacts(Long userId) {
+        List<UserContact> contacts = userContactRepository.findByUserId(userId);
+        if (contacts.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> phoneHashes = contacts.stream()
+                .map(c -> {
+                    try {
+                        String decrypted = aesUtil.decrypt(c.getPhoneNumber());
+                        return aesUtil.hash(decrypted);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (phoneHashes.isEmpty()) {
+            return List.of();
+        }
+
+        List<User> matchedUsers = userRepository.findByPhoneSearchHashIn(phoneHashes).stream()
+                .filter(u -> !u.getId().equals(userId))
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
                 .collect(Collectors.toList());
+
+        return buildUserResponses(userId, matchedUsers);
     }
 
     @Transactional
@@ -179,7 +222,6 @@ public class FriendService {
     public void acceptFriendRequest(Long myUserId, Long requesterId) {
         User me = userRepository.findByIdWithLock(myUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        // requester 조회
         User requester = userRepository.findByIdWithLock(requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
