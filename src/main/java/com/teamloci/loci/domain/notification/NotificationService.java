@@ -136,15 +136,15 @@ public class NotificationService {
         }
     }
 
-    private void sendFcmMulticast(List<String> tokens, String title, String body, NotificationType type, Long relatedId, String thubmnailUrl) {
+    private void sendFcmMulticast(List<String> tokens, String title, String body, NotificationType type, Long relatedId, String thumbnailUrl) {
         try {
             com.google.firebase.messaging.Notification.Builder notiBuilder =
                     com.google.firebase.messaging.Notification.builder()
                             .setTitle(title)
                             .setBody(body);
 
-            if (thubmnailUrl != null && !thubmnailUrl.isBlank()) {
-                notiBuilder.setImage(thubmnailUrl);
+            if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+                notiBuilder.setImage(thumbnailUrl);
             }
 
             MulticastMessage message = MulticastMessage.builder()
@@ -155,7 +155,7 @@ public class NotificationService {
                             .build())
                     .putData("type", type.name())
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
-                    .putData("thumbnailUrl", thubmnailUrl != null ? thubmnailUrl : "")
+                    .putData("thumbnailUrl", thumbnailUrl != null ? thumbnailUrl : "")
                     .build();
 
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);

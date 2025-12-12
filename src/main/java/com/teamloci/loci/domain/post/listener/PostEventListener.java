@@ -95,12 +95,7 @@ public class PostEventListener {
     private void sendNotifications(Post post, List<User> friends, List<User> visitedFriends) {
         try {
             User author = post.getUser();
-            ZoneId authorZone;
-            try {
-                authorZone = ZoneId.of(author.getTimezone());
-            } catch (Exception e) {
-                authorZone = ZoneId.of("Asia/Seoul");
-            }
+            ZoneId authorZone = author.getZoneIdOrDefault();
             LocalDate today = LocalDate.now(authorZone);
 
             if (!friends.isEmpty()) {

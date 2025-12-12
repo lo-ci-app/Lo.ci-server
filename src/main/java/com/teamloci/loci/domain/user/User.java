@@ -8,8 +8,10 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Getter
@@ -136,5 +138,26 @@ public class User {
 
     public void updateTimezone(String timezone) {
         this.timezone = timezone;
+    }
+
+    public ZoneId getZoneIdOrDefault() {
+        try {
+            return (this.timezone != null) ? ZoneId.of(this.timezone) : ZoneId.of("Asia/Seoul");
+        } catch (DateTimeException e) {
+            return ZoneId.of("Asia/Seoul");
+        }
+    }
+
+    public void increasePostCount() {
+        this.postCount++;
+    }
+
+    public void increaseVisitedPlaceCount() {
+        this.visitedPlaceCount++;
+    }
+
+    public void updateStreakInfo(long streakCount, LocalDate lastPostDate) {
+        this.streakCount = streakCount;
+        this.lastPostDate = lastPostDate;
     }
 }

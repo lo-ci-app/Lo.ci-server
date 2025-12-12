@@ -1,6 +1,8 @@
 package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.post.repository.PostRepository;
+import com.teamloci.loci.global.error.CustomException;
+import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -60,37 +62,32 @@ public class UserActivityService {
     @Transactional
     public void updateUserStats(Long userId, String beaconId) {
         try {
-            userRepository.increasePostCount(userId);
+            User user = userRepository.findByIdWithLock(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-            Optional<User> userOpt = userRepository.findByIdWithLock(userId);
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            user.increasePostCount();
 
-                ZoneId userZone;
-                try {
-                    userZone = ZoneId.of(user.getTimezone());
-                } catch (Exception e) {
-                    userZone = ZoneId.of("Asia/Seoul");
-                }
-                LocalDate today = LocalDate.now(userZone);
+            ZoneId userZone = user.getZoneIdOrDefault();
 
-                LocalDate lastPostDate = user.getLastPostDate();
-                long currentStreak = user.getStreakCount();
+            LocalDate today = LocalDate.now(userZone);
 
-                if (lastPostDate == null) {
-                    userRepository.updateStreak(userId, 1L, today);
-                } else if (lastPostDate.equals(today)) {
-                } else if (lastPostDate.equals(today.minusDays(1))) {
-                    userRepository.updateStreak(userId, currentStreak + 1, today);
-                } else {
-                    userRepository.updateStreak(userId, 1L, today);
-                }
+            LocalDate lastPostDate = user.getLastPostDate();
+            long currentStreak = user.getStreakCount();
+
+            if (lastPostDate == null) {
+                user.updateStreakInfo(1L, today);
+            } else if (lastPostDate.equals(today)) {
+            } else if (lastPostDate.equals(today.minusDays(1))) {
+                user.updateStreakInfo(currentStreak + 1, today);
+            } else {
+                user.updateStreakInfo(1L, today);
             }
 
             long existingPostsInBeacon = postRepository.countByUserIdAndBeaconId(userId, beaconId);
             if (existingPostsInBeacon == 1) {
-                userRepository.increaseVisitedPlaceCount(userId);
+                user.increaseVisitedPlaceCount();
             }
+
 
         } catch (Exception e) {
             log.error("유저 통계 업데이트 실패: {}", e.getMessage());

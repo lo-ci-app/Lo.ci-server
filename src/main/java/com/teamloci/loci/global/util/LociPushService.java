@@ -18,9 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,8 +38,15 @@ public class LociPushService {
         log.info("🔔 [Global Push] 로키 타임 알림 발송 시작!");
 
         LocalDateTime now = LocalDateTime.now();
-        List<Long> recentPosters = postRepository.findUserIdsWhoPostedBetween(now.minusHours(24), now.plusHours(24));
-        Set<Long> recentPosterSet = Set.copyOf(recentPosters);
+
+        List<Object[]> recentPosts = postRepository.findPostTimestampsBetween(now.minusHours(24), now.plusHours(24));
+
+        Map<Long, List<LocalDateTime>> recentPostMap = new HashMap<>();
+        for (Object[] row : recentPosts) {
+            Long uid = (Long) row[0];
+            LocalDateTime createdAt = (LocalDateTime) row[1];
+            recentPostMap.computeIfAbsent(uid, k -> new ArrayList<>()).add(createdAt);
+        }
 
         int pageNumber = 0;
         boolean hasNext = true;
@@ -51,28 +57,36 @@ public class LociPushService {
             Slice<User> userSlice = userRepository.findActiveUsersWithFcmToken(pageable);
             List<User> candidates = userSlice.getContent();
 
+            List<String> candidateLogIds = new ArrayList<>();
+            for (User user : candidates) {
+                ZoneId userZone = user.getZoneIdOrDefault();
+                LocalDate localToday = LocalDate.now(userZone);
+                candidateLogIds.add(localToday.toString() + "_" + user.getId());
+            }
+
+            Set<String> existingLogIds = dailyPushLogRepository.findAllById(candidateLogIds).stream()
+                    .map(DailyPushLog::getId)
+                    .collect(Collectors.toSet());
+
             List<User> finalTargets = new ArrayList<>();
             List<DailyPushLog> logsToSave = new ArrayList<>();
 
             for (User user : candidates) {
-                ZoneId userZone;
-                try {
-                    userZone = ZoneId.of(user.getTimezone() != null ? user.getTimezone() : "Asia/Seoul");
-                } catch (Exception e) {
-                    userZone = ZoneId.of("Asia/Seoul");
-                }
+                ZoneId userZone = user.getZoneIdOrDefault();
                 LocalDate localToday = LocalDate.now(userZone);
                 String logId = localToday.toString() + "_" + user.getId();
 
-                if (dailyPushLogRepository.existsById(logId)) {
+                if (existingLogIds.contains(logId)) {
                     continue;
                 }
 
-                if (recentPosterSet.contains(user.getId())) {
-                    boolean postedToday = postRepository.findUserIdsWhoPostedBetween(
-                            localToday.atStartOfDay(userZone).toLocalDateTime(),
-                            localToday.plusDays(1).atStartOfDay(userZone).toLocalDateTime()
-                    ).contains(user.getId());
+                if (recentPostMap.containsKey(user.getId())) {
+                    LocalDateTime startOfToday = localToday.atStartOfDay(userZone).toLocalDateTime();
+                    LocalDateTime endOfToday = localToday.plusDays(1).atStartOfDay(userZone).toLocalDateTime();
+
+                    boolean postedToday = recentPostMap.get(user.getId()).stream()
+                            .anyMatch(date -> !date.isBefore(startOfToday) && date.isBefore(endOfToday));
+
                     if (postedToday) continue;
                 }
 

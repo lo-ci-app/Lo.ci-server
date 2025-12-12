@@ -6,20 +6,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.Arrays;
+import java.util.Base64;
 
 @Component
 public class AesUtil {
 
     private final SecretKeySpec secretKeySpec;
-    private static final String ALGORITHM = "AES/CBC/PKCS5Padding";
+    private static final String ALGORITHM = "AES/GCM/NoPadding";
+    private static final int GCM_TAG_LENGTH = 128;
+    private static final int GCM_IV_LENGTH = 12;
     private static final SecureRandom secureRandom = new SecureRandom();
 
     public AesUtil(@Value("${jwt.secret-key}") String secretKey) {
@@ -37,19 +40,15 @@ public class AesUtil {
     public String encrypt(String plainText) {
         if (plainText == null) return null;
         try {
-            byte[] ivBytes = new byte[16];
+            byte[] ivBytes = new byte[GCM_IV_LENGTH];
             secureRandom.nextBytes(ivBytes);
-            IvParameterSpec iv = new IvParameterSpec(ivBytes);
+            GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, ivBytes);
 
             Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, spec);
 
             byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
-
-            String ivString = Base64.getEncoder().encodeToString(ivBytes);
-            String encryptedString = Base64.getEncoder().encodeToString(encrypted);
-
-            return ivString + ":" + encryptedString;
+            return Base64.getEncoder().encodeToString(ivBytes) + ":" + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
@@ -59,23 +58,20 @@ public class AesUtil {
         if (encryptedText == null) return null;
         try {
             String[] parts = encryptedText.split(":");
-            if (parts.length != 2) {
-                throw new CustomException(ErrorCode.DECRYPT_FAILED);
-            }
+            if (parts.length != 2) throw new CustomException(ErrorCode.DECRYPT_FAILED);
 
             byte[] ivBytes = Base64.getDecoder().decode(parts[0]);
             byte[] cipherBytes = Base64.getDecoder().decode(parts[1]);
 
-            IvParameterSpec iv = new IvParameterSpec(ivBytes);
+            GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, ivBytes);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, spec);
 
             return new String(cipher.doFinal(cipherBytes), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new CustomException(ErrorCode.DECRYPT_FAILED);
         }
     }
-
     public String hash(String plainText) {
         if (plainText == null) return null;
         try {

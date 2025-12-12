@@ -66,7 +66,6 @@ public class FriendService {
                 String hash = aesUtil.hash(e164);
                 inputContactsMap.put(hash, new ContactInfo(name, e164));
             } catch (Exception e) {
-                // 파싱 실패 무시
             }
         }
 
@@ -84,9 +83,8 @@ public class FriendService {
                     existingHash = aesUtil.hash(decrypted);
                     existing.updatePhoneSearchHash(existingHash);
                 } catch (Exception e) {
-                    log.warn("연락처 마이그레이션 실패 (ID: {}): {}", existing.getId(), e.getMessage());
-                    toDelete.add(existing);
-                    continue;
+                log.error("연락처 마이그레이션 실패 (ID: {}): 데이터 손상을 방지하기 위해 건너뜁니다. {}", existing.getId(), e.getMessage());
+                continue;
                 }
             }
 

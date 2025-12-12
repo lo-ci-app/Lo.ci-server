@@ -200,4 +200,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     void decreaseReactionCount(@Param("postId") Long postId);
 
     long countByUserIdAndBeaconId(Long userId, String beaconId);
+
+    @Query("SELECT p.user.id, p.createdAt FROM Post p WHERE p.createdAt BETWEEN :start AND :end AND p.status = 'ACTIVE'")
+    List<Object[]> findPostTimestampsBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
