@@ -4,7 +4,7 @@ import com.teamloci.loci.domain.notification.DailyPushLog;
 import com.teamloci.loci.domain.notification.DailyPushLogRepository;
 import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
-import com.teamloci.loci.domain.post.repository.PostRepository; // [추가]
+import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -32,23 +32,15 @@ public class LociPushService {
     private final NotificationService notificationService;
     private final PostRepository postRepository;
 
-    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
     private static final int BATCH_SIZE = 1000;
 
     @Transactional
     public void executeGlobalPush() {
         log.info("🔔 [Global Push] 로키 타임 알림 발송 시작!");
-        LocalDate today = LocalDate.now(SEOUL_ZONE);
 
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
-
-        List<Long> excludedUserIds = new ArrayList<>(dailyPushLogRepository.findAllUserIds());
-
-        List<Long> postedUserIds = postRepository.findUserIdsWhoPostedBetween(startOfDay, endOfDay);
-        excludedUserIds.addAll(postedUserIds);
-
-        excludedUserIds = excludedUserIds.stream().distinct().toList();
+        LocalDateTime now = LocalDateTime.now();
+        List<Long> recentPosters = postRepository.findUserIdsWhoPostedBetween(now.minusHours(24), now.plusHours(24));
+        Set<Long> recentPosterSet = Set.copyOf(recentPosters);
 
         int pageNumber = 0;
         boolean hasNext = true;
@@ -56,44 +48,58 @@ public class LociPushService {
 
         while (hasNext) {
             Pageable pageable = PageRequest.of(pageNumber, BATCH_SIZE);
-            Slice<User> userSlice;
+            Slice<User> userSlice = userRepository.findActiveUsersWithFcmToken(pageable);
+            List<User> candidates = userSlice.getContent();
 
-            if (excludedUserIds.isEmpty()) {
-                userSlice = userRepository.findActiveUsersWithFcmToken(pageable);
-            } else {
-                userSlice = userRepository.findActiveUsersWithFcmTokenExcludingIds(excludedUserIds, pageable);
+            List<User> finalTargets = new ArrayList<>();
+            List<DailyPushLog> logsToSave = new ArrayList<>();
+
+            for (User user : candidates) {
+                ZoneId userZone;
+                try {
+                    userZone = ZoneId.of(user.getTimezone() != null ? user.getTimezone() : "Asia/Seoul");
+                } catch (Exception e) {
+                    userZone = ZoneId.of("Asia/Seoul");
+                }
+                LocalDate localToday = LocalDate.now(userZone);
+                String logId = localToday.toString() + "_" + user.getId();
+
+                if (dailyPushLogRepository.existsById(logId)) {
+                    continue;
+                }
+
+                if (recentPosterSet.contains(user.getId())) {
+                    boolean postedToday = postRepository.findUserIdsWhoPostedBetween(
+                            localToday.atStartOfDay(userZone).toLocalDateTime(),
+                            localToday.plusDays(1).atStartOfDay(userZone).toLocalDateTime()
+                    ).contains(user.getId());
+                    if (postedToday) continue;
+                }
+
+                finalTargets.add(user);
+                logsToSave.add(new DailyPushLog(logId, user.getId(), localToday));
             }
 
-            List<User> targetUsers = userSlice.getContent();
-
-            if (!targetUsers.isEmpty()) {
-                List<Long> targetIds = targetUsers.stream()
-                        .map(User::getId)
-                        .toList();
+            if (!finalTargets.isEmpty()) {
+                List<Long> targetIds = finalTargets.stream().map(User::getId).toList();
 
                 notificationService.sendMulticast(
                         targetIds,
                         NotificationType.LOCI_TIME,
                         "Time to Loci! 📸",
                         "지금 바로 친구들에게 일상을 공유하세요!",
+                        null,
                         null
                 );
 
-                List<DailyPushLog> logs = targetUsers.stream()
-                        .map(u -> DailyPushLog.builder()
-                                .userId(u.getId())
-                                .date(today)
-                                .build())
-                        .collect(Collectors.toList());
-                dailyPushLogRepository.saveAll(logs);
-
-                totalProcessed += targetUsers.size();
+                dailyPushLogRepository.saveAll(logsToSave);
+                totalProcessed += finalTargets.size();
             }
 
             hasNext = userSlice.hasNext();
             pageNumber++;
         }
 
-        log.info("🔔 [Global Push] 발송 완료: 총 {}명 (이미 받거나 작성한 {}명 제외)", totalProcessed, excludedUserIds.size());
+        log.info("🔔 [Global Push] 발송 완료: 총 {}명", totalProcessed);
     }
 }

@@ -28,6 +28,12 @@ public class UserDto {
 
         @Schema(description = "자동 보관 설정 변경", example = "true")
         private Boolean isAutoArchive;
+
+        @Schema(description = "국가 코드 (예: KR)", example = "KR")
+        private String countryCode;
+
+        @Schema(description = "타임존 ID (예: Asia/Seoul)", example = "Asia/Seoul")
+        private String timezone;
     }
 
     @Getter
@@ -104,6 +110,12 @@ public class UserDto {
         @Schema(description = "자동 보관 설정 여부")
         private boolean isAutoArchive;
 
+        @Schema(description = "국가 코드", example = "KR")
+        private String countryCode;
+
+        @Schema(description = "타임존", example = "Asia/Seoul")
+        private String timezone;
+
         public static UserResponse of(User user, String relationStatus, long friendCount, long postCount) {
             return of(user, relationStatus, friendCount, postCount, 0L, 0L);
         }
@@ -121,6 +133,8 @@ public class UserDto {
                     .streakCount(streakCount)
                     .visitedPlaceCount(visitedPlaceCount)
                     .isAutoArchive(user.isAutoArchive())
+                    .countryCode(user.getCountryCode())
+                    .timezone(user.getTimezone())
                     .build();
         }
 
@@ -137,6 +151,8 @@ public class UserDto {
                     .streakCount(0L)
                     .visitedPlaceCount(0L)
                     .isAutoArchive(user.isAutoArchive())
+                    .countryCode(user.getCountryCode())
+                    .timezone(user.getTimezone())
                     .build();
         }
 

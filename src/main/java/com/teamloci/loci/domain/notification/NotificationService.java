@@ -61,24 +61,25 @@ public class NotificationService {
     }
 
     @Transactional
-    public void send(User receiver, NotificationType type, String title, String body, Long relatedId) {
+    public void send(User receiver, NotificationType type, String title, String body, Long relatedId, String thumbnailUrl) {
         notificationRepository.save(Notification.builder()
                 .receiver(receiver)
                 .type(type)
                 .title(title)
                 .body(body)
                 .relatedId(relatedId)
+                .thumbnailUrl(thumbnailUrl)
                 .build());
 
         String token = receiver.getFcmToken();
         if (token != null && !token.isBlank()) {
-            sendFcm(token, title, body, type, relatedId);
+            sendFcm(token, title, body, type, relatedId, thumbnailUrl);
         }
     }
 
     @Async("taskExecutor")
     @Transactional
-    public void sendMulticast(List<Long> receiverIds, NotificationType type, String title, String body, Long relatedId) {
+    public void sendMulticast(List<Long> receiverIds, NotificationType type, String title, String body, Long relatedId, String thumbnailUrl) {
         if (receiverIds == null || receiverIds.isEmpty()) return;
 
         List<User> receivers = userRepository.findAllById(receiverIds);
@@ -92,6 +93,7 @@ public class NotificationService {
                         .title(title)
                         .body(body)
                         .relatedId(relatedId)
+                        .thumbnailUrl(thumbnailUrl)
                         .build())
                 .collect(Collectors.toList());
         notificationRepository.saveAll(entities);
@@ -102,23 +104,30 @@ public class NotificationService {
                 .collect(Collectors.toList());
 
         if (!tokens.isEmpty()) {
-            sendFcmMulticast(tokens, title, body, type, relatedId);
+            sendFcmMulticast(tokens, title, body, type, relatedId, thumbnailUrl);
         }
     }
 
-    private void sendFcm(String token, String title, String body, NotificationType type, Long relatedId) {
+    private void sendFcm(String token, String title, String body, NotificationType type, Long relatedId, String thumbnailUrl) {
         try {
+            com.google.firebase.messaging.Notification.Builder notiBuilder =
+                    com.google.firebase.messaging.Notification.builder()
+                            .setTitle(title)
+                            .setBody(body);
+
+            if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+                notiBuilder.setImage(thumbnailUrl);
+            }
+
             Message message = Message.builder()
                     .setToken(token)
-                    .setNotification(com.google.firebase.messaging.Notification.builder()
-                            .setTitle(title)
-                            .setBody(body)
-                            .build())
+                    .setNotification(notiBuilder.build())
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder().setSound("default").setContentAvailable(true).build())
                             .build())
                     .putData("type", type.name())
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
+                    .putData("thumbnailUrl", thumbnailUrl != null ? thumbnailUrl : "")
                     .build();
 
             FirebaseMessaging.getInstance().send(message);
@@ -127,19 +136,26 @@ public class NotificationService {
         }
     }
 
-    private void sendFcmMulticast(List<String> tokens, String title, String body, NotificationType type, Long relatedId) {
+    private void sendFcmMulticast(List<String> tokens, String title, String body, NotificationType type, Long relatedId, String thubmnailUrl) {
         try {
+            com.google.firebase.messaging.Notification.Builder notiBuilder =
+                    com.google.firebase.messaging.Notification.builder()
+                            .setTitle(title)
+                            .setBody(body);
+
+            if (thubmnailUrl != null && !thubmnailUrl.isBlank()) {
+                notiBuilder.setImage(thubmnailUrl);
+            }
+
             MulticastMessage message = MulticastMessage.builder()
                     .addAllTokens(tokens)
-                    .setNotification(com.google.firebase.messaging.Notification.builder()
-                            .setTitle(title)
-                            .setBody(body)
-                            .build())
+                    .setNotification(notiBuilder.build())
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder().setSound("default").setContentAvailable(true).build())
                             .build())
                     .putData("type", type.name())
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
+                    .putData("thumbnailUrl", thubmnailUrl != null ? thubmnailUrl : "")
                     .build();
 
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);

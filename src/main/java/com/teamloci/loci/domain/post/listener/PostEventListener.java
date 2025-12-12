@@ -23,6 +23,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,7 +52,6 @@ public class PostEventListener {
         if (post.getCollaborators() != null) {
             for (PostCollaborator collaborator : post.getCollaborators()) {
                 Long collaboratorId = collaborator.getUser().getId();
-
                 intimacyService.accumulatePoint(authorId, collaboratorId, IntimacyType.COLLABORATOR, null);
 
                 if (!collaboratorId.equals(authorId)) {
@@ -60,7 +60,8 @@ public class PostEventListener {
                             NotificationType.POST_TAGGED,
                             "함께한 순간",
                             post.getUser().getNickname() + "님이 회원님을 게시물에 태그했습니다.",
-                            post.getId()
+                            post.getId(),
+                            post.getThumbnailUrl()
                     );
                 }
             }
@@ -94,7 +95,13 @@ public class PostEventListener {
     private void sendNotifications(Post post, List<User> friends, List<User> visitedFriends) {
         try {
             User author = post.getUser();
-            LocalDate today = LocalDate.now();
+            ZoneId authorZone;
+            try {
+                authorZone = ZoneId.of(author.getTimezone());
+            } catch (Exception e) {
+                authorZone = ZoneId.of("Asia/Seoul");
+            }
+            LocalDate today = LocalDate.now(authorZone);
 
             if (!friends.isEmpty()) {
                 List<String> newPostLogIds = friends.stream()
@@ -115,7 +122,8 @@ public class PostEventListener {
                             NotificationType.NEW_POST,
                             "새로운 Loci!",
                             author.getNickname() + "님이 지금 순간을 공유했어요 📸",
-                            post.getId()
+                            post.getId(),
+                            post.getThumbnailUrl()
                     );
 
                     List<DailyPushLog> logs = targetNewPostFriends.stream()
@@ -147,7 +155,8 @@ public class PostEventListener {
                             NotificationType.FRIEND_VISITED,
                             "반가운 발자취! 👣",
                             author.getNickname() + "님이 회원님이 방문했던 곳에 다녀갔어요!",
-                            post.getId()
+                            post.getId(),
+                            post.getThumbnailUrl() 
                     );
 
                     List<DailyPushLog> logs = targetVisitedFriends.stream()

@@ -1,9 +1,6 @@
 package com.teamloci.loci.domain.notification;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,7 +11,9 @@ import java.time.LocalDate;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "daily_push_logs")
+@Table(name = "daily_push_logs", indexes = {
+        @Index(name = "idx_push_date", columnList = "date")
+})
 public class DailyPushLog {
 
     @Id

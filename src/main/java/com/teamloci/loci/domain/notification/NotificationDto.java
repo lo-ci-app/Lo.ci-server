@@ -23,6 +23,9 @@ public class NotificationDto {
         private boolean isRead;
         private LocalDateTime createdAt;
 
+        @Schema(description = "알림 썸네일 이미지 URL")
+        private String thumbnailUrl;
+
         public static Response from(Notification notification) {
             return Response.builder()
                     .id(notification.getId())
@@ -32,6 +35,7 @@ public class NotificationDto {
                     .relatedId(notification.getRelatedId())
                     .isRead(notification.isRead())
                     .createdAt(notification.getCreatedAt())
+                    .thumbnailUrl(notification.getThumbnailUrl())
                     .build();
         }
     }

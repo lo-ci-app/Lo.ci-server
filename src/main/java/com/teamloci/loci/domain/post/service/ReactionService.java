@@ -82,7 +82,8 @@ public class ReactionService {
                         NotificationType.POST_REACTION,
                         "새로운 반응",
                         user.getNickname() + "님이 회원님의 게시물에 반응을 남겼습니다.",
-                        postId
+                        postId,
+                        post.getThumbnailUrl()
                 );
             }
         }
@@ -186,7 +187,8 @@ public class ReactionService {
                         NotificationType.COMMENT_LIKE,
                         "댓글 좋아요",
                         user.getNickname() + "님이 회원님의 댓글을 좋아합니다.",
-                        comment.getPost().getId()
+                        comment.getPost().getId(),
+                        comment.getPost().getThumbnailUrl()
                 );
             }
         }

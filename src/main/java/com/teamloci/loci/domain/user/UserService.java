@@ -92,6 +92,14 @@ public class UserService {
             user.updateAutoArchive(request.getIsAutoArchive());
         }
 
+        if (request.getCountryCode() != null) {
+            user.updateCountryCode(request.getCountryCode());
+        }
+
+        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
+            user.updateTimezone(request.getTimezone());
+        }
+
         user.updateProfile(newHandle, newNickname);
 
         return getUserProfile(userId, userId);

@@ -30,7 +30,8 @@ public class LociTimeManager {
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     @Transactional
     public void scheduleDailyLoci() {
-        dailyPushLogRepository.truncateTable();
+        dailyPushLogRepository.deleteByDateBefore(LocalDate.now(SEOUL_ZONE).minusDays(1));
+
         schedulePushForDate(LocalDate.now(SEOUL_ZONE));
     }
 

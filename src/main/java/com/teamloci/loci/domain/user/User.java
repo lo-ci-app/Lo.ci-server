@@ -83,6 +83,9 @@ public class User {
 
     private LocalDate lastPostDate;
 
+    @Column(nullable = false)
+    private String timezone = "Asia/Seoul";
+
     @Builder
     public User(String handle, String nickname, String profileUrl, String phoneEncrypted, String phoneSearchHash, String countryCode) {
         this.handle = handle;
@@ -92,6 +95,7 @@ public class User {
         this.phoneSearchHash = phoneSearchHash;
         this.countryCode = countryCode;
         this.status = UserStatus.ACTIVE;
+        this.timezone = "Asia/Seoul";
     }
 
     public void updateProfile(String handle, String nickname) {
@@ -124,5 +128,13 @@ public class User {
 
     public void updateAutoArchive(boolean isAutoArchive) {
         this.isAutoArchive = isAutoArchive;
+    }
+
+    public void updateCountryCode(String countryCode) {
+        this.countryCode = countryCode;
+    }
+
+    public void updateTimezone(String timezone) {
+        this.timezone = timezone;
     }
 }

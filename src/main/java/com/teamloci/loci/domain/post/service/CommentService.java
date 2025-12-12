@@ -78,7 +78,8 @@ public class CommentService {
                     NotificationType.POST_COMMENT,
                     "새로운 댓글",
                     user.getNickname() + "님이: " + summary,
-                    postId
+                    postId,
+                    post.getThumbnailUrl()
             );
         }
 
@@ -117,7 +118,8 @@ public class CommentService {
                             NotificationType.COMMENT_MENTION,
                             "회원님을 언급했습니다",
                             sender.getNickname() + "님이 댓글에서 회원님을 언급했습니다: " + summary,
-                            post.getId()
+                            post.getId(),
+                            post.getThumbnailUrl()
                     );
                     notifiedUserIds.add(target.getId());
                 });

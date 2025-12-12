@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -61,11 +62,18 @@ public class UserActivityService {
         try {
             userRepository.increasePostCount(userId);
 
-            // 비관적 락 사용 (경쟁 조건 방지)
             Optional<User> userOpt = userRepository.findByIdWithLock(userId);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
-                LocalDate today = LocalDate.now();
+
+                ZoneId userZone;
+                try {
+                    userZone = ZoneId.of(user.getTimezone());
+                } catch (Exception e) {
+                    userZone = ZoneId.of("Asia/Seoul");
+                }
+                LocalDate today = LocalDate.now(userZone);
+
                 LocalDate lastPostDate = user.getLastPostDate();
                 long currentStreak = user.getStreakCount();
 

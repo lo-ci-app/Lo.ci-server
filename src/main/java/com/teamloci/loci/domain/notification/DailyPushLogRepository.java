@@ -9,12 +9,10 @@ import java.util.List;
 
 public interface DailyPushLogRepository extends JpaRepository<DailyPushLog, String> {
 
-    @Modifying
-    @Query(value = "TRUNCATE TABLE daily_push_logs", nativeQuery = true)
-    void truncateTable();
+    boolean existsByDate(LocalDate date);
+
+    void deleteByDateBefore(LocalDate date);
 
     @Query("SELECT d.userId FROM DailyPushLog d")
     List<Long> findAllUserIds();
-
-    boolean existsByDate(LocalDate date);
 }

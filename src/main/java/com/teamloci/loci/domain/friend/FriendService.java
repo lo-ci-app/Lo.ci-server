@@ -42,6 +42,8 @@ public class FriendService {
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
 
+    private record ContactInfo(String name, String e164PhoneNumber) {}
+
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -53,80 +55,73 @@ public class FriendService {
         String defaultRegion = StringUtils.hasText(me.getCountryCode()) ? me.getCountryCode() : "KR";
         PhoneNumberUtil phoneUtil = PhoneNumberUtil.getInstance();
 
-        Map<String, String> newContactsMap = contacts.stream()
-                .map(c -> {
-                    try {
-                        var parsed = phoneUtil.parse(c.getPhoneNumber(), defaultRegion);
-                        String e164 = phoneUtil.format(parsed, PhoneNumberUtil.PhoneNumberFormat.E164);
-                        String name = c.getName() != null ? c.getName() : "";
-                        return Map.entry(e164, name);
-                    } catch (Exception e) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
+        Map<String, ContactInfo> inputContactsMap = new HashMap<>();
 
-        List<String> allInputPhoneNumbers = new ArrayList<>(newContactsMap.keySet());
+        for (FriendDto.ContactRequest c : contacts) {
+            try {
+                var parsed = phoneUtil.parse(c.getPhoneNumber(), defaultRegion);
+                String e164 = phoneUtil.format(parsed, PhoneNumberUtil.PhoneNumberFormat.E164);
+                String name = c.getName() != null ? c.getName() : "";
+
+                String hash = aesUtil.hash(e164);
+                inputContactsMap.put(hash, new ContactInfo(name, e164));
+            } catch (Exception e) {
+                // 파싱 실패 무시
+            }
+        }
+
+        List<String> allInputHashes = new ArrayList<>(inputContactsMap.keySet());
 
         List<UserContact> existingContacts = userContactRepository.findByUserId(myUserId);
-
-        Map<String, UserContact> existingDecryptedMap = new HashMap<>();
-        for (UserContact contact : existingContacts) {
-            try {
-                String decrypted = aesUtil.decrypt(contact.getPhoneNumber());
-                if (decrypted != null) {
-                    existingDecryptedMap.put(decrypted, contact);
-                }
-            } catch (Exception e) {
-                log.warn("연락처 복호화 실패 (ID: {}): {}", contact.getId(), e.getMessage());
-            }
-        }
-
         List<UserContact> toDelete = new ArrayList<>();
-        for (Map.Entry<String, UserContact> entry : existingDecryptedMap.entrySet()) {
-            String existingPhone = entry.getKey();
-            if (!newContactsMap.containsKey(existingPhone)) {
-                toDelete.add(entry.getValue());
+
+        for (UserContact existing : existingContacts) {
+            String existingHash = existing.getPhoneSearchHash();
+
+            if (existingHash == null) {
+                try {
+                    String decrypted = aesUtil.decrypt(existing.getPhoneNumber());
+                    existingHash = aesUtil.hash(decrypted);
+                    existing.updatePhoneSearchHash(existingHash);
+                } catch (Exception e) {
+                    log.warn("연락처 마이그레이션 실패 (ID: {}): {}", existing.getId(), e.getMessage());
+                    toDelete.add(existing);
+                    continue;
+                }
+            }
+
+            if (inputContactsMap.containsKey(existingHash)) {
+                ContactInfo inputInfo = inputContactsMap.get(existingHash);
+                if (!inputInfo.name().equals(existing.getName())) {
+                    existing.updateName(inputInfo.name());
+                }
+                inputContactsMap.remove(existingHash);
+            } else {
+                toDelete.add(existing);
             }
         }
+
         userContactRepository.deleteAll(toDelete);
 
         List<UserContact> toSave = new ArrayList<>();
+        for (Map.Entry<String, ContactInfo> entry : inputContactsMap.entrySet()) {
+            String hash = entry.getKey();
+            ContactInfo info = entry.getValue();
 
-        for (Map.Entry<String, String> entry : newContactsMap.entrySet()) {
-            String inputPhone = entry.getKey();
-            String inputName = entry.getValue();
+            String encryptedPhone = aesUtil.encrypt(info.e164PhoneNumber());
 
-            if (existingDecryptedMap.containsKey(inputPhone)) {
-                UserContact existing = existingDecryptedMap.get(inputPhone);
-                if (!inputName.equals(existing.getName())) {
-                    existing.updateName(inputName);
-                }
-                if (existing.getPhoneSearchHash() == null) {
-                    existing.updatePhoneSearchHash(aesUtil.hash(inputPhone));
-                }
-            } else {
-                String encryptedPhone = aesUtil.encrypt(inputPhone);
-                String phoneHash = aesUtil.hash(inputPhone);
-
-                toSave.add(UserContact.builder()
-                        .user(me)
-                        .phoneNumber(encryptedPhone)
-                        .phoneSearchHash(phoneHash)
-                        .name(inputName)
-                        .build());
-            }
+            toSave.add(UserContact.builder()
+                    .user(me)
+                    .phoneNumber(encryptedPhone)
+                    .phoneSearchHash(hash)
+                    .name(info.name())
+                    .build());
         }
         userContactRepository.saveAll(toSave);
 
-        List<String> allPhoneHashes = allInputPhoneNumbers.stream()
-                .map(aesUtil::hash)
-                .collect(Collectors.toList());
+        if (allInputHashes.isEmpty()) return List.of();
 
-        if (allPhoneHashes.isEmpty()) return List.of();
-
-        List<User> matchedUsers = userRepository.findByPhoneSearchHashIn(allPhoneHashes).stream()
+        List<User> matchedUsers = userRepository.findByPhoneSearchHashIn(allInputHashes).stream()
                 .filter(user -> !user.getId().equals(myUserId))
                 .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                 .collect(Collectors.toList());
@@ -147,6 +142,51 @@ public class FriendService {
                 .collect(Collectors.toList());
 
         return buildUserResponses(userId, matchedUsers);
+    }
+
+    @Transactional
+    public void acceptFriendRequest(Long myUserId, Long requesterId) {
+        User me = userRepository.findByIdWithLock(myUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User requester = userRepository.findByIdWithLock(requesterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Friendship friendship = friendshipRepository.findFriendshipBetween(myUserId, requesterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
+
+        if (!friendship.getReceiver().getId().equals(myUserId)) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (friendship.getStatus() == FriendshipStatus.FRIENDSHIP) {
+            throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
+        }
+
+        long myRealFriendCount = friendshipRepository.countFriends(myUserId);
+        long requesterRealFriendCount = friendshipRepository.countFriends(requesterId);
+
+        if (myRealFriendCount >= MAX_FRIEND_LIMIT) {
+            throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+        }
+        if (requesterRealFriendCount >= MAX_FRIEND_LIMIT) {
+            throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
+        }
+
+        friendship.accept();
+
+        userRepository.increaseFriendCount(myUserId);
+        userRepository.increaseFriendCount(requesterId);
+
+        intimacyService.accumulatePoint(myUserId, requesterId, IntimacyType.FRIEND_MADE, null);
+
+        notificationService.send(
+                requester,
+                NotificationType.FRIEND_ACCEPTED,
+                "친구 수락",
+                me.getNickname() + "님과 친구가 되었습니다!",
+                me.getId(),
+                me.getProfileUrl()
+        );
     }
 
     @Transactional
@@ -205,52 +245,8 @@ public class FriendService {
                 NotificationType.FRIEND_REQUEST,
                 "친구 요청",
                 me.getNickname() + "님이 친구 요청을 보냈습니다.",
-                me.getId()
-        );
-    }
-
-    @Transactional
-    public void acceptFriendRequest(Long myUserId, Long requesterId) {
-        User me = userRepository.findByIdWithLock(myUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        User requester = userRepository.findByIdWithLock(requesterId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-
-        Friendship friendship = friendshipRepository.findFriendshipBetween(myUserId, requesterId)
-                .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
-
-        if (!friendship.getReceiver().getId().equals(myUserId)) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST);
-        }
-
-        if (friendship.getStatus() == FriendshipStatus.FRIENDSHIP) {
-            throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
-        }
-
-        long myRealFriendCount = friendshipRepository.countFriends(myUserId);
-        long requesterRealFriendCount = friendshipRepository.countFriends(requesterId);
-
-        if (myRealFriendCount >= MAX_FRIEND_LIMIT) {
-            throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
-        }
-        if (requesterRealFriendCount >= MAX_FRIEND_LIMIT) {
-            throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
-        }
-
-        friendship.accept();
-
-        userRepository.increaseFriendCount(myUserId);
-        userRepository.increaseFriendCount(requesterId);
-
-        intimacyService.accumulatePoint(myUserId, requesterId, IntimacyType.FRIEND_MADE, null);
-
-        notificationService.send(
-                requester,
-                NotificationType.FRIEND_ACCEPTED,
-                "친구 수락",
-                me.getNickname() + "님과 친구가 되었습니다!",
-                me.getId()
+                me.getId(),
+                me.getProfileUrl()
         );
     }
 
