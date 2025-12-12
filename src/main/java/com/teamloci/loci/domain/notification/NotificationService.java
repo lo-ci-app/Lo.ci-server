@@ -187,7 +187,13 @@ public class NotificationService {
     }
 
     @Transactional
-    public void readAllNotifications(Long userId) {
-        notificationRepository.markAllAsRead(userId);
+    public int readAllNotifications(Long userId) {
+        int updatedCount = notificationRepository.markAllAsRead(userId);
+
+        if (updatedCount > 0) {
+            log.info("사용자 {}의 알림 {}개를 일괄 읽음 처리했습니다.", userId, updatedCount);
+        }
+
+        return updatedCount;
     }
 }
