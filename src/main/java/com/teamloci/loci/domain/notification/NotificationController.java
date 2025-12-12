@@ -46,4 +46,13 @@ public class NotificationController {
         notificationService.readNotification(getUserId(user), notificationId);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
+
+    @Operation(summary = "알림 전체 읽음 처리", description = "나에게 온 모든 알림(안 읽은 알림)을 읽음 상태로 변경합니다.")
+    @PatchMapping("/read-all")
+    public ResponseEntity<CustomResponse<Void>> readAllNotifications(
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        notificationService.readAllNotifications(getUserId(user));
+        return ResponseEntity.ok(CustomResponse.ok(null));
+    }
 }

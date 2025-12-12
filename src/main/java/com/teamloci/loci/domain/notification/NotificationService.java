@@ -185,4 +185,9 @@ public class NotificationService {
             log.error(">>> [DM FCM Send Error] Exception: ", e);
         }
     }
+
+    @Transactional
+    public void readAllNotifications(Long userId) {
+        notificationRepository.markAllAsRead(userId);
+    }
 }
