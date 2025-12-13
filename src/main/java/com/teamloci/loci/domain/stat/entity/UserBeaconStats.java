@@ -59,4 +59,10 @@ public class UserBeaconStats {
             }
         }
     }
+
+    public void sync(long postCount, String latestThumbnailUrl, LocalDateTime latestPostedAt) {
+        this.postCount = postCount;
+        this.latestThumbnailUrl = latestThumbnailUrl;
+        this.latestPostedAt = latestPostedAt;
+    }
 }

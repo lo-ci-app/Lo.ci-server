@@ -182,7 +182,12 @@ public class PostService {
             throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
         }
 
+        String beaconId = post.getBeaconId();
+        Long userId = post.getUser().getId();
+
         postRepository.delete(post);
+
+        syncUserBeaconStats(userId, beaconId);
     }
 
     @Transactional
@@ -558,5 +563,21 @@ public class PostService {
                 .visitors(visitors.stream().map(UserDto.UserResponse::from).toList())
                 .totalCount(totalCount)
                 .build();
+    }
+
+    private void syncUserBeaconStats(Long userId, String beaconId) {
+        long count = postRepository.countByUserIdAndBeaconId(userId, beaconId);
+
+        userBeaconStatsRepository.findByUserIdAndBeaconId(userId, beaconId)
+                .ifPresent(stats -> {
+                    if (count <= 0) {
+                        userBeaconStatsRepository.delete(stats);
+                    } else {
+                        postRepository.findTopByUserIdAndBeaconIdOrderByIdDesc(userId, beaconId)
+                                .ifPresent(latestPost -> {
+                                    stats.sync(count, latestPost.getThumbnailUrl(), latestPost.getCreatedAt());
+                                });
+                    }
+                });
     }
 }
