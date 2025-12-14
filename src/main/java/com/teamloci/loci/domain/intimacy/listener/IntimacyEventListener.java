@@ -39,6 +39,16 @@ public class IntimacyEventListener {
                     event.getActorId(),
                     actor.getProfileUrl()
             );
+
+            notificationService.send(
+                    actor,
+                    NotificationType.INTIMACY_LEVEL_UP,
+                    "친밀도 레벨 UP! 🔥",
+                    target.getNickname() + "님과의 친밀도가 " + event.getNewLevel() + "레벨이 되었어요!",
+                    event.getTargetId(),
+                    target.getProfileUrl()
+            );
+
         } catch (Exception e) {
             log.error("친밀도 레벨업 알림 발송 실패: actorId={}, targetId={}", event.getActorId(), event.getTargetId(), e);
         }
