@@ -79,7 +79,7 @@ public class CommentService {
                     "새로운 댓글",
                     user.getNickname() + "님이: " + summary,
                     postId,
-                    post.getThumbnailUrl()
+                    user.getProfileUrl()
             );
         }
 
@@ -119,7 +119,7 @@ public class CommentService {
                             "회원님을 언급했습니다",
                             sender.getNickname() + "님이 댓글에서 회원님을 언급했습니다: " + summary,
                             post.getId(),
-                            post.getThumbnailUrl()
+                            sender.getProfileUrl() 
                     );
                     notifiedUserIds.add(target.getId());
                 });
