@@ -26,7 +26,8 @@ public interface UserBeaconStatsRepository extends JpaRepository<UserBeaconStats
                 AND inner_s.user_id IN :friendIds
                 ORDER BY inner_s.latest_posted_at DESC
                 LIMIT 1
-            ) as thumbnail_url
+            ) as thumbnail_url,
+            MAX(s.latest_posted_at) as latest_posted_at
         FROM user_beacon_stats s
         WHERE s.user_id IN :friendIds
         AND s.latitude BETWEEN :minLat AND :maxLat

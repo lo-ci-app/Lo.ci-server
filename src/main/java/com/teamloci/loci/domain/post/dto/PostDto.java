@@ -173,6 +173,9 @@ public class PostDto {
 
         @Schema(description = "대표 썸네일 이미지 URL (가장 최신 글)", example = "https://fiv5.../thumb.jpg")
         private String thumbnailImageUrl;
+
+        @Schema(description = "가장 최근 게시글 작성 시간")
+        private LocalDateTime latestPostedAt;
     }
 
     @Getter

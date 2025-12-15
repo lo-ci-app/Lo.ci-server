@@ -78,7 +78,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "   )) " +
             "   ORDER BY p2.id DESC " +
             "   LIMIT 1" +
-            ") as thumbnail_url " +
+            ") as thumbnail_url, " +
+            "MAX(p.created_at) as latest_posted_at " +
             "FROM posts p " +
             "WHERE p.latitude BETWEEN :minLat AND :maxLat " +
             "AND p.longitude BETWEEN :minLon AND :maxLon " +

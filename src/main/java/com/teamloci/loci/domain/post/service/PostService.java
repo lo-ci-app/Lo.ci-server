@@ -30,6 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -308,6 +309,8 @@ public class PostService {
                     String beaconId = (String) row[0];
                     Long count = ((Number) row[1]).longValue();
                     String thumbnail = (String) row[2];
+                    java.sql.Timestamp ts = (java.sql.Timestamp) row[3];
+                    LocalDateTime latestAt = ts != null ? ts.toLocalDateTime() : null;
 
                     GeoUtils.Pair<Double, Double> latLng = geoUtils.beaconIdToLatLng(beaconId);
                     if (latLng == null) return null;
@@ -318,6 +321,7 @@ public class PostService {
                             .longitude(latLng.lng)
                             .count(count)
                             .thumbnailImageUrl(thumbnail)
+                            .latestPostedAt(latestAt)
                             .build();
                 })
                 .filter(Objects::nonNull)
@@ -330,6 +334,8 @@ public class PostService {
                     String beaconId = (String) row[0];
                     Long count = ((Number) row[1]).longValue();
                     String thumbnail = (String) row[2];
+                    java.sql.Timestamp ts = (java.sql.Timestamp) row[3];
+                    LocalDateTime latestAt = ts != null ? ts.toLocalDateTime() : null;
 
                     GeoUtils.Pair<Double, Double> latLng = geoUtils.beaconIdToLatLng(beaconId);
 
@@ -341,6 +347,7 @@ public class PostService {
                             .longitude(latLng.lng)
                             .count(count)
                             .thumbnailImageUrl(thumbnail)
+                            .latestPostedAt(latestAt)
                             .build();
                 })
                 .filter(Objects::nonNull)
@@ -371,7 +378,7 @@ public class PostService {
                             .post(PostDto.PostInfo.builder()
                                     .id(p.getId())
                                     .thumbnailUrl(p.getThumbnailUrl())
-                                    .createdAt(p.getCreatedAt()) 
+                                    .createdAt(p.getCreatedAt())
                                     .build())
                             .build();
                 })
