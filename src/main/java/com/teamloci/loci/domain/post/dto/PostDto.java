@@ -271,5 +271,7 @@ public class PostDto {
         private Long id;
         @Schema(description = "썸네일 URL", example = "https://cdn.../image.jpg")
         private String thumbnailUrl;
+        @Schema(description = "게시글 작성 시간")
+        private LocalDateTime createdAt;
     }
 }

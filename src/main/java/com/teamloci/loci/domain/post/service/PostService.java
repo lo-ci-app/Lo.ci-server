@@ -371,6 +371,7 @@ public class PostService {
                             .post(PostDto.PostInfo.builder()
                                     .id(p.getId())
                                     .thumbnailUrl(p.getThumbnailUrl())
+                                    .createdAt(p.getCreatedAt()) 
                                     .build())
                             .build();
                 })
