@@ -64,7 +64,7 @@ public class PostDto {
     @Schema(description = "포스트 생성 요청 Body")
     public static class PostCreateRequest {
         @Schema(description = "게시글 본문(설명)", example = "오늘 날씨가 참 좋네요!")
-        @Size(max = 5, message = "본문은 5자 이내여야 합니다.")
+        @Size(max = 16, message = "본문은 5자 이내여야 합니다.")
         private String description;
         @Schema(description = "미디어 목록")
         private List<MediaRequest> mediaList;
@@ -284,7 +284,7 @@ public class PostDto {
     @Schema(description = "게시글 설명(본문) 수정 요청")
     public static class DescriptionUpdateRequest {
         @Schema(description = "수정할 설명 내용 (5글자 이내)", example = "수정됨")
-        @Size(max = 5, message = "설명은 5글자 이내여야 합니다.")
+        @Size(max = 16, message = "설명은 5글자 이내여야 합니다.")
         private String description;
     }
 }

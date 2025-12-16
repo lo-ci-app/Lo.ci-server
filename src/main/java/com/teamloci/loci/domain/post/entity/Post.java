@@ -87,7 +87,7 @@ public class Post extends BaseTimeEntity {
     @ColumnDefault("0")
     private long reactionCount = 0;
 
-    @Column(length = 5)
+    @Column(length = 16)
     private String description;
 
     @Builder
