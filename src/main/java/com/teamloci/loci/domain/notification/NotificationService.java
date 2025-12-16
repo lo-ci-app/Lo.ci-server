@@ -214,8 +214,9 @@ public class NotificationService {
     }
 
     @Transactional
-    public void sendNudge(Long senderId, NotificationDto.NudgeRequest request) {
-        String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + request.getTargetUserId();
+    // 파라미터에 targetUserId 추가
+    public void sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {
+        String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + targetUserId;
 
         if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
             throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
@@ -224,11 +225,11 @@ public class NotificationService {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        if (!userRepository.existsById(request.getTargetUserId())) {
+        if (!userRepository.existsById(targetUserId)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
-        int intimacyLevel = intimacyService.getIntimacyLevel(senderId, request.getTargetUserId());
+        int intimacyLevel = intimacyService.getIntimacyLevel(senderId, targetUserId);
         if (intimacyLevel < 3) {
             throw new CustomException(ErrorCode.NUDGE_NOT_ALLOWED);
         }
@@ -239,12 +240,12 @@ public class NotificationService {
         redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
 
         self.sendMulticast(
-                List.of(request.getTargetUserId()),
+                List.of(targetUserId),
                 NotificationType.NUDGE,
                 title,
                 finalMessage,
                 sender.getId(),
-                null
+                sender.getProfileUrl()
         );
     }
 

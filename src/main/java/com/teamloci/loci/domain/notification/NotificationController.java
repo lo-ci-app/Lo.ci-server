@@ -73,14 +73,39 @@ public class NotificationController {
         return ResponseEntity.ok(CustomResponse.ok(count));
     }
 
-    @Operation(summary = "친구 콕 찌르기 (Nudge)",
-            description = "친밀도 레벨 3 이상부터 가능합니다. 레벨 6 이상은 메시지를 커스텀할 수 있습니다.")
-    @PostMapping("/nudge")
+    @Operation(
+            summary = "친구 콕 찌르기 (Nudge)",
+            description = """
+                친밀도 레벨 3 이상인 친구에게 '콕 찌르기' 알림을 보냅니다.
+                
+                - **targetUserId**: 알림을 받을 상대방 유저의 ID (URL 경로)
+                - **message**: 보낼 메시지 내용 (선택 사항)
+                  - 친밀도 레벨 6 이상부터 커스텀 메시지가 적용됩니다.
+                  - 그 외에는 "콕! 친구가 회원님을 생각하고 있어요. 👋"가 전송됩니다.
+                """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "요청 성공",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "timestamp": "2025-12-16T10:14:55.150Z",
+                              "isSuccess": true,
+                              "code": "COMMON200",
+                              "message": "성공적으로 요청을 수행했습니다.",
+                              "result": null
+                            }
+                            """)))
+    })
+    @PostMapping("/nudge/friend/{targetUserId}")
     public ResponseEntity<CustomResponse<Void>> sendNudge(
             @AuthenticationPrincipal AuthenticatedUser user,
+
+            @Parameter(description = "콕 찌를 상대방의 유저 ID", example = "123", required = true)
+            @PathVariable Long targetUserId,
+
             @RequestBody @Valid NotificationDto.NudgeRequest request
     ) {
-        notificationService.sendNudge(user.getUserId(), request);
+        notificationService.sendNudge(user.getUserId(), targetUserId, request);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 }

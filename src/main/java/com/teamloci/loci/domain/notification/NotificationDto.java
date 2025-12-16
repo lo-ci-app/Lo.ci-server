@@ -57,10 +57,7 @@ public class NotificationDto {
     @NoArgsConstructor
     @Schema(description = "콕 찌르기(넛지) 요청")
     public static class NudgeRequest {
-        @Schema(description = "받는 사람 ID", required = true)
-        @NotNull
-        private Long targetUserId;
-        @Schema(description = "보낼 메시지 (레벨 6 이상만 적용, 레벨 3~5는 무시됨)", example = "밥 먹었어?")
+        @Schema(description = "보낼 메시지 (친밀도 레벨 6 이상만 적용, 미만은 무시됨)", example = "밥 먹었어?")
         private String message;
     }
 }
