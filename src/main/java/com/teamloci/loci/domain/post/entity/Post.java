@@ -87,6 +87,9 @@ public class Post extends BaseTimeEntity {
     @ColumnDefault("0")
     private long reactionCount = 0;
 
+    @Column(length = 5)
+    private String description;
+
     @Builder
     public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, String thumbnailUrl) {
         this.user = user;
@@ -130,5 +133,9 @@ public class Post extends BaseTimeEntity {
 
     public void restore() {
         this.status = PostStatus.ACTIVE;
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
     }
 }

@@ -12,6 +12,7 @@ import com.teamloci.loci.domain.user.UserDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 @Schema(description = "게시물 관련 DTO")
@@ -60,8 +61,11 @@ public class PostDto {
 
     @Getter
     @NoArgsConstructor
-    @Schema(description = "포스트 생성/수정 요청 Body")
+    @Schema(description = "포스트 생성 요청 Body")
     public static class PostCreateRequest {
+        @Schema(description = "게시글 본문(설명)", example = "오늘 날씨가 참 좋네요!")
+        @Size(max = 5, message = "본문은 5자 이내여야 합니다.")
+        private String description;
         @Schema(description = "미디어 목록")
         private List<MediaRequest> mediaList;
         @Schema(description = "공동 작업자 User ID 목록")
@@ -97,35 +101,30 @@ public class PostDto {
         private Long id;
         @Schema(description = "비콘 ID (H3 Index)", example = "89283082807ffff")
         private String beaconId;
+        @Schema(description = "게시글 본문(설명)", example = "lo.ci")
+        private String description;
         @Schema(description = "위도", example = "37.5665")
         private Double latitude;
         @Schema(description = "경도", example = "126.9780")
         private Double longitude;
         @Schema(description = "장소명", example = "스타벅스 강남점")
         private String locationName;
-
         @Schema(description = "작성자 정보 (UserResponse 통일)")
         private UserDto.UserResponse user;
-
         @Schema(description = "미디어 목록")
         private List<MediaResponse> mediaList;
-
         @Schema(description = "공동 작업자 목록 (UserResponse 통일)")
         private List<UserDto.UserResponse> collaborators;
-
         @Schema(description = "생성 시간")
         private LocalDateTime createdAt;
         @Schema(description = "마지막 수정 시간")
         private LocalDateTime updatedAt;
         @Schema(description = "이 게시물의 총 댓글 수", example = "5")
         private Long commentCount;
-
         @Schema(description = "이 게시물의 총 반응(이모지) 수", example = "15")
         private Long reactionCount;
-
         @Schema(description = "반응(이모지) 요약 정보")
         private ReactionSummary reactions;
-
         @Schema(description = "게시글 현재 상태 (ACTIVE: 게시중, ARCHIVED: 보관됨)", example = "ACTIVE")
         private PostStatus status;
 
@@ -133,6 +132,7 @@ public class PostDto {
             return PostDetailResponse.builder()
                     .id(post.getId())
                     .beaconId(post.getBeaconId())
+                    .description(post.getDescription())
                     .latitude(post.getLatitude())
                     .longitude(post.getLongitude())
                     .locationName(post.getLocationName())
@@ -276,5 +276,15 @@ public class PostDto {
         private String thumbnailUrl;
         @Schema(description = "게시글 작성 시간")
         private LocalDateTime createdAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "게시글 설명(본문) 수정 요청")
+    public static class DescriptionUpdateRequest {
+        @Schema(description = "수정할 설명 내용 (5글자 이내)", example = "수정됨")
+        @Size(max = 5, message = "설명은 5글자 이내여야 합니다.")
+        private String description;
     }
 }

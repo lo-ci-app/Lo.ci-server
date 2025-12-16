@@ -308,4 +308,16 @@ public class PostController {
                 postService.checkFriendFootprints(getUserId(user), latitude, longitude, size)
         ));
     }
+
+    @Operation(summary = "게시물 설명 수정", description = "게시물의 본문(설명)만 수정합니다.")
+    @PatchMapping("/{postId}/description")
+    public ResponseEntity<CustomResponse<PostDto.PostDetailResponse>> updateDescription(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long postId,
+            @Valid @RequestBody PostDto.DescriptionUpdateRequest request
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(
+                postService.updateDescription(getUserId(user), postId, request)
+        ));
+    }
 }
