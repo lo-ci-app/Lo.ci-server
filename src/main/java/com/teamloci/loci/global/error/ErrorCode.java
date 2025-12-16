@@ -28,7 +28,7 @@ public enum ErrorCode implements BaseErrorCode {
 
     // == S3 관련 에러 ==
     FILE_IS_EMPTY("FILE400_1", "업로드할 파일이 비어있습니다.", HttpStatus.BAD_REQUEST),
-    FILE_NAME_INVALID("FILE400_2", "파일 이름이 유효하지 않습니다.", HttpStatus.BAD_REQUEST), // [추가]
+    FILE_NAME_INVALID("FILE400_2", "파일 이름이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
     S3_UPLOAD_FAILED("S3500_1", "S3 파일 업로드에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // == 친구 관련 에러 ==
@@ -42,11 +42,11 @@ public enum ErrorCode implements BaseErrorCode {
 
     // == 포스트/댓글 관련 에러 ==
     POST_NOT_FOUND("POST404_1", "게시물을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    COMMENT_NOT_FOUND("POST404_2", "댓글을 찾을 수 없습니다.", HttpStatus.NOT_FOUND), // [추가]
+    COMMENT_NOT_FOUND("POST404_2", "댓글을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     NOT_POST_AUTHOR("POST403_1", "게시물에 대한 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
     // == 알림 관련 에러 ==
-    NOTIFICATION_NOT_FOUND("NOTI404_1", "알림을 찾을 수 없습니다.", HttpStatus.NOT_FOUND), // [추가]
+    NOTIFICATION_NOT_FOUND("NOTI404_1", "알림을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     // == 방명록 관련 에러 (사용 안하면 삭제 권장, 일단 유지) ==
     SELF_GUESTBOOK_ENTRY("GUESTBOOK400_1", "자신의 방명록에 글을 쓸 수 없습니다.", HttpStatus.BAD_REQUEST),
@@ -60,8 +60,12 @@ public enum ErrorCode implements BaseErrorCode {
 
     // == 시스템/기타 에러  ==
     HASHING_FAILED("SYSTEM500_1", "데이터 해싱 중 치명적인 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
-    H3_INIT_FAILED("SYSTEM500_2", "H3 라이브러리 초기화에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR), // [추가]
-    DECRYPT_FAILED("SYSTEM500_3", "복호화 형식이 올바르지 않거나 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR); // [추가]
+    H3_INIT_FAILED("SYSTEM500_2", "H3 라이브러리 초기화에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    DECRYPT_FAILED("SYSTEM500_3", "복호화 형식이 올바르지 않거나 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // == 넛지 에러 ==
+    NUDGE_NOT_ALLOWED("NUDGE001", "친밀도 레벨 3부터 콕 찌르기를 할 수 있습니다.", HttpStatus.FORBIDDEN),
+    TOO_MANY_REQUESTS("G005", "잠시 후에 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS);
 
     private final String code;
     private final String message;

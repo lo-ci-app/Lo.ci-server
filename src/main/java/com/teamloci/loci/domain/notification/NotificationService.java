@@ -1,17 +1,23 @@
 package com.teamloci.loci.domain.notification;
 
 import com.google.firebase.messaging.*;
+import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +29,16 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final IntimacyService intimacyService;
+    private final StringRedisTemplate redisTemplate;
+
+    @Lazy
+    @Autowired
+    private NotificationService self;
+
+    private static final String DEFAULT_NUDGE_MESSAGE = "콕! 친구가 회원님을 생각하고 있어요. 👋";
+    private static final String NUDGE_REDIS_PREFIX = "nudge:cooltime:";
+    private static final long NUDGE_COOLTIME_MINUTES = 60;
 
     public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
         PageRequest pageable = PageRequest.of(0, size + 1);
@@ -195,5 +211,47 @@ public class NotificationService {
         }
 
         return updatedCount;
+    }
+
+    @Transactional
+    public void sendNudge(Long senderId, NotificationDto.NudgeRequest request) {
+        String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + request.getTargetUserId();
+
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+            throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (!userRepository.existsById(request.getTargetUserId())) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        int intimacyLevel = intimacyService.getIntimacyLevel(senderId, request.getTargetUserId());
+        if (intimacyLevel < 3) {
+            throw new CustomException(ErrorCode.NUDGE_NOT_ALLOWED);
+        }
+
+        String finalMessage = determineNudgeMessage(intimacyLevel, request.getMessage());
+        String title = sender.getNickname() + "님의 콕 찌르기";
+
+        redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
+
+        self.sendMulticast(
+                List.of(request.getTargetUserId()),
+                NotificationType.NUDGE,
+                title,
+                finalMessage,
+                sender.getId(),
+                null
+        );
+    }
+
+    private String determineNudgeMessage(int level, String customMessage) {
+        if (level >= 6 && StringUtils.hasText(customMessage)) {
+            return customMessage;
+        }
+        return DEFAULT_NUDGE_MESSAGE;
     }
 }

@@ -185,4 +185,15 @@ public class IntimacyService {
                 return false;
         }
     }
+
+    public int getIntimacyLevel(Long userId1, Long userId2) {
+        if (userId1.equals(userId2)) return 0;
+
+        Long u1 = Math.min(userId1, userId2);
+        Long u2 = Math.max(userId1, userId2);
+
+        return intimacyRepository.findByUserAIdAndUserBId(u1, u2)
+                .map(FriendshipIntimacy::getLevel)
+                .orElse(0);
+    }
 }

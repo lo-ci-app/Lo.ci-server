@@ -85,6 +85,7 @@ public class PostService {
                 .locationName(request.getLocationName())
                 .beaconId(beaconId)
                 .thumbnailUrl(thumbnailUrl)
+                .description(request.getDescription())
                 .build();
 
         if (request.getMediaList() != null) {
@@ -591,8 +592,7 @@ public class PostService {
 
     @Transactional
     public PostDto.PostDetailResponse updateDescription(Long userId, Long postId, PostDto.DescriptionUpdateRequest request) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+        Post post = findPostById(postId);
 
         if (!post.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.UNAUTHORIZED);
@@ -600,6 +600,9 @@ public class PostService {
 
         post.updateDescription(request.getDescription());
 
-        return PostDto.PostDetailResponse.from(post);
+        PostDto.PostDetailResponse response = PostDto.PostDetailResponse.from(post);
+        enrichPostUserData(List.of(response), userId);
+
+        return response;
     }
 }

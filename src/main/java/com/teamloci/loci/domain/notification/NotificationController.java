@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -70,5 +71,16 @@ public class NotificationController {
     ) {
         int count = notificationService.readAllNotifications(getUserId(user));
         return ResponseEntity.ok(CustomResponse.ok(count));
+    }
+
+    @Operation(summary = "친구 콕 찌르기 (Nudge)",
+            description = "친밀도 레벨 3 이상부터 가능합니다. 레벨 6 이상은 메시지를 커스텀할 수 있습니다.")
+    @PostMapping("/nudge")
+    public ResponseEntity<CustomResponse<Void>> sendNudge(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestBody @Valid NotificationDto.NudgeRequest request
+    ) {
+        notificationService.sendNudge(user.getUserId(), request);
+        return ResponseEntity.ok(CustomResponse.ok(null));
     }
 }

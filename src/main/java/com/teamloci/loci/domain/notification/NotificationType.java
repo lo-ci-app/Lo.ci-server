@@ -13,4 +13,5 @@ public enum NotificationType {
     COMMENT_MENTION,
     FRIEND_VISITED,
     INTIMACY_LEVEL_UP,
+    NUDGE,
 }

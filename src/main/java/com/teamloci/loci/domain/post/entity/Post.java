@@ -91,7 +91,7 @@ public class Post extends BaseTimeEntity {
     private String description;
 
     @Builder
-    public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, String thumbnailUrl) {
+    public Post(User user, Double latitude, Double longitude, String locationName, String beaconId, String thumbnailUrl, String description) {
         this.user = user;
         this.latitude = latitude;
         this.longitude = longitude;
@@ -99,6 +99,7 @@ public class Post extends BaseTimeEntity {
         this.beaconId = beaconId;
         this.status = PostStatus.ACTIVE;
         this.thumbnailUrl = thumbnailUrl;
+        this.description = description;
     }
 
     public void addMedia(PostMedia media) {

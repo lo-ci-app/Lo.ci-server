@@ -1,9 +1,11 @@
 package com.teamloci.loci.domain.notification;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,5 +51,16 @@ public class NotificationDto {
         private boolean hasNext;
         private Long nextCursor;
         private long unreadCount;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @Schema(description = "콕 찌르기(넛지) 요청")
+    public static class NudgeRequest {
+        @Schema(description = "받는 사람 ID", required = true)
+        @NotNull
+        private Long targetUserId;
+        @Schema(description = "보낼 메시지 (레벨 6 이상만 적용, 레벨 3~5는 무시됨)", example = "밥 먹었어?")
+        private String message;
     }
 }
