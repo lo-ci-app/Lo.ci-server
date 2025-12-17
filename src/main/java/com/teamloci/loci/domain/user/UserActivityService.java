@@ -126,13 +126,12 @@ public class UserActivityService {
 
     @Transactional
     @CacheEvict(value = "userStats", key = "#userId")
-    public void decreaseUserStats(Long userId, String beaconId) {
+    public void decreaseUserStats(Long userId, long remainingPosts) {
         User user = userRepository.findByIdWithLock(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         user.decreasePostCount();
 
-        long remainingPosts = postRepository.countByUserIdAndBeaconId(userId, beaconId);
         if (remainingPosts == 0) {
             user.decreaseVisitedPlaceCount();
         }

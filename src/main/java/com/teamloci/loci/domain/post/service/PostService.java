@@ -189,9 +189,11 @@ public class PostService {
 
         postRepository.delete(post);
 
-        userActivityService.decreaseUserStats(userId, beaconId);
+        long remainingPosts = postRepository.countByUserIdAndBeaconId(userId, beaconId);
 
-        syncUserBeaconStats(userId, beaconId);
+        userActivityService.decreaseUserStats(userId, remainingPosts);
+
+        syncUserBeaconStats(userId, beaconId, remainingPosts);
     }
 
     @Transactional
@@ -576,8 +578,7 @@ public class PostService {
                 .build();
     }
 
-    private void syncUserBeaconStats(Long userId, String beaconId) {
-        long count = postRepository.countByUserIdAndBeaconId(userId, beaconId);
+    private void syncUserBeaconStats(Long userId, String beaconId, long count) {
 
         userBeaconStatsRepository.findByUserIdAndBeaconId(userId, beaconId)
                 .ifPresent(stats -> {
