@@ -206,4 +206,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Object[]> findPostTimestampsBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     Optional<Post> findTopByUserIdAndBeaconIdOrderByIdDesc(Long userId, String beaconId);
+
+    Optional<Post> findTopByUserIdOrderByIdDesc(Long userId);
 }

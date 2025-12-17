@@ -21,13 +21,18 @@ import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -42,6 +47,10 @@ public class ReactionService {
     private final NotificationService notificationService;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String REACTION_NOTI_COOLTIME_PREFIX = "noti:cooltime:reaction:";
+    private static final long NOTI_COOLTIME_SECONDS = 30;
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
@@ -66,27 +75,45 @@ public class ReactionService {
                 reaction.changeType(type);
             }
         } else {
-            postReactionRepository.save(PostReaction.builder()
-                    .post(post)
-                    .user(user)
-                    .type(type)
-                    .build());
+            try {
+                postReactionRepository.saveAndFlush(PostReaction.builder()
+                        .post(post)
+                        .user(user)
+                        .type(type)
+                        .build());
 
-            postRepository.increaseReactionCount(postId);
+                postRepository.increaseReactionCount(postId);
 
-            if (!post.getUser().getId().equals(userId)) {
-                intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.REACTION, null);
+                if (!post.getUser().getId().equals(userId)) {
+                    intimacyService.accumulatePoint(userId, post.getUser().getId(), IntimacyType.REACTION, null);
 
-                notificationService.send(
-                        post.getUser(),
-                        NotificationType.POST_REACTION,
-                        "새로운 반응",
-                        user.getNickname() + "님이 회원님의 게시물에 반응을 남겼습니다.",
-                        postId,
-                        post.getThumbnailUrl()
-                );
+                    sendReactionNotification(user, post, postId);
+                }
+
+            } catch (DataIntegrityViolationException e) {
+                log.warn("이미 반응이 존재합니다 (Race Condition Ignored): userId={}, postId={}", userId, postId);
+                throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
             }
         }
+    }
+
+    private void sendReactionNotification(User sender, Post post, Long postId) {
+        String redisKey = REACTION_NOTI_COOLTIME_PREFIX + postId + ":" + sender.getId();
+
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+            return;
+        }
+
+        notificationService.send(
+                post.getUser(),
+                NotificationType.POST_REACTION,
+                "새로운 반응",
+                sender.getNickname() + "님이 회원님의 게시물에 반응을 남겼습니다.",
+                postId,
+                post.getThumbnailUrl()
+        );
+
+        redisTemplate.opsForValue().set(redisKey, "1", Duration.ofSeconds(NOTI_COOLTIME_SECONDS));
     }
 
     public ReactionDto.ListResponse getReactions(Long myUserId, Long postId, Long cursorId, int size) {

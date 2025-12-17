@@ -188,6 +188,7 @@ public class PostService {
         Long userId = post.getUser().getId();
 
         postRepository.delete(post);
+        postRepository.flush();
 
         long remainingPosts = postRepository.countByUserIdAndBeaconId(userId, beaconId);
 

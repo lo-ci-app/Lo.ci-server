@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.user;
 
+import com.teamloci.loci.domain.post.entity.Post;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
@@ -134,6 +135,36 @@ public class UserActivityService {
 
         if (remainingPosts == 0) {
             user.decreaseVisitedPlaceCount();
+        }
+
+        updateStreakAfterDeletion(user);
+    }
+
+    private void updateStreakAfterDeletion(User user) {
+        Post latestPost = postRepository.findTopByUserIdOrderByIdDesc(user.getId())
+                .orElse(null);
+
+        if (latestPost == null) {
+            user.updateStreakInfo(0, null);
+            return;
+        }
+
+        ZoneId zoneId = user.getZoneIdOrDefault();
+        LocalDate today = LocalDate.now(zoneId);
+
+        LocalDate oldLastPostDate = user.getLastPostDate();
+        LocalDate newLastPostDate = latestPost.getCreatedAt().atZone(ZoneId.of("UTC"))
+                .withZoneSameInstant(zoneId).toLocalDate();
+
+        if (oldLastPostDate != null && !oldLastPostDate.equals(newLastPostDate)) {
+            long currentStreak = user.getStreakCount();
+
+            if (oldLastPostDate.equals(today)) {
+                long newStreak = Math.max(0, currentStreak - 1);
+                user.updateStreakInfo(newStreak, newLastPostDate);
+            } else {
+                user.updateStreakInfo(currentStreak, newLastPostDate);
+            }
         }
     }
 }
