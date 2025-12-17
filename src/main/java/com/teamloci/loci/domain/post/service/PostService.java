@@ -189,6 +189,8 @@ public class PostService {
 
         postRepository.delete(post);
 
+        userActivityService.decreaseUserStats(userId, beaconId);
+
         syncUserBeaconStats(userId, beaconId);
     }
 
@@ -605,4 +607,6 @@ public class PostService {
 
         return response;
     }
+
+
 }

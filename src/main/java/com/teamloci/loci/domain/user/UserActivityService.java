@@ -5,6 +5,7 @@ import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -120,6 +121,20 @@ public class UserActivityService {
         } catch (Exception e) {
             log.error("유저 통계 업데이트 실패: {}", e.getMessage());
             throw e;
+        }
+    }
+
+    @Transactional
+    @CacheEvict(value = "userStats", key = "#userId")
+    public void decreaseUserStats(Long userId, String beaconId) {
+        User user = userRepository.findByIdWithLock(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.decreasePostCount();
+
+        long remainingPosts = postRepository.countByUserIdAndBeaconId(userId, beaconId);
+        if (remainingPosts == 0) {
+            user.decreaseVisitedPlaceCount();
         }
     }
 }

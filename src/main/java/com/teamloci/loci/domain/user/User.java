@@ -160,4 +160,16 @@ public class User {
         this.streakCount = streakCount;
         this.lastPostDate = lastPostDate;
     }
+
+    public void decreasePostCount() {
+        if (this.postCount > 0) {
+            this.postCount--;
+        }
+    }
+
+    public void decreaseVisitedPlaceCount() {
+        if (this.visitedPlaceCount > 0) {
+            this.visitedPlaceCount--;
+        }
+    }
 }
