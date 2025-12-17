@@ -150,8 +150,6 @@ public class UserActivityService {
         }
 
         ZoneId zoneId = user.getZoneIdOrDefault();
-        LocalDate today = LocalDate.now(zoneId);
-
         LocalDate oldLastPostDate = user.getLastPostDate();
         LocalDate newLastPostDate = latestPost.getCreatedAt().atZone(ZoneId.of("UTC"))
                 .withZoneSameInstant(zoneId).toLocalDate();
@@ -159,11 +157,11 @@ public class UserActivityService {
         if (oldLastPostDate != null && !oldLastPostDate.equals(newLastPostDate)) {
             long currentStreak = user.getStreakCount();
 
-            if (oldLastPostDate.equals(today)) {
-                long newStreak = Math.max(0, currentStreak - 1);
+            if (oldLastPostDate.minusDays(1).equals(newLastPostDate)) {
+                long newStreak = Math.max(1, currentStreak - 1);
                 user.updateStreakInfo(newStreak, newLastPostDate);
             } else {
-                user.updateStreakInfo(currentStreak, newLastPostDate);
+                user.updateStreakInfo(1, newLastPostDate);
             }
         }
     }
