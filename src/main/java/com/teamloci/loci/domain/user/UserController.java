@@ -153,4 +153,13 @@ public class UserController {
     ) {
         return ResponseEntity.ok(CustomResponse.ok(userService.getUserList(getUserId(user), bluetoothTokens)));
     }
+
+    @Operation(summary = "내 블루투스 토큰만 조회",
+            description = "나의 블루투스 토큰(8자리 Hex)만 빠르게 조회합니다.")
+    @GetMapping("/me/bluetooth-token")
+    public ResponseEntity<CustomResponse<UserDto.BluetoothTokenResponse>> getMyBluetoothToken(
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(userService.getMyBluetoothToken(getUserId(user))));
+    }
 }

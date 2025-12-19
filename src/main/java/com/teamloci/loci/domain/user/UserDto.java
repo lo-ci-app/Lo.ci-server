@@ -183,4 +183,12 @@ public class UserDto {
         private boolean hasNext;
         private Long nextCursor;
     }
+
+    @Getter
+    @AllArgsConstructor
+    @Schema(description = "블루투스 토큰 조회 응답")
+    public static class BluetoothTokenResponse {
+        @Schema(description = "블루투스 토큰 (8자리 Hex)", example = "a1b2c3d4")
+        private String bluetoothToken;
+    }
 }

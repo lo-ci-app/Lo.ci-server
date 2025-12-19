@@ -217,4 +217,9 @@ public class UserService {
         User user = findUserById(userId);
         user.updateFcmToken(request.getFcmToken());
     }
+
+    public UserDto.BluetoothTokenResponse getMyBluetoothToken(Long userId) {
+        User user = findUserById(userId);
+        return new UserDto.BluetoothTokenResponse(user.getBluetoothToken());
+    }
 }
