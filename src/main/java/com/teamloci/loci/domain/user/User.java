@@ -88,6 +88,12 @@ public class User {
     @Column(nullable = false)
     private String timezone = "Asia/Seoul";
 
+    @Column(nullable = false)
+    private boolean isNewPostPushEnabled = true;
+
+    @Column(nullable = false)
+    private boolean isLociTimePushEnabled = true;
+
     @Builder
     public User(String handle, String nickname, String profileUrl, String phoneEncrypted, String phoneSearchHash, String countryCode) {
         this.handle = handle;
@@ -128,10 +134,6 @@ public class User {
         this.fcmToken = null;
     }
 
-    public void updateAutoArchive(boolean isAutoArchive) {
-        this.isAutoArchive = isAutoArchive;
-    }
-
     public void updateCountryCode(String countryCode) {
         this.countryCode = countryCode;
     }
@@ -170,6 +172,18 @@ public class User {
     public void decreaseVisitedPlaceCount() {
         if (this.visitedPlaceCount > 0) {
             this.visitedPlaceCount--;
+        }
+    }
+
+    public void updateSettings(Boolean isAutoArchive, Boolean isNewPostPushEnabled, Boolean isLociTimePushEnabled) {
+        if (isAutoArchive != null) {
+            this.isAutoArchive = isAutoArchive;
+        }
+        if (isNewPostPushEnabled != null) {
+            this.isNewPostPushEnabled = isNewPostPushEnabled;
+        }
+        if (isLociTimePushEnabled != null) {
+            this.isLociTimePushEnabled = isLociTimePushEnabled;
         }
     }
 }

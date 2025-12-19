@@ -26,9 +26,6 @@ public class UserDto {
         @Size(min = 1, message = "닉네임은 최소 1글자 이상이어야 합니다.")
         private String nickname;
 
-        @Schema(description = "자동 보관 설정 변경", example = "true")
-        private Boolean isAutoArchive;
-
         @Schema(description = "국가 코드 (예: KR)", example = "KR")
         private String countryCode;
 

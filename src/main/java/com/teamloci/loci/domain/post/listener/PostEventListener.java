@@ -108,6 +108,7 @@ public class PostEventListener {
                         .collect(Collectors.toSet());
 
                 List<User> targetNewPostFriends = friends.stream()
+                        .filter(User::isNewPostPushEnabled)
                         .filter(f -> !receivedLogIds.contains(today.toString() + "_" + f.getId()))
                         .collect(Collectors.toList());
 

@@ -88,10 +88,6 @@ public class UserService {
             newNickname = user.getNickname();
         }
 
-        if (request.getIsAutoArchive() != null) {
-            user.updateAutoArchive(request.getIsAutoArchive());
-        }
-
         if (request.getCountryCode() != null) {
             user.updateCountryCode(request.getCountryCode());
         }

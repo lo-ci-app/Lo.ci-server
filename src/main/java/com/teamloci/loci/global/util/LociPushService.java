@@ -72,6 +72,10 @@ public class LociPushService {
             List<DailyPushLog> logsToSave = new ArrayList<>();
 
             for (User user : candidates) {
+                if (!user.isLociTimePushEnabled()) {
+                    continue;
+                }
+
                 ZoneId userZone = user.getZoneIdOrDefault();
                 LocalDate localToday = LocalDate.now(userZone);
                 String logId = localToday.toString() + "_" + user.getId();
