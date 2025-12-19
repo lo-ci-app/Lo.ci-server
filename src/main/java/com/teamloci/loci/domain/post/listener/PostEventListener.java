@@ -99,18 +99,9 @@ public class PostEventListener {
             LocalDate today = LocalDate.now(authorZone);
 
             if (!friends.isEmpty()) {
-                List<String> newPostLogIds = friends.stream()
-                        .map(f -> today.toString() + "_" + f.getId())
-                        .toList();
-
-                Set<String> receivedLogIds = dailyPushLogRepository.findAllById(newPostLogIds).stream()
-                        .map(DailyPushLog::getId)
-                        .collect(Collectors.toSet());
-
                 List<User> targetNewPostFriends = friends.stream()
                         .filter(User::isNewPostPushEnabled)
-                        .filter(f -> !receivedLogIds.contains(today.toString() + "_" + f.getId()))
-                        .collect(Collectors.toList());
+                        .toList();
 
                 if (!targetNewPostFriends.isEmpty()) {
                     notificationService.sendMulticast(
@@ -121,14 +112,6 @@ public class PostEventListener {
                             post.getId(),
                             post.getThumbnailUrl()
                     );
-
-                    List<DailyPushLog> logs = targetNewPostFriends.stream()
-                            .map(f -> DailyPushLog.builder()
-                                    .userId(f.getId())
-                                    .date(today)
-                                    .build())
-                            .collect(Collectors.toList());
-                    dailyPushLogRepository.saveAll(logs);
                 }
             }
 

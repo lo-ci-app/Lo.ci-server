@@ -29,24 +29,12 @@ public class LociPushService {
     private final UserRepository userRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
     private final NotificationService notificationService;
-    private final PostRepository postRepository;
 
     private static final int BATCH_SIZE = 1000;
 
     @Transactional
     public void executeGlobalPush() {
         log.info("🔔 [Global Push] 로키 타임 알림 발송 시작!");
-
-        LocalDateTime now = LocalDateTime.now();
-
-        List<Object[]> recentPosts = postRepository.findPostTimestampsBetween(now.minusHours(24), now.plusHours(24));
-
-        Map<Long, List<LocalDateTime>> recentPostMap = new HashMap<>();
-        for (Object[] row : recentPosts) {
-            Long uid = (Long) row[0];
-            LocalDateTime createdAt = (LocalDateTime) row[1];
-            recentPostMap.computeIfAbsent(uid, k -> new ArrayList<>()).add(createdAt);
-        }
 
         int pageNumber = 0;
         boolean hasNext = true;
@@ -82,16 +70,6 @@ public class LociPushService {
 
                 if (existingLogIds.contains(logId)) {
                     continue;
-                }
-
-                if (recentPostMap.containsKey(user.getId())) {
-                    LocalDateTime startOfToday = localToday.atStartOfDay(userZone).toLocalDateTime();
-                    LocalDateTime endOfToday = localToday.plusDays(1).atStartOfDay(userZone).toLocalDateTime();
-
-                    boolean postedToday = recentPostMap.get(user.getId()).stream()
-                            .anyMatch(date -> !date.isBefore(startOfToday) && date.isBefore(endOfToday));
-
-                    if (postedToday) continue;
                 }
 
                 finalTargets.add(user);
