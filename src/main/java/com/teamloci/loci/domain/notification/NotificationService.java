@@ -229,7 +229,7 @@ public class NotificationService {
         if (expire != null && expire > 0) {
             return NotificationDto.NudgeResponse.builder()
                     .isSent(false)
-                    .message(formatDuration(expire) + " 뒤에 다시 찌를 수 있어요!")
+                    .message(String.format("%s 뒤에 다시 찌를 수 있어요!", formatDuration(expire)))
                     .remainingSeconds(expire)
                     .build();
         }

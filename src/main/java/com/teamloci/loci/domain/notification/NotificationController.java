@@ -76,28 +76,30 @@ public class NotificationController {
     @Operation(
             summary = "친구 콕 찌르기 (Nudge)",
             description = """
-                친밀도 레벨 3 이상인 친구에게 '콕 찌르기' 알림을 보냅니다.
+                친밀도 레벨 3 이상인 친구에게 '콕 찌르기' 알림을 보냅니다. (쿨타임 1시간)
                 
-                - **targetUserId**: 알림을 받을 상대방 유저의 ID (URL 경로)
-                - **message**: 보낼 메시지 내용 (선택 사항)
-                  - 친밀도 레벨 6 이상부터 커스텀 메시지가 적용됩니다.
-                  - 그 외에는 "콕! 친구가 회원님을 생각하고 있어요. 👋"가 전송됩니다.
+                * **성공 (`isSent`: true)**: 즉시 알림 전송
+                * **실패/쿨타임 중 (`isSent`: false)**: `message`와 `remainingSeconds`에 남은 시간 정보를 반환합니다.
                 """
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "요청 성공",
+            @ApiResponse(responseCode = "200", description = "요청 성공 (쿨타임 안내 포함)",
                     content = @Content(examples = @ExampleObject(value = """
                             {
                               "timestamp": "2025-12-16T10:14:55.150Z",
                               "isSuccess": true,
                               "code": "COMMON200",
                               "message": "성공적으로 요청을 수행했습니다.",
-                              "result": null
+                              "result": {
+                                "isSent": false,
+                                "message": "58분 30초 뒤에 다시 찌를 수 있어요!",
+                                "remainingSeconds": 3510
+                              }
                             }
                             """)))
     })
     @PostMapping("/nudge/friend/{targetUserId}")
-    public ResponseEntity<CustomResponse<Void>> sendNudge(
+    public ResponseEntity<CustomResponse<NotificationDto.NudgeResponse>> sendNudge(
             @AuthenticationPrincipal AuthenticatedUser user,
 
             @Parameter(description = "콕 찌를 상대방의 유저 ID", example = "123", required = true)
@@ -105,7 +107,8 @@ public class NotificationController {
 
             @RequestBody @Valid NotificationDto.NudgeRequest request
     ) {
-        notificationService.sendNudge(user.getUserId(), targetUserId, request);
-        return ResponseEntity.ok(CustomResponse.ok(null));
+        return ResponseEntity.ok(CustomResponse.ok(
+                notificationService.sendNudge(user.getUserId(), targetUserId, request)
+        ));
     }
 }
