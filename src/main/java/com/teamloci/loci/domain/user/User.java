@@ -186,8 +186,4 @@ public class User {
             this.isLociTimePushEnabled = isLociTimePushEnabled;
         }
     }
-
-    public void setBluetoothToken(String bluetoothToken) {
-        this.bluetoothToken = bluetoothToken;
-    }
 }

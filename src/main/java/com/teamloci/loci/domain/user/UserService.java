@@ -9,6 +9,7 @@ import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.infra.S3UploadService;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j 
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -70,6 +72,79 @@ public class UserService {
         response.applyIntimacyInfo(intimacy, stats.totalIntimacyLevel());
 
         return response;
+    }
+
+    public List<UserDto.UserResponse> getUserList(Long myUserId, List<String> bluetoothTokens) {
+        if (bluetoothTokens == null || bluetoothTokens.isEmpty()) {
+            return List.of();
+        }
+
+        List<User> users = userRepository.findByBluetoothTokenIn(bluetoothTokens);
+
+        if (users.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> targetUserIds = users.stream().map(User::getId).toList();
+
+        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, targetUserIds);
+        Map<Long, Friendship> friendshipMap = friendships.stream()
+                .collect(Collectors.toMap(
+                        f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
+                        f -> f,
+                        (existing, replacement) -> {
+                            log.warn("Duplicate friendship found for user {}. existing: {}, replacement: {}",
+                                    existing.getRequester().getId().equals(myUserId) ? existing.getReceiver().getId() : existing.getRequester().getId(),
+                                    existing.getId(), replacement.getId());
+                            return existing;
+                        }
+                ));
+
+        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(targetUserIds);
+
+        List<FriendshipIntimacy> intimacies = intimacyRepository.findByUserIdAndTargetIdsIn(myUserId, targetUserIds);
+        Map<Long, FriendshipIntimacy> intimacyMap = intimacies.stream()
+                .collect(Collectors.toMap(
+                        fi -> fi.getUserAId().equals(myUserId) ? fi.getUserBId() : fi.getUserAId(),
+                        fi -> fi,
+                        (existing, replacement) -> {
+                            log.warn("Duplicate intimacy found. existing: {}, replacement: {}", existing.getId(), replacement.getId());
+                            return existing;
+                        }
+                ));
+
+        return users.stream().map(targetUser -> {
+            Long targetId = targetUser.getId();
+
+            var stats = statsMap.getOrDefault(targetId, new UserActivityService.UserStats(0, 0, 0, 0, 0));
+
+            String relationStatus = "NONE";
+            FriendshipIntimacy intimacy = null;
+
+            if (myUserId.equals(targetId)) {
+                relationStatus = "SELF";
+            } else {
+                Friendship friendship = friendshipMap.get(targetId);
+                relationStatus = RelationUtil.resolveStatus(friendship, myUserId);
+
+                if ("FRIEND".equals(relationStatus)) {
+                    intimacy = intimacyMap.get(targetId);
+                }
+            }
+
+            UserDto.UserResponse response = UserDto.UserResponse.of(
+                    targetUser,
+                    relationStatus,
+                    stats.friendCount(),
+                    stats.postCount(),
+                    stats.streakCount(),
+                    stats.visitedPlaceCount()
+            );
+
+            response.applyIntimacyInfo(intimacy, stats.totalIntimacyLevel());
+
+            return response;
+        }).collect(Collectors.toList());
     }
 
     @Transactional
@@ -141,70 +216,5 @@ public class UserService {
     public void updateFcmToken(Long userId, UserDto.FcmTokenUpdateRequest request) {
         User user = findUserById(userId);
         user.updateFcmToken(request.getFcmToken());
-    }
-
-    public List<UserDto.UserResponse> getUserList(Long myUserId, List<Long> targetUserIds) {
-        if (targetUserIds == null || targetUserIds.isEmpty()) {
-            return List.of();
-        }
-
-        List<User> users = userRepository.findAllById(targetUserIds);
-        if (users.isEmpty()) {
-            return List.of();
-        }
-
-        List<Long> foundUserIds = users.stream().map(User::getId).toList();
-
-        List<Friendship> friendships = friendshipRepository.findAllRelationsBetween(myUserId, foundUserIds);
-        Map<Long, Friendship> friendshipMap = friendships.stream()
-                .collect(Collectors.toMap(
-                        f -> f.getRequester().getId().equals(myUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
-                        f -> f,
-                        (existing, replacement) -> existing
-                ));
-
-        Map<Long, UserActivityService.UserStats> statsMap = userActivityService.getUserStatsMap(foundUserIds);
-
-        List<FriendshipIntimacy> intimacies = intimacyRepository.findByUserIdAndTargetIdsIn(myUserId, foundUserIds);
-
-        Map<Long, FriendshipIntimacy> intimacyMap = intimacies.stream()
-                .collect(Collectors.toMap(
-                        fi -> fi.getUserAId().equals(myUserId) ? fi.getUserBId() : fi.getUserAId(),
-                        fi -> fi,
-                        (existing, replacement) -> existing
-                ));
-
-        return users.stream().map(targetUser -> {
-            Long targetId = targetUser.getId();
-
-            var stats = statsMap.getOrDefault(targetId, new UserActivityService.UserStats(0, 0, 0, 0, 0));
-
-            String relationStatus = "NONE";
-            FriendshipIntimacy intimacy = null;
-
-            if (myUserId.equals(targetId)) {
-                relationStatus = "SELF";
-            } else {
-                Friendship friendship = friendshipMap.get(targetId);
-                relationStatus = RelationUtil.resolveStatus(friendship, myUserId);
-
-                if ("FRIEND".equals(relationStatus)) {
-                    intimacy = intimacyMap.get(targetId);
-                }
-            }
-
-            UserDto.UserResponse response = UserDto.UserResponse.of(
-                    targetUser,
-                    relationStatus,
-                    stats.friendCount(),
-                    stats.postCount(),
-                    stats.streakCount(),
-                    stats.visitedPlaceCount()
-            );
-
-            response.applyIntimacyInfo(intimacy, stats.totalIntimacyLevel());
-
-            return response;
-        }).collect(Collectors.toList());
     }
 }

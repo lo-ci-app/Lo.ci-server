@@ -143,14 +143,14 @@ public class UserController {
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
 
-    @Operation(summary = "유저 리스트 조회 (공동작업자 등)",
-            description = "여러 유저의 ID 리스트를 받아 상세 프로필 정보를 조회합니다. 게시물의 공동작업자 정보를 불러올 때 사용합니다.")
+    @Operation(summary = "주변 유저 리스트 조회 (블루투스 토큰 기반)",
+            description = "주변에서 감지된 블루투스 토큰 리스트를 받아, 해당하는 유저들의 상세 정보를 반환합니다.")
     @GetMapping("/list")
     public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getUserList(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "조회할 유저 ID 리스트 (쉼표로 구분)", example = "1,2,3")
-            @RequestParam List<Long> userIds
+            @Parameter(description = "감지된 블루투스 토큰 리스트 (쉼표로 구분)", example = "a1b2c3d4,e5f6g7h8")
+            @RequestParam List<String> bluetoothTokens
     ) {
-        return ResponseEntity.ok(CustomResponse.ok(userService.getUserList(getUserId(user), userIds)));
+        return ResponseEntity.ok(CustomResponse.ok(userService.getUserList(getUserId(user), bluetoothTokens)));
     }
 }
