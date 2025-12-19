@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Slf4j 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor

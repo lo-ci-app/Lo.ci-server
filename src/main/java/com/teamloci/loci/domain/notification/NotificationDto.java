@@ -60,4 +60,18 @@ public class NotificationDto {
         @Schema(description = "보낼 메시지 (친밀도 레벨 6 이상만 적용, 미만은 무시됨)", example = "밥 먹었어?")
         private String message;
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @Schema(description = "넛지(찌르기) 요청 응답")
+    public static class NudgeResponse {
+
+        @Schema(description = "넛지 발송 성공 여부 (true: 발송됨, false: 쿨타임 중)", example = "false")
+        private boolean isSent;
+        @Schema(description = "쿨타임 잔여 시간 (발송 성공 시 null)", example = "58분 30초 남음")
+        private String message;
+        @Schema(description = "쿨타임 잔여 초 (타이머 표시용)", example = "3510")
+        private Long remainingSeconds;
+    }
 }

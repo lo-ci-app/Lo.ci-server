@@ -4,6 +4,7 @@ import com.google.firebase.messaging.*;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
+import com.teamloci.loci.global.auth.AuthenticatedUser;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,6 +41,12 @@ public class NotificationService {
     private static final String DEFAULT_NUDGE_MESSAGE = "콕! 친구가 회원님을 생각하고 있어요. 👋";
     private static final String NUDGE_REDIS_PREFIX = "nudge:cooltime:";
     private static final long NUDGE_COOLTIME_MINUTES = 60;
+
+    // 헬퍼 메소드 추가 (User 조회)
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
 
     public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
         PageRequest pageable = PageRequest.of(0, size + 1);
@@ -214,16 +222,19 @@ public class NotificationService {
     }
 
     @Transactional
-    // 파라미터에 targetUserId 추가
-    public void sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {
+    public NotificationDto.NudgeResponse sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {
         String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + targetUserId;
+        Long expire = redisTemplate.getExpire(redisKey, TimeUnit.SECONDS);
 
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
-            throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
+        if (expire != null && expire > 0) {
+            return NotificationDto.NudgeResponse.builder()
+                    .isSent(false)
+                    .message(formatDuration(expire) + " 뒤에 다시 찌를 수 있어요!")
+                    .remainingSeconds(expire)
+                    .build();
         }
 
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User sender = findUserById(senderId);
 
         if (!userRepository.existsById(targetUserId)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
@@ -234,7 +245,11 @@ public class NotificationService {
             throw new CustomException(ErrorCode.NUDGE_NOT_ALLOWED);
         }
 
-        String finalMessage = determineNudgeMessage(intimacyLevel, request.getMessage());
+        String finalMessage = DEFAULT_NUDGE_MESSAGE;
+        if (intimacyLevel >= 6 && StringUtils.hasText(request.getMessage())) {
+            finalMessage = request.getMessage();
+        }
+
         String title = sender.getNickname() + "님의 콕 찌르기";
 
         redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
@@ -247,12 +262,21 @@ public class NotificationService {
                 sender.getId(),
                 sender.getProfileUrl()
         );
+
+        return NotificationDto.NudgeResponse.builder()
+                .isSent(true)
+                .message("성공적으로 찔렀습니다!")
+                .remainingSeconds(0L)
+                .build();
     }
 
-    private String determineNudgeMessage(int level, String customMessage) {
-        if (level >= 6 && StringUtils.hasText(customMessage)) {
-            return customMessage;
+    private String formatDuration(long seconds) {
+        long minutes = seconds / 60;
+        long remainingSec = seconds % 60;
+        if (minutes > 0) {
+            return String.format("%d분 %d초", minutes, remainingSec);
+        } else {
+            return String.format("%d초", remainingSec);
         }
-        return DEFAULT_NUDGE_MESSAGE;
     }
 }
