@@ -77,6 +77,9 @@ public class UserDto {
         @Schema(description = "프로필 이미지 URL", example = "https://fiv5.../profile.jpg")
         private String profileUrl;
 
+        @Schema(description = "블루투스 토큰 (8자리 Hex)", example = "a1b2c3d4")
+        private String bluetoothToken;
+
         @Schema(description = "가입 일시")
         private LocalDateTime createdAt;
 
@@ -123,6 +126,7 @@ public class UserDto {
                     .handle(user.getHandle())
                     .nickname(user.getNickname())
                     .profileUrl(user.getProfileUrl())
+                    .bluetoothToken(user.getBluetoothToken())
                     .createdAt(user.getCreatedAt())
                     .relationStatus(relationStatus)
                     .friendCount(friendCount)
@@ -141,6 +145,7 @@ public class UserDto {
                     .handle(user.getHandle())
                     .nickname(user.getNickname())
                     .profileUrl(user.getProfileUrl())
+                    .bluetoothToken(user.getBluetoothToken())
                     .createdAt(user.getCreatedAt())
                     .relationStatus("NONE")
                     .friendCount(0L)

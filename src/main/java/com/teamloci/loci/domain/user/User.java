@@ -50,9 +50,6 @@ public class User {
     @Column(nullable = false)
     private UserStatus status;
 
-    @Column(name = "bluetooth_token", unique = true)
-    private String bluetoothToken;
-
     @Column(name = "fcm_token")
     private String fcmToken;
 
@@ -93,6 +90,9 @@ public class User {
 
     @Column(nullable = false)
     private boolean isLociTimePushEnabled = true;
+
+    @Column(name = "bluetooth_token", length = 8, unique = true, nullable = false)
+    private String bluetoothToken;
 
     @Builder
     public User(String handle, String nickname, String profileUrl, String phoneEncrypted, String phoneSearchHash, String countryCode) {
@@ -185,5 +185,9 @@ public class User {
         if (isLociTimePushEnabled != null) {
             this.isLociTimePushEnabled = isLociTimePushEnabled;
         }
+    }
+
+    public void setBluetoothToken(String bluetoothToken) {
+        this.bluetoothToken = bluetoothToken;
     }
 }

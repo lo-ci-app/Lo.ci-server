@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.settings;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,12 +15,15 @@ public class SettingsDto {
     public static class UpdateRequest {
 
         @Schema(description = "게시물 자동 보관 여부", example = "true", nullable = true)
+        @JsonProperty("isAutoArchive")
         private Boolean isAutoArchive;
 
         @Schema(description = "친구의 새 게시물 알림 수신 여부", example = "true", nullable = true)
+        @JsonProperty("isNewPostPushEnabled")
         private Boolean isNewPostPushEnabled;
 
         @Schema(description = "로키 타임(Loci Time) 알림 수신 여부", example = "true", nullable = true)
+        @JsonProperty("isLociTimePushEnabled")
         private Boolean isLociTimePushEnabled;
     }
 
@@ -31,12 +35,15 @@ public class SettingsDto {
     public static class Response {
 
         @Schema(description = "게시물 자동 보관 여부", example = "true")
+        @JsonProperty("isAutoArchive")
         private boolean isAutoArchive;
 
         @Schema(description = "친구의 새 게시물 알림 수신 여부", example = "true")
+        @JsonProperty("isNewPostPushEnabled")
         private boolean isNewPostPushEnabled;
 
         @Schema(description = "로키 타임(Loci Time) 알림 수신 여부", example = "true")
+        @JsonProperty("isLociTimePushEnabled")
         private boolean isLociTimePushEnabled;
     }
 }

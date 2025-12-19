@@ -19,6 +19,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Tag(name = "User", description = "사용자 프로필 관리 API")
 @RestController
 @RequestMapping("/api/v1/users")
@@ -139,5 +141,16 @@ public class UserController {
     public ResponseEntity<CustomResponse<Void>> updateFcmToken(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody UserDto.FcmTokenUpdateRequest request) {
         userService.updateFcmToken(getUserId(user), request);
         return ResponseEntity.ok(CustomResponse.ok(null));
+    }
+
+    @Operation(summary = "유저 리스트 조회 (공동작업자 등)",
+            description = "여러 유저의 ID 리스트를 받아 상세 프로필 정보를 조회합니다. 게시물의 공동작업자 정보를 불러올 때 사용합니다.")
+    @GetMapping("/list")
+    public ResponseEntity<CustomResponse<List<UserDto.UserResponse>>> getUserList(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Parameter(description = "조회할 유저 ID 리스트 (쉼표로 구분)", example = "1,2,3")
+            @RequestParam List<Long> userIds
+    ) {
+        return ResponseEntity.ok(CustomResponse.ok(userService.getUserList(getUserId(user), userIds)));
     }
 }

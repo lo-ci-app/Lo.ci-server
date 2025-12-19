@@ -21,8 +21,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByPhoneSearchHash(String phoneSearchHash);
     List<User> findByPhoneSearchHashIn(List<String> searchHashes);
-    List<User> findByBluetoothTokenIn(List<String> tokens);
-    boolean existsByBluetoothToken(String bluetoothToken);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u WHERE u.id = :userId")
@@ -73,4 +71,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying
     @Query("UPDATE User u SET u.totalIntimacyLevel = u.totalIntimacyLevel + :delta WHERE u.id = :id")
     void increaseTotalIntimacy(@Param("id") Long id, @Param("delta") int delta);
+
+    boolean existsByBluetoothToken(String bluetoothToken);
+
+    List<User> findByBluetoothTokenIn(List<String> bluetoothTokens);
 }
