@@ -106,9 +106,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findLatestPostsByUserIds(@Param("userIds") List<Long> userIds);
 
     @Query(value = """
-
             WITH RankedPosts AS (
             SELECT
+                p.id,
                 p.beacon_id,
                 p.location_name,
                 p.thumbnail_url,
@@ -119,13 +119,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             WHERE p.user_id = :userId 
               AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED')
         )
-        SELECT beacon_id, location_name, cnt, thumbnail_url, created_at
+        SELECT beacon_id, location_name, cnt, thumbnail_url, created_at, id
         FROM RankedPosts
         WHERE rn = 1
         ORDER BY created_at DESC
-        LIMIT :limit OFFSET :offset
         """, nativeQuery = true)
-    List<Object[]> findVisitedPlacesByUserId(@Param("userId") Long userId, @Param("limit") int limit, @Param("offset") int offset);
+    List<Object[]> findVisitedPlacesByUserId(@Param("userId") Long userId);
 
     @Query("""
         SELECT DISTINCT p.user 

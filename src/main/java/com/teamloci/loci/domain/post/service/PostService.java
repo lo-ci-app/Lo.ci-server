@@ -517,10 +517,8 @@ public class PostService {
         userRes.applyIntimacyInfo(intimacyMap.get(userRes.getId()), stats.totalIntimacyLevel());
     }
 
-    public List<PostDto.VisitedPlaceResponse> getVisitedPlaces(Long userId, int page, int size) {
-        int offset = page * size;
-
-        List<Object[]> results = postRepository.findVisitedPlacesByUserId(userId, size, offset);
+    public List<PostDto.VisitedPlaceResponse> getVisitedPlaces(Long userId) {
+        List<Object[]> results = postRepository.findVisitedPlacesByUserId(userId);
 
         return results.stream()
                 .map(row -> {
@@ -530,6 +528,8 @@ public class PostService {
 
                     java.sql.Timestamp timestamp = (java.sql.Timestamp) row[4];
 
+                    Long recentPostId = ((Number) row[5]).longValue();
+
                     return PostDto.VisitedPlaceResponse.builder()
                             .beaconId(beaconId)
                             .latitude(latLng != null ? latLng.lat : null)
@@ -538,6 +538,7 @@ public class PostService {
                             .postCount(((Number) row[2]).longValue())
                             .thumbnailUrl((String) row[3])
                             .lastVisitedAt(timestamp != null ? timestamp.toLocalDateTime() : null)
+                            .recentPostId(recentPostId)
                             .build();
                 })
                 .collect(Collectors.toList());

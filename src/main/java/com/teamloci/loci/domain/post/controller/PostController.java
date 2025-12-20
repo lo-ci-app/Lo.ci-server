@@ -275,7 +275,7 @@ public class PostController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ResponseEntity.ok(CustomResponse.ok(postService.getVisitedPlaces(userId, page, size)));
+        return ResponseEntity.ok(CustomResponse.ok(postService.getVisitedPlaces(userId)));
     }
 
     @Operation(summary = "내 방문한 장소 목록 (Grid View용 탭)",
@@ -287,7 +287,7 @@ public class PostController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(CustomResponse.ok(
-                postService.getVisitedPlaces(getUserId(user), page, size)
+                postService.getVisitedPlaces(getUserId(user))
         ));
     }
 

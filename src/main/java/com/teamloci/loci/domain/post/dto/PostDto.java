@@ -218,6 +218,10 @@ public class PostDto {
 
         @Schema(description = "마지막 방문 일시")
         private LocalDateTime lastVisitedAt;
+
+        @Schema(description = "가장 최근 게시글 ID", example = "152")
+        @JsonProperty("recentPostId")
+        private Long recentPostId;
     }
 
     @Getter
