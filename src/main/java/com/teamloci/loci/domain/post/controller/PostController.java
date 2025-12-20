@@ -271,9 +271,7 @@ public class PostController {
             description = "유저가 방문했던 구역(Beacon)들을 최신순으로 묶어서 반환합니다.")
     @GetMapping("/user/{userId}/visited-places")
     public ResponseEntity<CustomResponse<List<PostDto.VisitedPlaceResponse>>> getVisitedPlaces(
-            @PathVariable Long userId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @PathVariable Long userId
     ) {
         return ResponseEntity.ok(CustomResponse.ok(postService.getVisitedPlaces(userId)));
     }
@@ -282,9 +280,7 @@ public class PostController {
             description = "내가 방문했던 구역(Beacon)들을 최신순으로 묶어서 반환합니다. (/user/{내ID}/.. 와 동일)")
     @GetMapping("/me/visited-places")
     public ResponseEntity<CustomResponse<List<PostDto.VisitedPlaceResponse>>> getMyVisitedPlaces(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @AuthenticationPrincipal AuthenticatedUser user
     ) {
         return ResponseEntity.ok(CustomResponse.ok(
                 postService.getVisitedPlaces(getUserId(user))
