@@ -9,13 +9,11 @@ import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.CommentDto;
 import com.teamloci.loci.domain.post.entity.Post;
+import com.teamloci.loci.domain.post.entity.PostCollaborator;
 import com.teamloci.loci.domain.post.entity.PostComment;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
-import com.teamloci.loci.domain.user.User;
-import com.teamloci.loci.domain.user.UserDto;
-import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.user.UserActivityService;
+import com.teamloci.loci.domain.user.*;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
@@ -67,14 +65,30 @@ public class CommentService {
 
         Set<Long> mentionedUserIds = sendMentionNotifications(user, post, request.getContent());
 
-        User postOwner = post.getUser();
-        if (!postOwner.getId().equals(userId) && !mentionedUserIds.contains(postOwner.getId())) {
-            String summary = request.getContent().length() > 20
-                    ? request.getContent().substring(0, 20) + "..."
-                    : request.getContent();
+        Set<User> recipients = new HashSet<>();
+
+        if (post.getUser().getStatus() == UserStatus.ACTIVE) {
+            recipients.add(post.getUser());
+        }
+
+        if (post.getCollaborators() != null) {
+            post.getCollaborators().stream()
+                    .map(PostCollaborator::getUser)
+                    .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                    .forEach(recipients::add);
+        }
+
+        String summary = request.getContent().length() > 20
+                ? request.getContent().substring(0, 20) + "..."
+                : request.getContent();
+
+        for (User recipient : recipients) {
+            if (recipient.getId().equals(userId) || mentionedUserIds.contains(recipient.getId())) {
+                continue;
+            }
 
             notificationService.send(
-                    postOwner,
+                    recipient,
                     NotificationType.POST_COMMENT,
                     "새로운 댓글",
                     user.getNickname() + "님이: " + summary,
@@ -111,6 +125,7 @@ public class CommentService {
                 : content;
 
         mentionedUsers.stream()
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE) // 탈퇴한 유저는 제외
                 .filter(u -> !u.getId().equals(sender.getId()))
                 .forEach(target -> {
                     notificationService.send(
@@ -119,7 +134,7 @@ public class CommentService {
                             "회원님을 언급했습니다",
                             sender.getNickname() + "님이 댓글에서 회원님을 언급했습니다: " + summary,
                             post.getId(),
-                            sender.getProfileUrl() 
+                            sender.getProfileUrl()
                     );
                     notifiedUserIds.add(target.getId());
                 });

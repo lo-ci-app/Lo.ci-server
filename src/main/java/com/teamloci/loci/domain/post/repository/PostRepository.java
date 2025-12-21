@@ -39,7 +39,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
-            "WHERE p.user.id = :userId " +
+            "LEFT JOIN p.collaborators pc " +
+            "WHERE (p.user.id = :userId OR pc.user.id = :userId) " +
             "AND p.status IN :statuses " +
             "AND (:cursorId IS NULL OR p.id < :cursorId) " +
             "ORDER BY p.id DESC")
@@ -52,7 +53,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
-            "WHERE p.user.id = :userId AND p.status = 'ARCHIVED' " +
+            "LEFT JOIN p.collaborators pc " +
+            "WHERE (p.user.id = :userId OR pc.user.id = :userId) " +
+            "AND p.status = 'ARCHIVED' " +
             "AND (:cursorId IS NULL OR p.id < :cursorId) " +
             "ORDER BY p.id DESC")
     List<Post> findArchivedPostsByUserIdWithCursor(@Param("userId") Long userId, @Param("cursorId") Long cursorId, Pageable pageable);

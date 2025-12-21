@@ -13,10 +13,7 @@ import com.teamloci.loci.domain.post.repository.CommentLikeRepository;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
-import com.teamloci.loci.domain.user.User;
-import com.teamloci.loci.domain.user.UserDto;
-import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.domain.user.UserActivityService;
+import com.teamloci.loci.domain.user.*;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
@@ -104,14 +101,34 @@ public class ReactionService {
             return;
         }
 
-        notificationService.send(
-                post.getUser(),
-                NotificationType.POST_REACTION,
-                "새로운 반응",
-                sender.getNickname() + "님이 회원님의 게시물에 반응을 남겼습니다.",
-                postId,
-                post.getThumbnailUrl()
-        );
+        Set<User> recipients = new HashSet<>();
+
+        if (post.getUser().getStatus() == UserStatus.ACTIVE) {
+            recipients.add(post.getUser());
+        }
+
+        if (post.getCollaborators() != null) {
+            post.getCollaborators().stream()
+                    .map(PostCollaborator::getUser)
+                    .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                    .forEach(recipients::add);
+        }
+
+        // 2. 각 수신자에게 알림 전송
+        for (User recipient : recipients) {
+            if (recipient.getId().equals(sender.getId())) {
+                continue;
+            }
+
+            notificationService.send(
+                    recipient,
+                    NotificationType.POST_REACTION,
+                    "새로운 반응",
+                    sender.getNickname() + "님이 회원님의 게시물에 반응을 남겼습니다.",
+                    postId,
+                    post.getThumbnailUrl()
+            );
+        }
 
         redisTemplate.opsForValue().set(redisKey, "1", Duration.ofSeconds(NOTI_COOLTIME_SECONDS));
     }
@@ -208,7 +225,7 @@ public class ReactionService {
                     .user(user)
                     .build());
 
-            if (!comment.getUser().getId().equals(userId)) {
+            if (!comment.getUser().getId().equals(userId) && comment.getUser().getStatus() == UserStatus.ACTIVE) {
                 notificationService.send(
                         comment.getUser(),
                         NotificationType.COMMENT_LIKE,
