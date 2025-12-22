@@ -249,9 +249,11 @@ public class NotificationService {
         redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
 
         if (intimacyLevel >= 6 && StringUtils.hasText(request.getMessage())) {
-            this.send(target, NotificationType.NUDGE, sender.getNickname() + "님의 콕 찌르기", request.getMessage(), sender.getId(), sender.getProfileUrl());
+            this.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
+                    sender.getNickname(), request.getMessage());
         } else {
-            this.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(), sender.getNickname());
+            this.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
+                    sender.getNickname());
         }
 
         return NotificationDto.NudgeResponse.builder()

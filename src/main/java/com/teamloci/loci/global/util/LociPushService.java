@@ -79,12 +79,11 @@ public class LociPushService {
             if (!finalTargets.isEmpty()) {
                 Map<String, List<User>> usersByCountry = finalTargets.stream()
                         .collect(Collectors.groupingBy(
-                                u -> u.getCountryCode() != null ? u.getCountryCode() : "KR"
+                                u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG
                         ));
 
                 usersByCountry.forEach((countryCode, users) -> {
                     var content = messageProvider.getMessage(NotificationType.LOCI_TIME, countryCode);
-
                     List<Long> targetIds = users.stream().map(User::getId).toList();
 
                     notificationService.sendMulticast(

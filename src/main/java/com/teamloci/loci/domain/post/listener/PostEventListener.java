@@ -103,7 +103,7 @@ public class PostEventListener {
 
                 if (!targetNewPostFriends.isEmpty()) {
                     Map<String, List<User>> friendsByLang = targetNewPostFriends.stream()
-                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : "KR"));
+                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG));
 
                     friendsByLang.forEach((lang, group) -> {
                         var content = messageProvider.getMessage(NotificationType.NEW_POST, lang, author.getNickname());
@@ -135,7 +135,7 @@ public class PostEventListener {
 
                 if (!targetVisitedFriends.isEmpty()) {
                     Map<String, List<User>> visitedByLang = targetVisitedFriends.stream()
-                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : "KR"));
+                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG));
 
                     visitedByLang.forEach((lang, group) -> {
                         var content = messageProvider.getMessage(NotificationType.FRIEND_VISITED, lang, author.getNickname());
