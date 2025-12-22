@@ -180,10 +180,9 @@ public class FriendService {
         notificationService.send(
                 requester,
                 NotificationType.FRIEND_ACCEPTED,
-                "친구 수락",
-                me.getNickname() + "님과 친구가 되었습니다!",
                 me.getId(),
-                me.getProfileUrl()
+                me.getProfileUrl(),
+                me.getNickname()
         );
     }
 
@@ -241,10 +240,9 @@ public class FriendService {
         notificationService.send(
                 target,
                 NotificationType.FRIEND_REQUEST,
-                "친구 요청",
-                me.getNickname() + "님이 친구 요청을 보냈습니다.",
                 me.getId(),
-                me.getProfileUrl()
+                me.getProfileUrl(),
+                me.getNickname()
         );
     }
 

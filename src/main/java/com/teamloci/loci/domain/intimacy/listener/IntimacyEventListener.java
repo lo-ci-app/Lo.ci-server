@@ -34,19 +34,19 @@ public class IntimacyEventListener {
             notificationService.send(
                     target,
                     NotificationType.INTIMACY_LEVEL_UP,
-                    "친밀도 레벨 UP! 🔥",
-                    actor.getNickname() + "님과의 친밀도가 " + event.getNewLevel() + "레벨이 되었어요!",
                     event.getActorId(),
-                    actor.getProfileUrl()
+                    actor.getProfileUrl(),
+                    actor.getNickname(),
+                    event.getNewLevel()
             );
 
             notificationService.send(
                     actor,
                     NotificationType.INTIMACY_LEVEL_UP,
-                    "친밀도 레벨 UP! 🔥",
-                    target.getNickname() + "님과의 친밀도가 " + event.getNewLevel() + "레벨이 되었어요!",
                     event.getTargetId(),
-                    target.getProfileUrl()
+                    target.getProfileUrl(),
+                    target.getNickname(),
+                    event.getNewLevel()
             );
 
         } catch (Exception e) {

@@ -3,10 +3,7 @@ package com.teamloci.loci.domain.post.listener;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
-import com.teamloci.loci.domain.notification.DailyPushLog;
-import com.teamloci.loci.domain.notification.DailyPushLogRepository;
-import com.teamloci.loci.domain.notification.NotificationService;
-import com.teamloci.loci.domain.notification.NotificationType;
+import com.teamloci.loci.domain.notification.*;
 import com.teamloci.loci.domain.post.entity.Post;
 import com.teamloci.loci.domain.post.entity.PostCollaborator;
 import com.teamloci.loci.domain.post.event.PostCreatedEvent;
@@ -25,6 +22,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,6 +33,7 @@ public class PostEventListener {
 
     private final IntimacyService intimacyService;
     private final NotificationService notificationService;
+    private final NotificationMessageProvider messageProvider;
     private final FriendshipRepository friendshipRepository;
     private final PostRepository postRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
@@ -58,10 +57,9 @@ public class PostEventListener {
                     notificationService.send(
                             collaborator.getUser(),
                             NotificationType.POST_TAGGED,
-                            "함께한 순간",
-                            post.getUser().getNickname() + "님이 회원님을 게시물에 태그했습니다.",
                             post.getId(),
-                            post.getThumbnailUrl()
+                            post.getThumbnailUrl(),
+                            post.getUser().getNickname()
                     );
                 }
             }
@@ -104,14 +102,21 @@ public class PostEventListener {
                         .toList();
 
                 if (!targetNewPostFriends.isEmpty()) {
-                    notificationService.sendMulticast(
-                            targetNewPostFriends.stream().map(User::getId).toList(),
-                            NotificationType.NEW_POST,
-                            "새로운 Loci!",
-                            author.getNickname() + "님이 지금 순간을 공유했어요 📸",
-                            post.getId(),
-                            post.getThumbnailUrl()
-                    );
+                    Map<String, List<User>> friendsByLang = targetNewPostFriends.stream()
+                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : "KR"));
+
+                    friendsByLang.forEach((lang, group) -> {
+                        var content = messageProvider.getMessage(NotificationType.NEW_POST, lang, author.getNickname());
+
+                        notificationService.sendMulticast(
+                                group.stream().map(User::getId).toList(),
+                                NotificationType.NEW_POST,
+                                content.title(),
+                                content.body(),
+                                post.getId(),
+                                post.getThumbnailUrl()
+                        );
+                    });
                 }
             }
 
@@ -129,14 +134,21 @@ public class PostEventListener {
                         .collect(Collectors.toList());
 
                 if (!targetVisitedFriends.isEmpty()) {
-                    notificationService.sendMulticast(
-                            targetVisitedFriends.stream().map(User::getId).toList(),
-                            NotificationType.FRIEND_VISITED,
-                            "반가운 발자취! 👣",
-                            author.getNickname() + "님이 회원님이 방문했던 곳에 다녀갔어요!",
-                            post.getId(),
-                            post.getThumbnailUrl() 
-                    );
+                    Map<String, List<User>> visitedByLang = targetVisitedFriends.stream()
+                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : "KR"));
+
+                    visitedByLang.forEach((lang, group) -> {
+                        var content = messageProvider.getMessage(NotificationType.FRIEND_VISITED, lang, author.getNickname());
+
+                        notificationService.sendMulticast(
+                                group.stream().map(User::getId).toList(),
+                                NotificationType.FRIEND_VISITED,
+                                content.title(),
+                                content.body(),
+                                post.getId(),
+                                post.getThumbnailUrl()
+                        );
+                    });
 
                     List<DailyPushLog> logs = targetVisitedFriends.stream()
                             .map(f -> new DailyPushLog(

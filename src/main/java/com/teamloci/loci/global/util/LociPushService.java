@@ -2,9 +2,9 @@ package com.teamloci.loci.global.util;
 
 import com.teamloci.loci.domain.notification.DailyPushLog;
 import com.teamloci.loci.domain.notification.DailyPushLogRepository;
+import com.teamloci.loci.domain.notification.NotificationMessageProvider;
 import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
-import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,6 +28,7 @@ public class LociPushService {
     private final UserRepository userRepository;
     private final DailyPushLogRepository dailyPushLogRepository;
     private final NotificationService notificationService;
+    private final NotificationMessageProvider messageProvider;
 
     private static final int BATCH_SIZE = 1000;
 
@@ -77,16 +77,25 @@ public class LociPushService {
             }
 
             if (!finalTargets.isEmpty()) {
-                List<Long> targetIds = finalTargets.stream().map(User::getId).toList();
+                Map<String, List<User>> usersByCountry = finalTargets.stream()
+                        .collect(Collectors.groupingBy(
+                                u -> u.getCountryCode() != null ? u.getCountryCode() : "KR"
+                        ));
 
-                notificationService.sendMulticast(
-                        targetIds,
-                        NotificationType.LOCI_TIME,
-                        "Time to Loci! 📸",
-                        "지금 바로 친구들에게 일상을 공유하세요!",
-                        null,
-                        null
-                );
+                usersByCountry.forEach((countryCode, users) -> {
+                    var content = messageProvider.getMessage(NotificationType.LOCI_TIME, countryCode);
+
+                    List<Long> targetIds = users.stream().map(User::getId).toList();
+
+                    notificationService.sendMulticast(
+                            targetIds,
+                            NotificationType.LOCI_TIME,
+                            content.title(),
+                            content.body(),
+                            null,
+                            null
+                    );
+                });
 
                 dailyPushLogRepository.saveAll(logsToSave);
                 totalProcessed += finalTargets.size();

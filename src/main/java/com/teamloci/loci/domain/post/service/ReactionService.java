@@ -114,19 +114,15 @@ public class ReactionService {
                     .forEach(recipients::add);
         }
 
-        // 2. 각 수신자에게 알림 전송
         for (User recipient : recipients) {
-            if (recipient.getId().equals(sender.getId())) {
-                continue;
-            }
+            if (recipient.getId().equals(sender.getId())) continue;
 
             notificationService.send(
                     recipient,
                     NotificationType.POST_REACTION,
-                    "새로운 반응",
-                    sender.getNickname() + "님이 회원님의 게시물에 반응을 남겼습니다.",
                     postId,
-                    post.getThumbnailUrl()
+                    post.getThumbnailUrl(),
+                    sender.getNickname()
             );
         }
 
@@ -229,10 +225,9 @@ public class ReactionService {
                 notificationService.send(
                         comment.getUser(),
                         NotificationType.COMMENT_LIKE,
-                        "댓글 좋아요",
-                        user.getNickname() + "님이 회원님의 댓글을 좋아합니다.",
                         comment.getPost().getId(),
-                        comment.getPost().getThumbnailUrl()
+                        comment.getPost().getThumbnailUrl(),
+                        user.getNickname()
                 );
             }
         }

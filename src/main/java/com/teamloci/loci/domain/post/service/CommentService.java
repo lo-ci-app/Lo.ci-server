@@ -90,10 +90,9 @@ public class CommentService {
             notificationService.send(
                     recipient,
                     NotificationType.POST_COMMENT,
-                    "새로운 댓글",
-                    user.getNickname() + "님이: " + summary,
                     postId,
-                    user.getProfileUrl()
+                    user.getProfileUrl(),
+                    user.getNickname()
             );
         }
 
@@ -125,16 +124,15 @@ public class CommentService {
                 : content;
 
         mentionedUsers.stream()
-                .filter(u -> u.getStatus() == UserStatus.ACTIVE) // 탈퇴한 유저는 제외
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
                 .filter(u -> !u.getId().equals(sender.getId()))
                 .forEach(target -> {
                     notificationService.send(
                             target,
                             NotificationType.COMMENT_MENTION,
-                            "회원님을 언급했습니다",
-                            sender.getNickname() + "님이 댓글에서 회원님을 언급했습니다: " + summary,
                             post.getId(),
-                            sender.getProfileUrl()
+                            sender.getProfileUrl(),
+                            sender.getNickname()
                     );
                     notifiedUserIds.add(target.getId());
                 });

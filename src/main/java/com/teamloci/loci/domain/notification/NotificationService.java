@@ -4,7 +4,6 @@ import com.google.firebase.messaging.*;
 import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
-import com.teamloci.loci.global.auth.AuthenticatedUser;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +32,7 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final IntimacyService intimacyService;
     private final StringRedisTemplate redisTemplate;
+    private final NotificationMessageProvider messageProvider;
 
     @Lazy
     @Autowired
@@ -42,7 +42,6 @@ public class NotificationService {
     private static final String NUDGE_REDIS_PREFIX = "nudge:cooltime:";
     private static final long NUDGE_COOLTIME_MINUTES = 60;
 
-    // 헬퍼 메소드 추가 (User 조회)
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -82,6 +81,13 @@ public class NotificationService {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
         notification.markAsRead();
+    }
+
+    @Transactional
+    public void send(User receiver, NotificationType type, Long relatedId, String thumbnailUrl, Object... messageArgs) {
+        var content = messageProvider.getMessage(type, receiver.getCountryCode(), messageArgs);
+
+        this.send(receiver, type, content.title(), content.body(), relatedId, thumbnailUrl);
     }
 
     @Transactional
@@ -213,11 +219,9 @@ public class NotificationService {
     @Transactional
     public int readAllNotifications(Long userId) {
         int updatedCount = notificationRepository.markAllAsRead(userId);
-
         if (updatedCount > 0) {
             log.info("사용자 {}의 알림 {}개를 일괄 읽음 처리했습니다.", userId, updatedCount);
         }
-
         return updatedCount;
     }
 
@@ -235,33 +239,20 @@ public class NotificationService {
         }
 
         User sender = findUserById(senderId);
-
-        if (!userRepository.existsById(targetUserId)) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
+        User target = findUserById(targetUserId);
 
         int intimacyLevel = intimacyService.getIntimacyLevel(senderId, targetUserId);
         if (intimacyLevel < 3) {
             throw new CustomException(ErrorCode.NUDGE_NOT_ALLOWED);
         }
 
-        String finalMessage = DEFAULT_NUDGE_MESSAGE;
-        if (intimacyLevel >= 6 && StringUtils.hasText(request.getMessage())) {
-            finalMessage = request.getMessage();
-        }
-
-        String title = sender.getNickname() + "님의 콕 찌르기";
-
         redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
 
-        self.sendMulticast(
-                List.of(targetUserId),
-                NotificationType.NUDGE,
-                title,
-                finalMessage,
-                sender.getId(),
-                sender.getProfileUrl()
-        );
+        if (intimacyLevel >= 6 && StringUtils.hasText(request.getMessage())) {
+            this.send(target, NotificationType.NUDGE, sender.getNickname() + "님의 콕 찌르기", request.getMessage(), sender.getId(), sender.getProfileUrl());
+        } else {
+            this.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(), sender.getNickname());
+        }
 
         return NotificationDto.NudgeResponse.builder()
                 .isSent(true)
