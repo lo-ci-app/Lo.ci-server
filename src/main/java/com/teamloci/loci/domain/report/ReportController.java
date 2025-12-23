@@ -29,7 +29,7 @@ public class ReportController {
         return user.getUserId();
     }
 
-    @Operation(summary = "신고하기", description = "게시물, 댓글, 사용자 등을 신고합니다. (3회 누적 시 자동 블라인드)")
+    @Operation(summary = "신고하기", description = "게시물, 댓글을 신고합니다. (3회 누적 시 자동 블라인드)")
     @PostMapping
     public ResponseEntity<CustomResponse<Void>> createReport(
             @AuthenticationPrincipal AuthenticatedUser user,

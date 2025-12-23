@@ -32,6 +32,8 @@ public class ReportService {
             throw new CustomException(ErrorCode.ALREADY_REPORTED);
         }
 
+        validateSelfReport(reporterId, request.getTargetType(), request.getTargetId());
+
         User reporter = userRepository.findById(reporterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -48,18 +50,41 @@ public class ReportService {
         checkAndBlindContent(request.getTargetType(), request.getTargetId());
     }
 
+    private void validateSelfReport(Long reporterId, ReportTarget type, Long targetId) {
+        if (type == ReportTarget.POST) {
+            postRepository.findById(targetId).ifPresent(post -> {
+                if (post.getUser().getId().equals(reporterId)) {
+                    throw new CustomException(ErrorCode.SELF_REPORT_NOT_ALLOWED);
+                }
+            });
+        } else if (type == ReportTarget.COMMENT) {
+            commentRepository.findById(targetId).ifPresent(comment -> {
+                if (comment.getUser().getId().equals(reporterId)) {
+                    throw new CustomException(ErrorCode.SELF_REPORT_NOT_ALLOWED);
+                }
+            });
+        }
+    }
+
     private void checkAndBlindContent(ReportTarget type, Long targetId) {
         long count = reportRepository.countByTargetTypeAndTargetIdAndStatus(type, targetId, ReportStatus.PENDING);
 
         if (count >= BLIND_THRESHOLD) {
             log.info("🚨 [자동 블라인드] {} ID: {} (누적 신고: {}회)", type, targetId, count);
 
+            boolean blinded = false;
             if (type == ReportTarget.POST) {
-                postRepository.findById(targetId)
-                        .ifPresent(post -> post.changeStatus(PostStatus.BLIND));
+                postRepository.findById(targetId).ifPresent(post -> {
+                    post.changeStatus(PostStatus.BLIND);
+                });
+                blinded = true;
             } else if (type == ReportTarget.COMMENT) {
-                commentRepository.findById(targetId)
-                        .ifPresent(PostComment::blind);
+                commentRepository.findById(targetId).ifPresent(PostComment::blind);
+                blinded = true;
+            }
+
+            if (blinded) {
+                reportRepository.updateStatusByTarget(type, targetId, ReportStatus.PENDING, ReportStatus.RESOLVED);
             }
         }
     }

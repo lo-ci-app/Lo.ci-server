@@ -177,6 +177,11 @@ public class CommentService {
 
         List<CommentDto.Response> commentDtos = comments.stream()
                 .map(c -> {
+                    String contentToDisplay = c.getContent();
+                    if (c.isBlinded()) {
+                        contentToDisplay = "신고 누적으로 블라인드 처리된 댓글입니다.";
+                    }
+
                     Long userId = c.getUser().getId();
                     var stats = statsMap.getOrDefault(userId, new UserActivityService.UserStats(0,0,0,0,0));
 
@@ -200,7 +205,7 @@ public class CommentService {
 
                     return CommentDto.Response.builder()
                             .id(c.getId())
-                            .content(c.getContent())
+                            .content(contentToDisplay)
                             .user(userResp)
                             .createdAt(c.getCreatedAt())
                             .build();
