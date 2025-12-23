@@ -139,4 +139,8 @@ public class Post extends BaseTimeEntity {
     public void updateDescription(String description) {
         this.description = description;
     }
+
+    public void changeStatus(PostStatus status) {
+        this.status = status;
+    }
 }

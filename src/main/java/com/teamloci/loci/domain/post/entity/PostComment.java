@@ -31,6 +31,9 @@ public class PostComment extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(nullable = false)
+    private boolean isBlinded = false;
+
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CommentLike> likes = new ArrayList<>();
 
@@ -42,5 +45,9 @@ public class PostComment extends BaseTimeEntity {
         this.post = post;
         this.user = user;
         this.content = content;
+    }
+
+    public void blind() {
+        this.isBlinded = true;
     }
 }

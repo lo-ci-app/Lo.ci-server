@@ -65,7 +65,11 @@ public enum ErrorCode implements BaseErrorCode {
 
     // == 넛지 에러 ==
     NUDGE_NOT_ALLOWED("NUDGE001", "친밀도 레벨 3부터 콕 찌르기를 할 수 있습니다.", HttpStatus.FORBIDDEN),
-    TOO_MANY_REQUESTS("G005", "잠시 후에 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS);
+    TOO_MANY_REQUESTS("G005", "잠시 후에 다시 시도해주세요.", HttpStatus.TOO_MANY_REQUESTS),
+
+    // == 신고 에러 ==
+    ALREADY_REPORTED("RP001", "이미 신고한 대상입니다.", HttpStatus.CONFLICT),
+    SELF_REPORT_NOT_ALLOWED("RP002", "본인을 신고할 수 없습니다.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

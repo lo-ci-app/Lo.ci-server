@@ -610,6 +610,4 @@ public class PostService {
 
         return response;
     }
-
-
 }
