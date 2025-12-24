@@ -3,7 +3,7 @@ package com.teamloci.loci.global.infra;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j; // [추가]
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,11 +29,17 @@ public class S3UploadService {
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
+
     private static final String CACHE_CONTROL_VALUE = "public, max-age=2592000";
     private static final String CLOUDFRONT_DOMAIN = "https://dagvorl6p9q6m.cloudfront.net";
 
+    private static final List<String> ALLOWED_VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "wmv", "mkv", "webm");
+
     @Value("${spring.cloud.aws.s3.bucket:loci-assets}")
     private String bucket;
+
+    @Value("${spring.cloud.aws.s3.presigned-url.duration:10}")
+    private long presignedUrlDuration;
 
     @Transactional
     public String uploadAndReplace(MultipartFile newFile, String oldFileUrl, String dirName) {
@@ -113,21 +119,31 @@ public class S3UploadService {
 
     public FileDto.PresignedUrlResponse getPresignedUrl(String directory, String fileName) {
         String ext = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
-        List<String> allowedExt = List.of("mp4", "mov", "avi", "wmv", "mkv");
-        if (!allowedExt.contains(ext)) {
+
+        if (!ALLOWED_VIDEO_EXTENSIONS.contains(ext)) {
             throw new CustomException(ErrorCode.FILE_NAME_INVALID);
         }
 
-        String uniqueFileName = directory + "/" + UUID.randomUUID() + "_" + fileName;
+        String sanitizedFileName = fileName.replaceAll("[^a-zA-Z0-9.\\-]", "_");
+        String uniqueFileName = directory + "/" + UUID.randomUUID() + "_" + sanitizedFileName;
+
+        String contentType = switch (ext) {
+            case "mov" -> "video/quicktime";
+            case "avi" -> "video/x-msvideo";
+            case "wmv" -> "video/x-ms-wmv";
+            case "mkv" -> "video/x-matroska";
+            case "webm" -> "video/webm";
+            default -> "video/" + ext; // mp4 등
+        };
 
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(uniqueFileName)
-                .contentType("video/" + (ext.equals("mov") ? "quicktime" : ext)) // Content-Type 지정
+                .contentType(contentType)
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(10))
+                .signatureDuration(Duration.ofMinutes(presignedUrlDuration))
                 .putObjectRequest(objectRequest)
                 .build();
 
