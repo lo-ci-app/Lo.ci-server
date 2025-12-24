@@ -38,7 +38,6 @@ public class NotificationService {
     @Autowired
     private NotificationService self;
 
-    private static final String DEFAULT_NUDGE_MESSAGE = "콕! 친구가 회원님을 생각하고 있어요. 👋";
     private static final String NUDGE_REDIS_PREFIX = "nudge:cooltime:";
     private static final long NUDGE_COOLTIME_MINUTES = 60;
 
@@ -47,52 +46,15 @@ public class NotificationService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
-    public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
-        PageRequest pageable = PageRequest.of(0, size + 1);
-        List<Notification> notifications = notificationRepository.findByUserIdWithCursor(userId, cursorId, pageable);
-
-        boolean hasNext = false;
-        if (notifications.size() > size) {
-            hasNext = true;
-            notifications.remove(size);
-        }
-        Long nextCursor = notifications.isEmpty() ? null : notifications.get(notifications.size() - 1).getId();
-
-        List<NotificationDto.Response> dtos = notifications.stream()
-                .map(NotificationDto.Response::from)
-                .collect(Collectors.toList());
-
-        long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
-
-        return NotificationDto.ListResponse.builder()
-                .notifications(dtos)
-                .hasNext(hasNext)
-                .nextCursor(nextCursor)
-                .unreadCount(unreadCount)
-                .build();
-    }
-
-    @Transactional
-    public void readNotification(Long userId, Long notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
-
-        if (!notification.getReceiver().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
-        }
-        notification.markAsRead();
-    }
-
     @Transactional
     public void send(User receiver, NotificationType type, Long relatedId, String thumbnailUrl, Object... messageArgs) {
         var content = messageProvider.getMessage(type, receiver.getCountryCode(), messageArgs);
-
         this.send(receiver, type, content.title(), content.body(), relatedId, thumbnailUrl);
     }
 
     @Transactional
     public void send(User receiver, NotificationType type, String title, String body, Long relatedId, String thumbnailUrl) {
-        notificationRepository.save(Notification.builder()
+        Notification savedNotification = notificationRepository.save(Notification.builder()
                 .receiver(receiver)
                 .type(type)
                 .title(title)
@@ -103,7 +65,8 @@ public class NotificationService {
 
         String token = receiver.getFcmToken();
         if (token != null && !token.isBlank()) {
-            sendFcm(token, title, body, type, relatedId, thumbnailUrl);
+            // FCM 전송 (저장된 알림 ID 포함)
+            sendFcm(token, title, body, type, relatedId, thumbnailUrl, savedNotification.getId());
         }
     }
 
@@ -113,7 +76,6 @@ public class NotificationService {
         if (receiverIds == null || receiverIds.isEmpty()) return;
 
         List<User> receivers = userRepository.findAllById(receiverIds);
-
         if (receivers.isEmpty()) return;
 
         List<Notification> entities = receivers.stream()
@@ -138,7 +100,7 @@ public class NotificationService {
         }
     }
 
-    private void sendFcm(String token, String title, String body, NotificationType type, Long relatedId, String thumbnailUrl) {
+    private void sendFcm(String token, String title, String body, NotificationType type, Long relatedId, String thumbnailUrl, Long notificationId) {
         try {
             com.google.firebase.messaging.Notification.Builder notiBuilder =
                     com.google.firebase.messaging.Notification.builder()
@@ -156,8 +118,10 @@ public class NotificationService {
                             .setAps(Aps.builder().setSound("default").setContentAvailable(true).build())
                             .build())
                     .putData("type", type.name())
+                    .putData("targetNotificationId", String.valueOf(notificationId))
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
                     .putData("thumbnailUrl", thumbnailUrl != null ? thumbnailUrl : "")
+                    .putData("thumbnailType", getThumbnailType(type))
                     .build();
 
             FirebaseMessaging.getInstance().send(message);
@@ -184,8 +148,10 @@ public class NotificationService {
                             .setAps(Aps.builder().setSound("default").setContentAvailable(true).build())
                             .build())
                     .putData("type", type.name())
+                    .putData("targetNotificationId", "-1")
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
                     .putData("thumbnailUrl", thumbnailUrl != null ? thumbnailUrl : "")
+                    .putData("thumbnailType", getThumbnailType(type))
                     .build();
 
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
@@ -209,6 +175,7 @@ public class NotificationService {
                             .build())
                     .setApnsConfig(ApnsConfig.builder().setAps(Aps.builder().setSound("default").build()).build())
                     .putData("type", "DIRECT_MESSAGE")
+                    .putData("thumbnailType", "USER_PROFILE") // DM은 항상 프로필
                     .build();
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
@@ -216,16 +183,13 @@ public class NotificationService {
         }
     }
 
-    @Transactional
-    public int readAllNotifications(Long userId) {
-        int updatedCount = notificationRepository.markAllAsRead(userId);
-        if (updatedCount > 0) {
-            log.info("사용자 {}의 알림 {}개를 일괄 읽음 처리했습니다.", userId, updatedCount);
-        }
-        return updatedCount;
+    private String getThumbnailType(NotificationType type) {
+        return switch (type) {
+            case NEW_POST, POST_TAGGED, POST_REACTION, COMMENT_LIKE, FRIEND_VISITED, LOCI_TIME -> "POST_IMAGE";
+            default -> "USER_PROFILE";
+        };
     }
 
-    @Transactional
     public NotificationDto.NudgeResponse sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {
         String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + targetUserId;
         Long expire = redisTemplate.getExpire(redisKey, TimeUnit.SECONDS);
@@ -266,10 +230,50 @@ public class NotificationService {
     private String formatDuration(long seconds) {
         long minutes = seconds / 60;
         long remainingSec = seconds % 60;
-        if (minutes > 0) {
-            return String.format("%d분 %d초", minutes, remainingSec);
-        } else {
-            return String.format("%d초", remainingSec);
+        return minutes > 0 ? String.format("%d분 %d초", minutes, remainingSec) : String.format("%d초", remainingSec);
+    }
+
+    public void readNotification(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (!notification.getReceiver().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
         }
+        notification.markAsRead();
+    }
+
+    public NotificationDto.ListResponse getMyNotifications(Long userId, Long cursorId, int size) {
+        PageRequest pageable = PageRequest.of(0, size + 1);
+        List<Notification> notifications = notificationRepository.findByUserIdWithCursor(userId, cursorId, pageable);
+
+        boolean hasNext = false;
+        if (notifications.size() > size) {
+            hasNext = true;
+            notifications.remove(size);
+        }
+        Long nextCursor = notifications.isEmpty() ? null : notifications.get(notifications.size() - 1).getId();
+
+        List<NotificationDto.Response> dtos = notifications.stream()
+                .map(NotificationDto.Response::from)
+                .collect(Collectors.toList());
+
+        long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
+
+        return NotificationDto.ListResponse.builder()
+                .notifications(dtos)
+                .hasNext(hasNext)
+                .nextCursor(nextCursor)
+                .unreadCount(unreadCount)
+                .build();
+    }
+
+    @Transactional
+    public int readAllNotifications(Long userId) {
+        int updatedCount = notificationRepository.markAllAsRead(userId);
+        if (updatedCount > 0) {
+            log.info("사용자 {}의 알림 {}개를 일괄 읽음 처리했습니다.", userId, updatedCount);
+        }
+        return updatedCount;
     }
 }
