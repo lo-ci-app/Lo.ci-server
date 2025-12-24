@@ -18,8 +18,8 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 import java.io.IOException;
 import java.net.URL;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
+import java.util.Set; // [Change] List -> Set
 import java.util.UUID;
 
 @Slf4j
@@ -33,7 +33,7 @@ public class S3UploadService {
     private static final String CACHE_CONTROL_VALUE = "public, max-age=2592000";
     private static final String CLOUDFRONT_DOMAIN = "https://dagvorl6p9q6m.cloudfront.net";
 
-    private static final List<String> ALLOWED_VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "wmv", "mkv", "webm");
+    private static final Set<String> ALLOWED_VIDEO_EXTENSIONS = Set.of("mp4", "mov", "avi", "wmv", "mkv", "webm");
 
     @Value("${spring.cloud.aws.s3.bucket:loci-assets}")
     private String bucket;
@@ -72,7 +72,8 @@ public class S3UploadService {
                 .filter(name -> !name.isBlank())
                 .orElseThrow(() -> new CustomException(ErrorCode.FILE_NAME_INVALID));
 
-        String uniqueName = UUID.randomUUID() + "_" + original.replaceAll("[^a-zA-Z0-9.\\-]", "_");
+        String sanitizedOriginal = original.replaceAll("[^\\p{L}\\p{N}.\\-]", "_");
+        String uniqueName = UUID.randomUUID() + "_" + sanitizedOriginal;
         String key = dirName + "/" + uniqueName;
 
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -124,7 +125,8 @@ public class S3UploadService {
             throw new CustomException(ErrorCode.FILE_NAME_INVALID);
         }
 
-        String sanitizedFileName = fileName.replaceAll("[^a-zA-Z0-9.\\-]", "_");
+        String sanitizedFileName = fileName.replaceAll("[^\\p{L}\\p{N}.\\-]", "_");
+
         String uniqueFileName = directory + "/" + UUID.randomUUID() + "_" + sanitizedFileName;
 
         String contentType = switch (ext) {
