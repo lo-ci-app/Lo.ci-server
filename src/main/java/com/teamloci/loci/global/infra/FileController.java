@@ -35,4 +35,18 @@ public class FileController {
         String fileUrl = s3UploadService.upload(file, directory);
         return ResponseEntity.ok(CustomResponse.ok(new FileDto.FileUploadResponse(fileUrl)));
     }
+
+    @Operation(summary = "영상 업로드용 Presigned URL 발급", description = "대용량 영상 업로드를 위해 AWS S3에 직접 업로드할 수 있는 임시 URL을 발급받습니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "URL 발급 성공"),
+            @ApiResponse(responseCode = "400", description = "지원하지 않는 파일 형식 (mp4, mov 등만 가능)", content = @Content),
+            @ApiResponse(responseCode = "500", description = "AWS Presigner 서명 실패", content = @Content)
+    })
+    @PostMapping("/presigned-url")
+    public ResponseEntity<CustomResponse<FileDto.PresignedUrlResponse>> getPresignedUrl(
+            @RequestBody FileDto.PresignedUrlRequest request
+    ) {
+        FileDto.PresignedUrlResponse response = s3UploadService.getPresignedUrl(request.getDirectory(), request.getFileName());
+        return ResponseEntity.ok(CustomResponse.ok(response));
+    }
 }

@@ -12,9 +12,13 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +28,7 @@ import java.util.UUID;
 public class S3UploadService {
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
     private static final String CACHE_CONTROL_VALUE = "public, max-age=2592000";
     private static final String CLOUDFRONT_DOMAIN = "https://dagvorl6p9q6m.cloudfront.net";
 
@@ -104,5 +109,30 @@ public class S3UploadService {
         } catch (Exception e) {
             log.error("S3 파일 삭제 실패: {} ({})", fileUrl, e.getMessage());
         }
+    }
+
+    public FileDto.PresignedUrlResponse getPresignedUrl(String directory, String fileName) {
+        String ext = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+        List<String> allowedExt = List.of("mp4", "mov", "avi", "wmv", "mkv");
+        if (!allowedExt.contains(ext)) {
+            throw new CustomException(ErrorCode.FILE_NAME_INVALID);
+        }
+
+        String uniqueFileName = directory + "/" + UUID.randomUUID() + "_" + fileName;
+
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(uniqueFileName)
+                .contentType("video/" + (ext.equals("mov") ? "quicktime" : ext)) // Content-Type 지정
+                .build();
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10))
+                .putObjectRequest(objectRequest)
+                .build();
+
+        String url = s3Presigner.presignPutObject(presignRequest).url().toString();
+
+        return new FileDto.PresignedUrlResponse(url, uniqueFileName);
     }
 }
