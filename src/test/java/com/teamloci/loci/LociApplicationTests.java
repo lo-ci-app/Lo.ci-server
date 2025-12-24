@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @SpringBootTest
 class LociApplicationTests {
@@ -24,6 +25,9 @@ class LociApplicationTests {
     
     @MockBean
     private FirebaseMessaging firebaseMessaging;
+
+    @MockBean
+    private S3Presigner s3Presigner;
 
     @Test
     void contextLoads() {
