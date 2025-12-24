@@ -6,6 +6,7 @@ import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,9 @@ public class UserActivityService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
 
-    public record UserStats(long friendCount, long postCount, long streakCount, long visitedPlaceCount, int totalIntimacyLevel) {}
+    private final ObjectProvider<UserActivityService> selfProvider;
 
+    public record UserStats(long friendCount, long postCount, long streakCount, long visitedPlaceCount, int totalIntimacyLevel) {}
 
     @Cacheable(value = "userStats", key = "#userId")
     public UserStats getUserStats(Long userId) {
@@ -51,22 +53,14 @@ public class UserActivityService {
             return Collections.emptyMap();
         }
 
-        List<User> users = userRepository.findAllById(userIds);
+        UserActivityService self = selfProvider.getObject();
 
-        return users.stream().collect(Collectors.toMap(
-                User::getId,
-                u -> {
-                    long effectiveStreak = calculateEffectiveStreak(u);
-
-                    return new UserStats(
-                            u.getFriendCount(),
-                            u.getPostCount(),
-                            effectiveStreak,
-                            u.getVisitedPlaceCount(),
-                            u.getTotalIntimacyLevel()
-                    );
-                }
-        ));
+        return userIds.stream()
+                .distinct()
+                .collect(Collectors.toMap(
+                        id -> id,
+                        self::getUserStats
+                ));
     }
 
     private long calculateEffectiveStreak(User user) {
@@ -92,6 +86,7 @@ public class UserActivityService {
     }
 
     @Transactional
+    @CacheEvict(value = "userStats", key = "#userId")
     public void updateUserStats(Long userId, String beaconId) {
         try {
             User user = userRepository.findByIdWithLock(userId)

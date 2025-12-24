@@ -51,7 +51,7 @@ public class PostService {
     private final ApplicationEventPublisher eventPublisher;
     private final UserBeaconStatsRepository userBeaconStatsRepository;
 
-    @Value("${feature.use-new-map-marker:false}")
+    @Value("${feature.use-new-map-marker:true}")
     private boolean useNewMapMarker;
 
     private User findUserById(Long userId) {
@@ -287,18 +287,13 @@ public class PostService {
     }
 
     public List<PostDto.MapMarkerResponse> getMapMarkers(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {
-        if (useNewMapMarker) {
-            try {
-                return getMapMarkersOptimized(minLat, maxLat, minLon, maxLon, myUserId);
-            } catch (DataAccessException e) {
-                log.warn("[Map Optimization DB Error] 기존 로직으로 대체 실행", e);
-            } catch (Exception e) {
-                log.error("[Map Optimization Code Error] 로직 버그 발생! 기존 로직으로 대체", e);
-            }
+        try {
+            return getMapMarkersOptimized(minLat, maxLat, minLon, maxLon, myUserId);
+        } catch (Exception e) {
+            log.error("[Map Optimization Error] 최적화 로직 실패, 기존 로직으로 Fallback: {}", e.getMessage());
+            List<Object[]> results = postRepository.findMapMarkers(minLat, maxLat, minLon, maxLon, myUserId);
+            return mapToMarkerResponse(results);
         }
-
-        List<Object[]> results = postRepository.findMapMarkers(minLat, maxLat, minLon, maxLon, myUserId);
-        return mapToMarkerResponse(results);
     }
 
     private List<PostDto.MapMarkerResponse> getMapMarkersOptimized(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {

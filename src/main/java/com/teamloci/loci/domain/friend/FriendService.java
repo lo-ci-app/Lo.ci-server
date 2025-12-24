@@ -17,6 +17,8 @@ import com.teamloci.loci.global.util.AesUtil;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -142,6 +144,10 @@ public class FriendService {
         return buildUserResponses(userId, matchedUsers);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "activeFriends", key = "#myUserId"),
+            @CacheEvict(value = "activeFriends", key = "#requesterId")
+    })
     @Transactional
     public void acceptFriendRequest(Long myUserId, Long requesterId) {
         User me = userRepository.findByIdWithLock(myUserId)
@@ -162,13 +168,8 @@ public class FriendService {
 
         long myRealFriendCount = friendshipRepository.countFriends(myUserId);
         long requesterRealFriendCount = friendshipRepository.countFriends(requesterId);
-
-        if (myRealFriendCount >= MAX_FRIEND_LIMIT) {
-            throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
-        }
-        if (requesterRealFriendCount >= MAX_FRIEND_LIMIT) {
-            throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
-        }
+        if (myRealFriendCount >= MAX_FRIEND_LIMIT) throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+        if (requesterRealFriendCount >= MAX_FRIEND_LIMIT) throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
 
         friendship.accept();
 
@@ -186,6 +187,10 @@ public class FriendService {
         );
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "activeFriends", key = "#myUserId"),
+            @CacheEvict(value = "activeFriends", key = "#targetUserId")
+    })
     @Transactional
     public void sendFriendRequest(Long myUserId, Long targetUserId) {
         if (myUserId.equals(targetUserId)) throw new CustomException(ErrorCode.SELF_FRIEND_REQUEST);
@@ -208,12 +213,8 @@ public class FriendService {
             if (f.getRequester().getId().equals(myUserId)) {
                 throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
             } else {
-                if (myRealFriendCount >= MAX_FRIEND_LIMIT) {
-                    throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
-                }
-                if (targetRealFriendCount >= MAX_FRIEND_LIMIT) {
-                    throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
-                }
+                if (myRealFriendCount >= MAX_FRIEND_LIMIT) throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+                if (targetRealFriendCount >= MAX_FRIEND_LIMIT) throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
 
                 f.accept();
                 userRepository.increaseFriendCount(myUserId);
@@ -222,12 +223,8 @@ public class FriendService {
             }
         }
 
-        if (myRealFriendCount >= MAX_FRIEND_LIMIT) {
-            throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
-        }
-        if (targetRealFriendCount >= MAX_FRIEND_LIMIT) {
-            throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
-        }
+        if (myRealFriendCount >= MAX_FRIEND_LIMIT) throw new CustomException(ErrorCode.FRIEND_LIMIT_EXCEEDED);
+        if (targetRealFriendCount >= MAX_FRIEND_LIMIT) throw new CustomException(ErrorCode.TARGET_FRIEND_LIMIT_EXCEEDED);
 
         Friendship friendship = Friendship.builder()
                 .requester(me)
@@ -246,6 +243,10 @@ public class FriendService {
         );
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "activeFriends", key = "#myUserId"),
+            @CacheEvict(value = "activeFriends", key = "#targetUserId")
+    })
     @Transactional
     public void deleteFriendship(Long myUserId, Long targetUserId) {
         Friendship friendship = friendshipRepository.findFriendshipBetween(myUserId, targetUserId)

@@ -32,8 +32,8 @@ public class S3UploadService {
 
     private static final String CACHE_CONTROL_VALUE = "public, max-age=2592000";
     private static final String CLOUDFRONT_DOMAIN = "https://dagvorl6p9q6m.cloudfront.net";
-
     private static final Set<String> ALLOWED_VIDEO_EXTENSIONS = Set.of("mp4", "mov", "avi", "wmv", "mkv", "webm");
+    private static final long MAX_FILE_SIZE = 500 * 1024 * 1024;
 
     @Value("${spring.cloud.aws.s3.bucket:loci-assets}")
     private String bucket;
@@ -118,11 +118,15 @@ public class S3UploadService {
         }
     }
 
-    public FileDto.PresignedUrlResponse getPresignedUrl(String directory, String fileName) {
+    public FileDto.PresignedUrlResponse getPresignedUrl(String directory, String fileName, Long fileSize) {
         String ext = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
 
         if (!ALLOWED_VIDEO_EXTENSIONS.contains(ext)) {
             throw new CustomException(ErrorCode.FILE_NAME_INVALID);
+        }
+
+        if (fileSize == null || fileSize > MAX_FILE_SIZE) {
+            throw new CustomException(ErrorCode.FILE_SIZE_EXCEEDED);
         }
 
         String sanitizedFileName = fileName.replaceAll("[^\\p{L}\\p{N}.\\-]", "_");
@@ -142,6 +146,8 @@ public class S3UploadService {
                 .bucket(bucket)
                 .key(uniqueFileName)
                 .contentType(contentType)
+                .contentLength(fileSize)
+                .cacheControl("public, max-age=31536000")
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()

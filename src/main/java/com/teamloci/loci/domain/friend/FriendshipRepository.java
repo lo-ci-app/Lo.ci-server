@@ -1,6 +1,7 @@
 package com.teamloci.loci.domain.friend;
 
 import com.teamloci.loci.domain.user.User;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -59,6 +60,7 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
         """, nativeQuery = true)
     List<Object[]> countFriendsByUserIds(@Param("userIds") List<Long> userIds);
 
+    @Cacheable(value = "activeFriends", key = "#userId")
     @Query("SELECT f.receiver FROM Friendship f " +
             "WHERE f.requester.id = :userId " +
             "AND f.status = 'FRIENDSHIP' " +

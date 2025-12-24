@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -32,7 +33,6 @@ public class LociPushService {
 
     private static final int BATCH_SIZE = 1000;
 
-    @Transactional
     public void executeGlobalPush() {
         log.info("🔔 [Global Push] 로키 타임 알림 발송 시작!");
 
@@ -42,6 +42,7 @@ public class LociPushService {
 
         while (hasNext) {
             Pageable pageable = PageRequest.of(pageNumber, BATCH_SIZE);
+
             Slice<User> userSlice = userRepository.findActiveUsersWithFcmToken(pageable);
             List<User> candidates = userSlice.getContent();
 
@@ -96,7 +97,8 @@ public class LociPushService {
                     );
                 });
 
-                dailyPushLogRepository.saveAll(logsToSave);
+                saveLogsInNewTransaction(logsToSave);
+
                 totalProcessed += finalTargets.size();
             }
 
@@ -105,5 +107,12 @@ public class LociPushService {
         }
 
         log.info("🔔 [Global Push] 발송 완료: 총 {}명", totalProcessed);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveLogsInNewTransaction(List<DailyPushLog> logs) {
+        if (!logs.isEmpty()) {
+            dailyPushLogRepository.saveAll(logs);
+        }
     }
 }

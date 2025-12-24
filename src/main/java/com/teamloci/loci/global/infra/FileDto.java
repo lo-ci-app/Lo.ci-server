@@ -25,6 +25,9 @@ public class FileDto {
 
         @Schema(description = "저장할 폴더 경로", example = "videos")
         private String directory;
+
+        @Schema(description = "파일 크기 (Byte 단위)", example = "15728640") // 15MB
+        private Long fileSize;
     }
 
     @Getter

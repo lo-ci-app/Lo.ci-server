@@ -30,6 +30,7 @@ public enum ErrorCode implements BaseErrorCode {
     FILE_IS_EMPTY("FILE400_1", "업로드할 파일이 비어있습니다.", HttpStatus.BAD_REQUEST),
     FILE_NAME_INVALID("FILE400_2", "파일 이름이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
     S3_UPLOAD_FAILED("S3500_1", "S3 파일 업로드에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_SIZE_EXCEEDED("FILE400_3", "파일 크기가 초과되었습니다.", HttpStatus.BAD_REQUEST),
 
     // == 친구 관련 에러 ==
     SELF_FRIEND_REQUEST("FRIEND400_1", "자기 자신에게 친구 요청을 보낼 수 없습니다.", HttpStatus.BAD_REQUEST),
