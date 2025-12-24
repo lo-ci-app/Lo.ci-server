@@ -65,7 +65,6 @@ public class NotificationService {
 
         String token = receiver.getFcmToken();
         if (token != null && !token.isBlank()) {
-            // FCM 전송 (저장된 알림 ID 포함)
             sendFcm(token, title, body, type, relatedId, thumbnailUrl, savedNotification.getId());
         }
     }
@@ -175,7 +174,7 @@ public class NotificationService {
                             .build())
                     .setApnsConfig(ApnsConfig.builder().setAps(Aps.builder().setSound("default").build()).build())
                     .putData("type", "DIRECT_MESSAGE")
-                    .putData("thumbnailType", "USER_PROFILE") // DM은 항상 프로필
+                    .putData("thumbnailType", "USER_PROFILE")
                     .build();
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
@@ -185,7 +184,13 @@ public class NotificationService {
 
     private String getThumbnailType(NotificationType type) {
         return switch (type) {
-            case NEW_POST, POST_TAGGED, POST_REACTION, COMMENT_LIKE, FRIEND_VISITED, LOCI_TIME -> "POST_IMAGE";
+            // 게시물 사진 (사각형 렌더링)
+            case NEW_POST, POST_TAGGED, POST_REACTION, COMMENT_LIKE -> "POST_IMAGE";
+
+            // 로키 타임 (앱 로고 사용)
+            case LOCI_TIME -> "APP_LOGO";
+
+            // 그 외 (친구 방문, 댓글 등) -> 유저 프로필 (원형 렌더링)
             default -> "USER_PROFILE";
         };
     }
@@ -233,6 +238,7 @@ public class NotificationService {
         return minutes > 0 ? String.format("%d분 %d초", minutes, remainingSec) : String.format("%d초", remainingSec);
     }
 
+    @Transactional
     public void readNotification(Long userId, Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
