@@ -13,7 +13,7 @@ public class FileDto {
     @Schema(description = "일반 파일 업로드 응답")
     public static class FileUploadResponse {
         @Schema(description = "업로드된 파일의 CDN/S3 URL", example = "https://cdn.loci.com/posts/image.jpg")
-        private String url;
+        private String fileUrl;
     }
 
     @Getter
