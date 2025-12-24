@@ -96,14 +96,23 @@ public class PostEventListener {
             ZoneId authorZone = author.getZoneIdOrDefault();
             LocalDate today = LocalDate.now(authorZone);
 
+            Set<Long> taggedUserIds = (post.getCollaborators() != null) ?
+                    post.getCollaborators().stream()
+                            .map(c -> c.getUser().getId())
+                            .collect(Collectors.toSet())
+                    : Set.of();
+
             if (!friends.isEmpty()) {
                 List<User> targetNewPostFriends = friends.stream()
                         .filter(User::isNewPostPushEnabled)
+                        .filter(friend -> !taggedUserIds.contains(friend.getId()))
                         .toList();
 
                 if (!targetNewPostFriends.isEmpty()) {
                     Map<String, List<User>> friendsByLang = targetNewPostFriends.stream()
-                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG));
+                            .collect(Collectors.groupingBy(
+                                    u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG
+                            ));
 
                     friendsByLang.forEach((lang, group) -> {
                         var content = messageProvider.getMessage(NotificationType.NEW_POST, lang, author.getNickname());
@@ -135,7 +144,9 @@ public class PostEventListener {
 
                 if (!targetVisitedFriends.isEmpty()) {
                     Map<String, List<User>> visitedByLang = targetVisitedFriends.stream()
-                            .collect(Collectors.groupingBy(u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG));
+                            .collect(Collectors.groupingBy(
+                                    u -> u.getCountryCode() != null ? u.getCountryCode() : NotificationMessageProvider.DEFAULT_LANG
+                            ));
 
                     visitedByLang.forEach((lang, group) -> {
                         var content = messageProvider.getMessage(NotificationType.FRIEND_VISITED, lang, author.getNickname());
