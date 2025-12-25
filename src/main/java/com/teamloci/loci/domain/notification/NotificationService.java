@@ -120,7 +120,6 @@ public class NotificationService {
                     .putData("targetNotificationId", String.valueOf(notificationId))
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
                     .putData("thumbnailUrl", thumbnailUrl != null ? thumbnailUrl : "")
-                    .putData("thumbnailType", getThumbnailType(type))
                     .build();
 
             FirebaseMessaging.getInstance().send(message);
@@ -150,7 +149,6 @@ public class NotificationService {
                     .putData("targetNotificationId", "-1")
                     .putData("relatedId", relatedId != null ? String.valueOf(relatedId) : "")
                     .putData("thumbnailUrl", thumbnailUrl != null ? thumbnailUrl : "")
-                    .putData("thumbnailType", getThumbnailType(type))
                     .build();
 
             BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
@@ -174,25 +172,11 @@ public class NotificationService {
                             .build())
                     .setApnsConfig(ApnsConfig.builder().setAps(Aps.builder().setSound("default").build()).build())
                     .putData("type", "DIRECT_MESSAGE")
-                    .putData("thumbnailType", "USER_PROFILE")
                     .build();
             FirebaseMessaging.getInstance().send(message);
         } catch (Exception e) {
             log.error(">>> [DM FCM Send Error] Exception: ", e);
         }
-    }
-
-    private String getThumbnailType(NotificationType type) {
-        return switch (type) {
-            // 게시물 사진 (사각형 렌더링)
-            case NEW_POST, POST_TAGGED, POST_REACTION, COMMENT_LIKE -> "POST_IMAGE";
-
-            // 로키 타임 (앱 로고 사용)
-            case LOCI_TIME -> "APP_LOGO";
-
-            // 그 외 (친구 방문, 댓글 등) -> 유저 프로필 (원형 렌더링)
-            default -> "USER_PROFILE";
-        };
     }
 
     public NotificationDto.NudgeResponse sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {

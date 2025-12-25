@@ -28,6 +28,9 @@ public class NotificationDto {
         @Schema(description = "알림 썸네일 이미지 URL")
         private String thumbnailUrl;
 
+        @Schema(description = "썸네일 타입 (POST_IMAGE: 사각형, APP_LOGO: 앱 로고, USER_PROFILE: 원형)", example = "POST_IMAGE")
+        private String thumbnailType;
+
         public static Response from(Notification notification) {
             return Response.builder()
                     .id(notification.getId())
@@ -38,7 +41,18 @@ public class NotificationDto {
                     .isRead(notification.isRead())
                     .createdAt(notification.getCreatedAt())
                     .thumbnailUrl(notification.getThumbnailUrl())
+                    .thumbnailType(getThumbnailType(notification.getType()))
                     .build();
+        }
+
+        private static String getThumbnailType(NotificationType type) {
+            return switch (type) {
+                case NEW_POST, POST_TAGGED, POST_REACTION, COMMENT_LIKE -> "POST_IMAGE";
+
+                case LOCI_TIME -> "APP_LOGO";
+
+                default -> "USER_PROFILE";
+            };
         }
     }
 

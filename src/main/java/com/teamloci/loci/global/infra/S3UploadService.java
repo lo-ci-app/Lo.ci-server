@@ -139,7 +139,7 @@ public class S3UploadService {
             case "wmv" -> "video/x-ms-wmv";
             case "mkv" -> "video/x-matroska";
             case "webm" -> "video/webm";
-            default -> "video/" + ext; // mp4 등
+            default -> "video/" + ext;
         };
 
         PutObjectRequest objectRequest = PutObjectRequest.builder()
@@ -147,7 +147,6 @@ public class S3UploadService {
                 .key(uniqueFileName)
                 .contentType(contentType)
                 .contentLength(fileSize)
-                .cacheControl("public, max-age=31536000")
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
