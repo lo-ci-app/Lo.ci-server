@@ -179,6 +179,7 @@ public class NotificationService {
         }
     }
 
+    @Transactional
     public NotificationDto.NudgeResponse sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {
         String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + targetUserId;
         Long expire = redisTemplate.getExpire(redisKey, TimeUnit.SECONDS);
