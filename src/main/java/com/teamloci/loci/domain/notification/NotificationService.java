@@ -202,10 +202,10 @@ public class NotificationService {
         redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
 
         if (intimacyLevel >= 6 && StringUtils.hasText(request.getMessage())) {
-            this.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
+            self.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
                     sender.getNickname(), request.getMessage());
         } else {
-            this.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
+            self.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
                     sender.getNickname());
         }
 
