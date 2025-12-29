@@ -117,7 +117,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 p.thumbnail_url,
                 p.created_at,
                 COUNT(*) OVER (PARTITION BY p.beacon_id) as cnt,
-                ROW_NUMBER() OVER (PARTITION BY p.beacon_id ORDER BY p.created_at DESC, p.id DESC) as rn
+                ROW_NUMBER() OVER (
+                    PARTITION BY p.beacon_id 
+                    ORDER BY 
+                        -- [수정] 유효한 장소명을 우선순위로 두기 위한 정렬 로직 추가
+                        CASE 
+                            WHEN p.location_name IN ('Somewhere', 'Unknown') THEN 1 
+                            ELSE 0 
+                        END ASC,
+                        p.created_at DESC, 
+                        p.id DESC
+                ) as rn
             FROM posts p
             WHERE p.user_id = :userId 
               AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED')

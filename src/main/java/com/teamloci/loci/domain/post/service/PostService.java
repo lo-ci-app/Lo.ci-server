@@ -369,12 +369,14 @@ public class PostService {
                     UserDto.UserResponse userResp = UserDto.UserResponse.from(p.getUser());
                     userResp.setRelationStatus("FRIEND");
 
+                    GeoUtils.Pair<Double, Double> beaconLatLng = geoUtils.beaconIdToLatLng(p.getBeaconId());
+
                     return PostDto.FriendMapMarkerResponse.builder()
                             .user(userResp)
                             .beacon(PostDto.BeaconInfo.builder()
                                     .id(p.getBeaconId())
-                                    .latitude(p.getLatitude())
-                                    .longitude(p.getLongitude())
+                                    .latitude(beaconLatLng != null ? beaconLatLng.lat : p.getLatitude())
+                                    .longitude(beaconLatLng != null ? beaconLatLng.lng : p.getLongitude())
                                     .build())
                             .post(PostDto.PostInfo.builder()
                                     .id(p.getId())
