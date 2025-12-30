@@ -61,4 +61,15 @@ public class AuthController {
         authService.signUpWithPhone(request);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
+
+    @Operation(summary = "토큰 재발급 (Reissue)", description = "Refresh Token을 사용하여 새로운 Access/Refresh Token을 발급받습니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "재발급 성공"),
+            @ApiResponse(responseCode = "401", description = "유효하지 않거나 만료된 Refresh Token", content = @Content)
+    })
+    @PostMapping("/reissue")
+    public ResponseEntity<CustomResponse<TokenResponse>> reissue(@RequestBody RefreshTokenRequest request) {
+        TokenResponse tokenResponse = authService.reissue(request);
+        return ResponseEntity.ok(CustomResponse.ok(tokenResponse));
+    }
 }

@@ -1,11 +1,7 @@
 package com.teamloci.loci.domain.auth;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-@Getter
-@AllArgsConstructor
-public class AuthResponse {
-    private String accessToken;
-    private Boolean isNewUser;
-}
+public record AuthResponse(
+        String accessToken,
+        String refreshToken,
+        boolean isNewUser
+) {}

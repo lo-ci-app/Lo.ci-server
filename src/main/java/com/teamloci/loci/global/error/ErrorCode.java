@@ -17,6 +17,8 @@ public enum ErrorCode implements BaseErrorCode {
 
     // == Auth 관련 에러 ==
     APPLE_TOKEN_VERIFY_FAILED("AUTH401_1", "Apple ID 토큰 검증에 실패했습니다.", HttpStatus.UNAUTHORIZED),
+    INVALID_TOKEN("AUTH401_2", "유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED),
+    INVALID_REFRESH_TOKEN("AUTH401_3", "유효하지 않은 리프레시 토큰입니다.", HttpStatus.UNAUTHORIZED),
     NICKNAME_DUPLICATED("AUTH409_1", "이미 사용 중인 닉네임입니다.", HttpStatus.CONFLICT),
     HANDLE_DUPLICATED("AUTH409_2", "이미 사용 중인 핸들입니다.", HttpStatus.CONFLICT),
     NO_PHONE_NUMBER("AUTH404_1", "전화번호가 없습니다.", HttpStatus.NOT_FOUND),

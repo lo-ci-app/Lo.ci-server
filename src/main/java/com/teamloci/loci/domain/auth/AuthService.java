@@ -11,12 +11,14 @@ import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.AesUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.util.HexFormat;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -27,10 +29,12 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final AesUtil aesUtil;
+    private final StringRedisTemplate redisTemplate;
 
     private static final SecureRandom secureRandom = new SecureRandom();
     private static final HexFormat hexFormat = HexFormat.of();
 
+    @Transactional
     public AuthResponse loginWithPhone(PhoneLoginRequest request) {
         String phoneNumber = verifyFirebaseToken(request.getIdToken());
         String searchHash = aesUtil.hash(phoneNumber);
@@ -38,9 +42,48 @@ public class AuthService {
         return userRepository.findByPhoneSearchHash(searchHash)
                 .map(user -> {
                     String accessToken = jwtTokenProvider.createAccessToken(user);
-                    return new AuthResponse(accessToken, false);
+                    String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+                    redisTemplate.opsForValue().set(
+                            "RT:" + user.getId(),
+                            refreshToken,
+                            jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
+                            TimeUnit.MILLISECONDS
+                    );
+
+                    return new AuthResponse(accessToken, refreshToken, false);
                 })
-                .orElseGet(() -> new AuthResponse(null, true));
+                .orElseGet(() -> new AuthResponse(null, null, true));
+    }
+
+    public TokenResponse reissue(RefreshTokenRequest request) {
+        String refreshToken = request.getRefreshToken();
+
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+
+        String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+
+        String storedToken = redisTemplate.opsForValue().get("RT:" + userId);
+        if (storedToken == null || !storedToken.equals(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(user);
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+        redisTemplate.opsForValue().set(
+                "RT:" + userId,
+                newRefreshToken,
+                jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
+                TimeUnit.MILLISECONDS
+        );
+
+        return new TokenResponse(newAccessToken, newRefreshToken);
     }
 
     @Transactional
