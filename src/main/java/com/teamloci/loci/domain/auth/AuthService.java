@@ -64,13 +64,11 @@ public class AuthService {
         String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
         String redisKey = REFRESH_TOKEN_PREFIX + userId;
 
-        String storedToken = redisTemplate.opsForValue().get(redisKey);
+        String storedToken = redisTemplate.opsForValue().getAndDelete(redisKey);
 
         if (storedToken == null || !storedToken.equals(refreshToken)) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
-
-        redisTemplate.delete(redisKey);
 
         User user = userRepository.findById(Long.parseLong(userId))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
