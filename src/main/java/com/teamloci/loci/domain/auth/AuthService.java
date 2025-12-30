@@ -34,6 +34,8 @@ public class AuthService {
     private static final SecureRandom secureRandom = new SecureRandom();
     private static final HexFormat hexFormat = HexFormat.of();
 
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
+
     @Transactional
     public AuthResponse loginWithPhone(PhoneLoginRequest request) {
         String phoneNumber = verifyFirebaseToken(request.getIdToken());
@@ -44,18 +46,14 @@ public class AuthService {
                     String accessToken = jwtTokenProvider.createAccessToken(user);
                     String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-                    redisTemplate.opsForValue().set(
-                            "RT:" + user.getId(),
-                            refreshToken,
-                            jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
-                            TimeUnit.MILLISECONDS
-                    );
+                    storeRefreshToken(user.getId(), refreshToken);
 
                     return new AuthResponse(accessToken, refreshToken, false);
                 })
                 .orElseGet(() -> new AuthResponse(null, null, true));
     }
 
+    @Transactional
     public TokenResponse reissue(RefreshTokenRequest request) {
         String refreshToken = request.getRefreshToken();
 
@@ -65,7 +63,7 @@ public class AuthService {
 
         String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
 
-        String storedToken = redisTemplate.opsForValue().get("RT:" + userId);
+        String storedToken = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + userId);
         if (storedToken == null || !storedToken.equals(refreshToken)) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
@@ -76,14 +74,18 @@ public class AuthService {
         String newAccessToken = jwtTokenProvider.createAccessToken(user);
         String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
+        storeRefreshToken(user.getId(), newRefreshToken);
+
+        return new TokenResponse(newAccessToken, newRefreshToken);
+    }
+
+    private void storeRefreshToken(Long userId, String refreshToken) {
         redisTemplate.opsForValue().set(
-                "RT:" + userId,
-                newRefreshToken,
+                REFRESH_TOKEN_PREFIX + userId,
+                refreshToken,
                 jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
                 TimeUnit.MILLISECONDS
         );
-
-        return new TokenResponse(newAccessToken, newRefreshToken);
     }
 
     @Transactional

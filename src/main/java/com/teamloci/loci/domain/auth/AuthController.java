@@ -68,7 +68,7 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "유효하지 않거나 만료된 Refresh Token", content = @Content)
     })
     @PostMapping("/reissue")
-    public ResponseEntity<CustomResponse<TokenResponse>> reissue(@RequestBody RefreshTokenRequest request) {
+    public ResponseEntity<CustomResponse<TokenResponse>> reissue(@Valid @RequestBody RefreshTokenRequest request) {
         TokenResponse tokenResponse = authService.reissue(request);
         return ResponseEntity.ok(CustomResponse.ok(tokenResponse));
     }
