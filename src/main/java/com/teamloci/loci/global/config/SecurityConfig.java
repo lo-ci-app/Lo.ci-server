@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles; // [추가] Profiles import
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,10 +23,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
-import java.util.Arrays;
 import java.util.List;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
@@ -36,10 +36,10 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final Environment env;
 
-    @Value("${swagger.user:admin}")
+    @Value("${swagger.user}")
     private String swaggerUser;
 
-    @Value("${swagger.password:1234}")
+    @Value("${swagger.password}")
     private String swaggerPassword;
 
     private static final String[] SWAGGER_URL_PATTERNS = {
@@ -54,10 +54,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public InMemoryUserDetailsManager userDetailsService() {
+    public InMemoryUserDetailsManager userDetailsService(PasswordEncoder passwordEncoder) {
         UserDetails user = User.builder()
                 .username(swaggerUser)
-                .password(passwordEncoder().encode(swaggerPassword))
+                .password(passwordEncoder.encode(swaggerPassword))
                 .roles("SWAGGER")
                 .build();
         return new InMemoryUserDetailsManager(user);
@@ -66,7 +66,7 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     public SecurityFilterChain swaggerFilterChain(HttpSecurity http) throws Exception {
-        boolean isLocal = Arrays.asList(env.getActiveProfiles()).contains("local");
+        boolean isLocal = env.acceptsProfiles(Profiles.of("local"));
 
         http
                 .securityMatcher(SWAGGER_URL_PATTERNS)
