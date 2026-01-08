@@ -75,7 +75,9 @@ public class SecurityConfig {
                     if (isLocal) {
                         auth.anyRequest().permitAll();
                     } else {
-                        auth.anyRequest().authenticated();
+                        auth
+                                .requestMatchers("/v3/api-docs/**").permitAll()
+                                .anyRequest().authenticated();
                     }
                 });
 
