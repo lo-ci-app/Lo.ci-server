@@ -45,9 +45,11 @@ public class SecurityConfig {
     private static final String[] SWAGGER_URL_PATTERNS = {
             "/swagger-ui/**",
             "/v3/api-docs/**",
+            "/v3/api-docs/swagger-config",
+            "/api/v3/api-docs/**",
+            "/api/v3/api-docs/swagger-config",
             "/swagger-resources/**"
     };
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -76,7 +78,12 @@ public class SecurityConfig {
                         auth.anyRequest().permitAll();
                     } else {
                         auth
-                                .requestMatchers("/v3/api-docs/**").permitAll()
+                                .requestMatchers(
+                                        "/v3/api-docs/**",
+                                        "/v3/api-docs/swagger-config",
+                                        "/api/v3/api-docs/**",
+                                        "/api/v3/api-docs/swagger-config"
+                                ).permitAll()
                                 .anyRequest().authenticated();
                     }
                 });
