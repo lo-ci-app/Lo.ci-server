@@ -39,7 +39,7 @@ public class NotificationService {
     private NotificationService self;
 
     private static final String NUDGE_REDIS_PREFIX = "nudge:cooltime:";
-    private static final long NUDGE_COOLTIME_MINUTES = 60;
+    private static final long NUDGE_COOLTIME_MINUTES = 1;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -181,17 +181,6 @@ public class NotificationService {
 
     @Transactional
     public NotificationDto.NudgeResponse sendNudge(Long senderId, Long targetUserId, NotificationDto.NudgeRequest request) {
-        String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + targetUserId;
-        Long expire = redisTemplate.getExpire(redisKey, TimeUnit.SECONDS);
-
-        if (expire != null && expire > 0) {
-            return NotificationDto.NudgeResponse.builder()
-                    .isSent(false)
-                    .message(String.format("%s 뒤에 다시 찌를 수 있어요!", formatDuration(expire)))
-                    .remainingSeconds(expire)
-                    .build();
-        }
-
         User sender = findUserById(senderId);
         User target = findUserById(targetUserId);
 
@@ -200,14 +189,28 @@ public class NotificationService {
             throw new CustomException(ErrorCode.NUDGE_NOT_ALLOWED);
         }
 
-        redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
+        boolean isCustomNudge = intimacyLevel >= 6 && StringUtils.hasText(request.getMessage());
+        String redisKey = NUDGE_REDIS_PREFIX + senderId + ":" + targetUserId;
 
-        if (intimacyLevel >= 6 && StringUtils.hasText(request.getMessage())) {
+        if (!isCustomNudge) {
+            Long expire = redisTemplate.getExpire(redisKey, TimeUnit.SECONDS);
+            if (expire != null && expire > 0) {
+                return NotificationDto.NudgeResponse.builder()
+                        .isSent(false)
+                        .message(String.format("%s 뒤에 다시 찌를 수 있어요!", formatDuration(expire)))
+                        .remainingSeconds(expire)
+                        .build();
+            }
+        }
+
+        if (isCustomNudge) {
             self.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
                     sender.getNickname(), request.getMessage());
         } else {
             self.send(target, NotificationType.NUDGE, sender.getId(), sender.getProfileUrl(),
                     sender.getNickname());
+
+            redisTemplate.opsForValue().set(redisKey, "1", Duration.ofMinutes(NUDGE_COOLTIME_MINUTES));
         }
 
         return NotificationDto.NudgeResponse.builder()
