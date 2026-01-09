@@ -88,7 +88,8 @@ public class SecurityConfig {
                                 ).permitAll()
                                 .anyRequest().authenticated();
                     }
-                });
+                })
+                .userDetailsService(userDetailsService(passwordEncoder()));
 
         if (!isLocal) {
             http.httpBasic(withDefaults());
