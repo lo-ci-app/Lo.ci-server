@@ -12,8 +12,9 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @OpenAPIDefinition(servers = {
-        @Server(url = "https://api-dev.loci.my", description = "Development Server (HTTPS)"),
-        @Server(url = "http://localhost:8080", description = "Local Development Server (HTTP)")
+        @Server(url = "https://api-prod.loci.my", description = "Production Server"),
+        @Server(url = "https://api-dev.loci.my", description = "Development Server"),
+        @Server(url = "http://localhost:8080", description = "Local Server")
 })
 public class SwaggerConfig {
 
