@@ -94,6 +94,7 @@ public class BadgeService {
 
         if (user.getMainBadge() == null) {
             user.updateMainBadge(badge);
+            userRepository.save(user); 
         }
     }
 }
