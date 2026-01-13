@@ -65,6 +65,11 @@ public class BadgeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if (user.getMainBadge() != null && user.getMainBadge().getId().equals(badgeId)) {
+            user.updateMainBadge(null);
+            return;
+        }
+
         Badge badge = badgeRepository.findById(badgeId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배지입니다."));
 
