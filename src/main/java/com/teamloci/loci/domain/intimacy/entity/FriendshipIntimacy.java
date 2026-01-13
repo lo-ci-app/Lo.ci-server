@@ -10,9 +10,11 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "friendship_intimacies", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_a_id", "user_b_id"})
-})
+@Table(name = "friendship_intimacies",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id_a", "user_id_b"})
+        }
+)
 public class FriendshipIntimacy extends BaseTimeEntity {
 
     @Id

@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles; // [추가] Profiles import
+import org.springframework.core.env.Profiles;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -132,7 +132,8 @@ public class SecurityConfig {
                                 "/health",
                                 "/api/v1/auth/**",
                                 "/login_test.html",
-                                "/api/v1/users/check-handle"
+                                "/api/v1/users/check-handle",
+                                "/api/v1/versions/**"
                         ).permitAll()
                         .anyRequest().authenticated());
         http
