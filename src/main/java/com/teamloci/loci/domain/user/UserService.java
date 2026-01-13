@@ -37,7 +37,7 @@ public class UserService {
     private final UserActivityService userActivityService;
     private final FriendshipIntimacyRepository intimacyRepository;
     private final UserBadgeRepository userBadgeRepository;
-    private final IntimacyLevelRepository intimacyLevelRepository;
+    private final FriendshipIntimacyRepository friendshipIntimacyRepository;
     private final PostCommentRepository postCommentRepository;
     private final NotificationRepository notificationRepository;
     private final IntimacyLogRepository intimacyLogRepository;
@@ -230,7 +230,8 @@ public class UserService {
 
         friendshipRepository.deleteByFromUserOrToUser(user, user);
 
-        intimacyLevelRepository.deleteByActorIdOrTargetId(userId, userId);
+        friendshipIntimacyRepository.deleteByUserAIdOrUserBId(userId, userId);
+        
         intimacyLogRepository.deleteByActorIdOrTargetId(userId, userId);
 
         notificationRepository.deleteByReceiver(user);

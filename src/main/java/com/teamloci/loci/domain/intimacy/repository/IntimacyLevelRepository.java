@@ -9,6 +9,4 @@ public interface IntimacyLevelRepository extends JpaRepository<IntimacyLevel, In
     List<IntimacyLevel> findAllByOrderByLevelDesc();
 
     Optional<IntimacyLevel> findByLevel(Integer level);
-
-    void deleteByActorIdOrTargetId(Long actorId, Long targetId);
 }

@@ -42,4 +42,6 @@ public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIn
             @Param("myUserId") Long myUserId,
             @Param("targetUserIds") List<Long> targetUserIds
     );
+
+    void deleteByUserAIdOrUserBId(Long userAId, Long userBId);
 }
