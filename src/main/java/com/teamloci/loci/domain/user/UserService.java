@@ -228,16 +228,14 @@ public class UserService {
         userBadgeRepository.deleteByUser(user);
         user.updateMainBadge(null);
 
-        friendshipRepository.deleteByFromUserOrToUser(user, user);
+        friendshipRepository.deleteByRequesterOrReceiver(user, user);
 
         friendshipIntimacyRepository.deleteByUserAIdOrUserBId(userId, userId);
-        
         intimacyLogRepository.deleteByActorIdOrTargetId(userId, userId);
 
         notificationRepository.deleteByReceiver(user);
 
         postCommentRepository.deleteByUser(user);
-
         postRepository.deleteByUser(user);
 
         userRepository.delete(user);
