@@ -39,6 +39,8 @@ jobs:
 
       - name: Deploy to Dev EC2 via SSM
         run: |
+          # 1. 배포 스크립트 실행 명령 전송
+          echo "🚀 Sending Deploy Command..."
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=instanceids,Values=${{ secrets.DEV_INSTANCE_ID }}" \
@@ -47,10 +49,17 @@ jobs:
             --query "Command.CommandId" \
             --output text)
 
+          echo "SSM Command ID: $COMMAND_ID"
+          echo "⏳ Waiting for deployment to finish (Max 10 mins)..."
+
+          # 2. 배포 완료 대기 (10초 간격, 최대 60회 = 10분)
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.DEV_INSTANCE_ID }}"
+            --instance-id "${{ secrets.DEV_INSTANCE_ID }}" \
+            --delay 10 \
+            --max-attempts 60
 
+          # 3. 배포 결과 조회
           OUTPUT=$(aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" \
             --instance-id "${{ secrets.DEV_INSTANCE_ID }}" \
@@ -60,10 +69,37 @@ jobs:
           echo "Command Status: $STATUS"
 
           if [ "$STATUS" != "Success" ]; then
-            echo "Deployment Failed!"
+            echo "❌ Deployment Failed!"
+            echo "--- Standard Error ---"
             echo $OUTPUT | jq -r '.StandardErrorContent'
             exit 1
           fi
 
-          echo "Deployment Success!"
+          echo "✅ Deployment Success!"
+          echo "--- Deploy Script Output ---"
           echo $OUTPUT | jq -r '.StandardOutputContent'
+
+          # 4. 실행 중인 포트 확인 (추가된 부분)
+          echo "🔍 Checking Active Service Port..."
+          
+          PORT_CHECK_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=instanceids,Values=${{ secrets.DEV_INSTANCE_ID }}" \
+            --comment "Check Active Port" \
+            --parameters 'commands=["ps -ef | grep java | grep -v grep | grep server.port"]' \
+            --query "Command.CommandId" \
+            --output text)
+          
+          aws ssm wait command-executed \
+            --command-id "$PORT_CHECK_ID" \
+            --instance-id "${{ secrets.DEV_INSTANCE_ID }}" \
+            --delay 2 \
+            --max-attempts 5
+          
+          PORT_OUTPUT=$(aws ssm get-command-invocation \
+            --command-id "$PORT_CHECK_ID" \
+            --instance-id "${{ secrets.DEV_INSTANCE_ID }}" \
+            --output json)
+          
+          echo "--- Active Java Process ---"
+          echo $PORT_OUTPUT | jq -r '.StandardOutputContent'
