@@ -77,6 +77,9 @@ public class UserDto {
         @Schema(description = "프로필 이미지 URL", example = "https://fiv5.../profile.jpg")
         private String profileUrl;
 
+        @Schema(description = "메인 배지 이미지 URL", example = "https://s3.../badge.png")
+        private String mainBadgeUrl;
+
         @Schema(description = "블루투스 토큰 (8자리 Hex)", example = "a1b2c3d4")
         private String bluetoothToken;
 
@@ -126,6 +129,7 @@ public class UserDto {
                     .handle(user.getHandle())
                     .nickname(user.getNickname())
                     .profileUrl(user.getProfileUrl())
+                    .mainBadgeUrl(user.getMainBadge() != null ? user.getMainBadge().getImageUrl() : null)
                     .bluetoothToken(user.getBluetoothToken())
                     .createdAt(user.getCreatedAt())
                     .relationStatus(relationStatus)
@@ -145,6 +149,7 @@ public class UserDto {
                     .handle(user.getHandle())
                     .nickname(user.getNickname())
                     .profileUrl(user.getProfileUrl())
+                    .mainBadgeUrl(user.getMainBadge() != null ? user.getMainBadge().getImageUrl() : null)
                     .bluetoothToken(user.getBluetoothToken())
                     .createdAt(user.getCreatedAt())
                     .relationStatus("NONE")

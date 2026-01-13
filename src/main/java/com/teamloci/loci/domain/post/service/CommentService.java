@@ -11,6 +11,7 @@ import com.teamloci.loci.domain.post.dto.CommentDto;
 import com.teamloci.loci.domain.post.entity.Post;
 import com.teamloci.loci.domain.post.entity.PostCollaborator;
 import com.teamloci.loci.domain.post.entity.PostComment;
+import com.teamloci.loci.domain.post.event.CommentCreatedEvent;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.user.*;
@@ -18,6 +19,7 @@ import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.RelationUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,7 @@ public class CommentService {
     private final NotificationService notificationService;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-z0-9._]+)");
 
@@ -56,6 +59,7 @@ public class CommentService {
                 .content(request.getContent())
                 .build();
         PostComment savedComment = commentRepository.save(comment);
+        eventPublisher.publishEvent(new CommentCreatedEvent(user));
 
         postRepository.increaseCommentCount(postId);
 

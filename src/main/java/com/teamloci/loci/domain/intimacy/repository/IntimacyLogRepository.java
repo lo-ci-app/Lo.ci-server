@@ -34,4 +34,6 @@ public interface IntimacyLogRepository extends JpaRepository<IntimacyLog, Long> 
             "   (l.actorId = :user2Id AND l.targetId = :user1Id) " +
             ")")
     boolean existsFriendMadeLogBetween(@Param("user1Id") Long user1Id, @Param("user2Id") Long user2Id, @Param("type") IntimacyType type);
+
+    long countByTargetIdAndType(Long targetId, IntimacyType type);
 }

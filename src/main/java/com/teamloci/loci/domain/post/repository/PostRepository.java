@@ -220,4 +220,15 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findTopByUserIdAndBeaconIdOrderByIdDesc(Long userId, String beaconId);
 
     Optional<Post> findTopByUserIdOrderByIdDesc(Long userId);
+
+    @Query(value = "SELECT COUNT(*) FROM post p " +
+            "WHERE p.user_id = :userId " +
+            "AND HOUR(CONVERT_TZ(p.created_at, '+00:00', :timeOffset)) >= :startHour " +
+            "AND HOUR(CONVERT_TZ(p.created_at, '+00:00', :timeOffset)) < :endHour",
+            nativeQuery = true)
+    long countByUserAndCreatedHourBetween(
+            @Param("userId") Long userId,
+            @Param("startHour") int startHour,
+            @Param("endHour") int endHour,
+            @Param("timeOffset") String timeOffset);
 }
