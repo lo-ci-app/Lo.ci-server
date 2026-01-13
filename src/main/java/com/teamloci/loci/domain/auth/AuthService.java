@@ -117,6 +117,8 @@ public class AuthService {
 
         userRepository.save(newUser);
         log.info(">>> [회원가입 완료] User ID: {}, Handle: {}", newUser.getId(), newUser.getHandle());
+
+        eventPublisher.publishEvent(new UserLoginEvent(newUser));
     }
 
     private void validateSignUpRequest(PhoneLoginRequest request) {

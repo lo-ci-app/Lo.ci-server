@@ -15,9 +15,11 @@ import com.teamloci.loci.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -37,8 +39,8 @@ public class BadgeEventListener {
     private final UserRepository userRepository;
 
     @Async
-    @EventListener
-    @Transactional
+    @Order(2)
+    @TransactionalEventListener
     public void handlePostCreated(PostCreatedEvent event) {
         User user = event.getPost().getUser();
 
