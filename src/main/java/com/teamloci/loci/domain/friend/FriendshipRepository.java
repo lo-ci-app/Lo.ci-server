@@ -71,4 +71,6 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
             "AND f.status = 'FRIENDSHIP' " +
             "AND f.requester.status = 'ACTIVE'")
     List<User> findAllActiveFriends(@Param("userId") Long userId);
+
+    void deleteByFromUserOrToUser(User fromUser, User toUser);
 }

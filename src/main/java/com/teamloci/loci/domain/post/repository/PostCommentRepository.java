@@ -28,4 +28,6 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
     List<Object[]> countByPostIdIn(@Param("postIds") List<Long> postIds);
 
     long countByUser(User user);
+
+    void deleteByUser(User user);
 }

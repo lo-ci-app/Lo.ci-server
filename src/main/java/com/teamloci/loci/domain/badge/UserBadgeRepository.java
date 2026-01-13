@@ -12,4 +12,6 @@ public interface UserBadgeRepository extends JpaRepository<UserBadge, Long> {
     boolean existsByUserAndBadge(User user, Badge badge);
 
     int countByUser(User user);
+
+    void deleteByUser(User user);
 }

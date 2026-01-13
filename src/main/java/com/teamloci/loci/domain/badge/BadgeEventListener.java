@@ -18,6 +18,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -41,6 +42,7 @@ public class BadgeEventListener {
     @Async
     @Order(2)
     @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePostCreated(PostCreatedEvent event) {
         User user = event.getPost().getUser();
 
@@ -83,8 +85,8 @@ public class BadgeEventListener {
     }
 
     @Async
-    @EventListener
-    @Transactional
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleCommentCreated(CommentCreatedEvent event) {
         User user = event.getUser();
         long count = postCommentRepository.countByUser(user);
@@ -94,8 +96,8 @@ public class BadgeEventListener {
     }
 
     @Async
-    @EventListener
-    @Transactional
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleIntimacyLevelUp(IntimacyLevelUpEvent event) {
         if (event.getNewLevel() >= 7) {
             userRepository.findById(event.getActorId())
@@ -106,8 +108,8 @@ public class BadgeEventListener {
     }
 
     @Async
-    @EventListener
-    @Transactional
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleNudge(NudgeEvent event) {
         User receiver = event.getReceiver();
         long count = intimacyLogRepository.countByTargetIdAndType(receiver.getId(), IntimacyType.NUDGE);
@@ -117,8 +119,8 @@ public class BadgeEventListener {
     }
 
     @Async
-    @EventListener
-    @Transactional
+    @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleUserLogin(UserLoginEvent event) {
         badgeService.awardBadge(event.getUser(), BadgeType.NEWBIE);
     }

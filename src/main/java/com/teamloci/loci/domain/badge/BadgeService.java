@@ -89,7 +89,8 @@ public class BadgeService {
 
         boolean isKorean = "KR".equalsIgnoreCase(user.getCountryCode());
         String description = isKorean ? badge.getDescriptionKr() : badge.getDescriptionEn();
-        notificationService.send(user, NotificationType.BADGE_ACQUIRED, null, description);
+
+        notificationService.send(user, NotificationType.BADGE_ACQUIRED, user.getId(), badge.getImageUrl(), description);
 
         if (user.getMainBadge() == null) {
             user.updateMainBadge(badge);

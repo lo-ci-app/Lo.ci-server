@@ -231,4 +231,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("startHour") int startHour,
             @Param("endHour") int endHour,
             @Param("timeOffset") String timeOffset);
+
+    void deleteByUser(User user);
 }

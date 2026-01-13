@@ -1,9 +1,15 @@
 package com.teamloci.loci.domain.user;
 
+import com.teamloci.loci.domain.badge.UserBadgeRepository;
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
+import com.teamloci.loci.domain.intimacy.repository.IntimacyLevelRepository;
+import com.teamloci.loci.domain.intimacy.repository.IntimacyLogRepository;
+import com.teamloci.loci.domain.notification.NotificationRepository;
+import com.teamloci.loci.domain.post.repository.PostCommentRepository;
+import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.infra.S3UploadService;
@@ -30,6 +36,12 @@ public class UserService {
     private final FriendshipRepository friendshipRepository;
     private final UserActivityService userActivityService;
     private final FriendshipIntimacyRepository intimacyRepository;
+    private final UserBadgeRepository userBadgeRepository;
+    private final IntimacyLevelRepository intimacyLevelRepository;
+    private final PostCommentRepository postCommentRepository;
+    private final NotificationRepository notificationRepository;
+    private final IntimacyLogRepository intimacyLogRepository;
+    private final PostRepository postRepository;
 
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
@@ -208,8 +220,28 @@ public class UserService {
 
     @Transactional
     public void withdrawUser(Long userId) {
-        User user = findUserById(userId);
-        user.withdraw();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        log.info(">>> 회원 탈퇴 진행: User ID {}", userId);
+
+        userBadgeRepository.deleteByUser(user);
+        user.updateMainBadge(null);
+
+        friendshipRepository.deleteByFromUserOrToUser(user, user);
+
+        intimacyLevelRepository.deleteByActorIdOrTargetId(userId, userId);
+        intimacyLogRepository.deleteByActorIdOrTargetId(userId, userId);
+
+        notificationRepository.deleteByReceiver(user);
+
+        postCommentRepository.deleteByUser(user);
+
+        postRepository.deleteByUser(user);
+
+        userRepository.delete(user);
+
+        log.info(">>> 회원 탈퇴 완료: User ID {}", userId);
     }
 
     @Transactional
