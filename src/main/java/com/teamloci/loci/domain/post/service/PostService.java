@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.post.service;
 
+import com.teamloci.loci.domain.block.UserBlockService;
 import com.teamloci.loci.domain.friend.Friendship;
 import com.teamloci.loci.domain.friend.FriendshipRepository;
 import com.teamloci.loci.domain.friend.FriendshipStatus;
@@ -50,6 +51,7 @@ public class PostService {
     private final IntimacyService intimacyService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserBeaconStatsRepository userBeaconStatsRepository;
+    private final UserBlockService userBlockService;
 
     @Value("${feature.use-new-map-marker:true}")
     private boolean useNewMapMarker;
@@ -146,6 +148,14 @@ public class PostService {
     public PostDto.FeedResponse getPostsByUser(Long myUserId, Long targetUserId, Long cursorId, int size) {
         if (!userRepository.existsById(targetUserId)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
+        if (blockedIds.contains(targetUserId)) {
+            return PostDto.FeedResponse.builder()
+                    .posts(List.of())
+                    .hasNext(false)
+                    .build();
         }
 
         Pageable pageable = PageRequest.of(0, size + 1);
@@ -271,6 +281,8 @@ public class PostService {
 
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
         List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
+        List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
+        friendIds.removeAll(blockedIds);
 
         if (friendIds.isEmpty()) {
             friendIds.add(-1L);
@@ -299,34 +311,16 @@ public class PostService {
     private List<PostDto.MapMarkerResponse> getMapMarkersOptimized(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
         List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
+        List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
+        friendIds.removeAll(blockedIds);
+
         friendIds.add(myUserId);
 
         List<Object[]> results = userBeaconStatsRepository.findMarkersByFriendsInArea(
                 friendIds, minLat, maxLat, minLon, maxLon
         );
 
-        return results.stream()
-                .map(row -> {
-                    String beaconId = (String) row[0];
-                    Long count = ((Number) row[1]).longValue();
-                    String thumbnail = (String) row[2];
-                    java.sql.Timestamp ts = (java.sql.Timestamp) row[3];
-                    LocalDateTime latestAt = ts != null ? ts.toLocalDateTime() : null;
-
-                    GeoUtils.Pair<Double, Double> latLng = geoUtils.beaconIdToLatLng(beaconId);
-                    if (latLng == null) return null;
-
-                    return PostDto.MapMarkerResponse.builder()
-                            .beaconId(beaconId)
-                            .latitude(latLng.lat)
-                            .longitude(latLng.lng)
-                            .count(count)
-                            .thumbnailImageUrl(thumbnail)
-                            .latestPostedAt(latestAt)
-                            .build();
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        return mapToMarkerResponse(results);
     }
 
     private List<PostDto.MapMarkerResponse> mapToMarkerResponse(List<Object[]> results) {
@@ -360,7 +354,14 @@ public class PostService {
         if (friends.isEmpty()) {
             return List.of();
         }
-        List<Long> friendIds = friends.stream().map(User::getId).toList();
+        List<Long> friendIds = new ArrayList<>(friends.stream().map(User::getId).toList());
+
+        List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
+        friendIds.removeAll(blockedIds);
+
+        if (friendIds.isEmpty()) {
+            return List.of();
+        }
 
         List<Post> posts = postRepository.findLatestPostsByUserIds(friendIds);
 
@@ -398,6 +399,9 @@ public class PostService {
         for (User friend : friends) {
             targetUserIds.add(friend.getId());
         }
+
+        List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
+        targetUserIds.removeAll(blockedIds);
 
         Pageable pageable = PageRequest.of(0, size + 1);
         List<Post> posts = postRepository.findByUserIdInWithCursor(targetUserIds, cursorId, pageable);
@@ -548,6 +552,7 @@ public class PostService {
         boolean isVisitedByMe = postRepository.existsByBeaconIdInAndUserId(targetBeaconIds, myUserId);
 
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
+
         if (friends.isEmpty()) {
             return PostDto.FriendVisitResponse.builder()
                     .isVisitedByMe(isVisitedByMe)
@@ -555,7 +560,19 @@ public class PostService {
                     .totalCount(0L)
                     .build();
         }
-        List<Long> friendIds = friends.stream().map(User::getId).toList();
+
+        List<Long> friendIds = new ArrayList<>(friends.stream().map(User::getId).toList());
+
+        List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
+        friendIds.removeAll(blockedIds);
+
+        if (friendIds.isEmpty()) {
+            return PostDto.FriendVisitResponse.builder()
+                    .isVisitedByMe(isVisitedByMe)
+                    .visitors(List.of())
+                    .totalCount(0L)
+                    .build();
+        }
 
         PageRequest pageRequest = PageRequest.of(0, size);
         List<User> visitors = postRepository.findFriendsInBeacons(targetBeaconIds, friendIds, pageRequest);

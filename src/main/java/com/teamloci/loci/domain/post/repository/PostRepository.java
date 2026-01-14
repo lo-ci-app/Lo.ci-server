@@ -79,6 +79,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "       UNION " +
             "       SELECT f.requester_id FROM friendships f WHERE f.receiver_id = :myUserId AND f.status = 'FRIENDSHIP'" +
             "   )) " +
+            "   AND p2.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " + // 👈 차단 필터 추가
             "   ORDER BY p2.id DESC " +
             "   LIMIT 1" +
             ") as thumbnail_url, " +
@@ -92,6 +93,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "   UNION " +
             "   SELECT f.requester_id FROM friendships f WHERE f.receiver_id = :myUserId AND f.status = 'FRIENDSHIP'" +
             ")) " +
+            "AND p.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " + // 👈 차단 필터 추가
             "GROUP BY p.beacon_id", nativeQuery = true)
     List<Object[]> findMapMarkers(
             @Param("minLat") Double minLat, @Param("maxLat") Double maxLat,
