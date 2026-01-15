@@ -14,24 +14,17 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final UserRepository userRepository;
-    private final S3UploadService s3Uploader;
 
     @Transactional
-    public void createFeedback(Long userId, FeedbackRequest request, MultipartFile image) {
+    public void createFeedback(Long userId, FeedbackRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
-        String imageUrl = null;
-
-        if (image != null && !image.isEmpty()) {
-            imageUrl = s3Uploader.upload(image, "feedbacks");
-        }
 
         Feedback feedback = Feedback.builder()
                 .user(user)
                 .title(request.getTitle())
                 .content(request.getContent())
-                .imageUrl(imageUrl)
+                .imageUrl(request.getImageUrl())
                 .build();
 
         feedbackRepository.save(feedback);
