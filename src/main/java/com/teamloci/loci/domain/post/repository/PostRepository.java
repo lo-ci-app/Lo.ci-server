@@ -81,7 +81,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "       UNION " +
             "       SELECT f.requester_id FROM friendships f WHERE f.receiver_id = :myUserId AND f.status = 'FRIENDSHIP'" +
             "   )) " +
-            "   AND p2.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " + // 👈 차단 필터 추가
+            "   AND p2.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " +
             "   ORDER BY p2.id DESC " +
             "   LIMIT 1" +
             ") as thumbnail_url, " +
@@ -95,7 +95,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "   UNION " +
             "   SELECT f.requester_id FROM friendships f WHERE f.receiver_id = :myUserId AND f.status = 'FRIENDSHIP'" +
             ")) " +
-            "AND p.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " + // 👈 차단 필터 추가
+            "AND p.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " +
             "GROUP BY p.beacon_id", nativeQuery = true)
     List<Object[]> findMapMarkers(
             @Param("minLat") Double minLat, @Param("maxLat") Double maxLat,
@@ -124,7 +124,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 ROW_NUMBER() OVER (
                     PARTITION BY p.beacon_id 
                     ORDER BY 
-                        -- [수정] 유효한 장소명을 우선순위로 두기 위한 정렬 로직 추가
                         CASE 
                             WHEN p.location_name IN ('Somewhere', 'Unknown') THEN 1 
                             ELSE 0 
@@ -237,5 +236,4 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("timeOffset") String timeOffset);
 
     void deleteByUser(User user);
-
 }

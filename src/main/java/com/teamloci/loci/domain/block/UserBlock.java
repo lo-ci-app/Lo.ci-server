@@ -14,7 +14,10 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "user_block",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"blocker_id", "blocked_id"}) // 중복 차단 방지
+                @UniqueConstraint(
+                        name = "uk_user_block_blocker_blocked",
+                        columnNames = {"blocker_id", "blocked_id"}
+                )
         }
 )
 public class UserBlock extends BaseTimeEntity {

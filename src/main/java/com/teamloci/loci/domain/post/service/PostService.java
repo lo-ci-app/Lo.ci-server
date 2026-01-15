@@ -9,7 +9,6 @@ import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.post.dto.PostDto;
 import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.post.event.PostCreatedEvent;
-import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.stat.repository.UserBeaconStatsRepository;
@@ -25,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,14 +42,13 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
-    private final PostCommentRepository commentRepository;
+    private final UserBlockService userBlockService;
     private final PostReactionRepository reactionRepository;
     private final GeoUtils geoUtils;
     private final UserActivityService userActivityService;
     private final IntimacyService intimacyService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserBeaconStatsRepository userBeaconStatsRepository;
-    private final UserBlockService userBlockService;
 
     @Value("${feature.use-new-map-marker:true}")
     private boolean useNewMapMarker;
@@ -294,7 +291,7 @@ public class PostService {
             friendIds.add(-1L);
         }
 
-        Pageable pageable = PageRequest.of(0, size + 1); // 다음 페이지 확인용 +1
+        Pageable pageable = PageRequest.of(0, size + 1);
 
         List<Post> posts = postRepository.findTimelinePostsWithCursor(beaconId, myUserId, friendIds, cursorId, pageable);
 
@@ -313,7 +310,8 @@ public class PostService {
 
     private List<PostDto.MapMarkerResponse> getMapMarkersOptimized(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
-        List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
+        List<Long> friendIds = new ArrayList<>(friends.stream().map(User::getId).toList());
+
         List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
         friendIds.removeAll(blockedIds);
 
@@ -372,9 +370,7 @@ public class PostService {
                 .map(p -> {
                     UserDto.UserResponse userResp = UserDto.UserResponse.from(p.getUser());
                     userResp.setRelationStatus("FRIEND");
-
                     GeoUtils.Pair<Double, Double> beaconLatLng = geoUtils.beaconIdToLatLng(p.getBeaconId());
-
                     return PostDto.FriendMapMarkerResponse.builder()
                             .user(userResp)
                             .beacon(PostDto.BeaconInfo.builder()
@@ -393,9 +389,7 @@ public class PostService {
     }
 
     public PostDto.FeedResponse getFriendFeed(Long myUserId, Long cursorId, int size) {
-
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
-
         List<Long> targetUserIds = new ArrayList<>();
         targetUserIds.add(myUserId);
 
