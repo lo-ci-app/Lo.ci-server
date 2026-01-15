@@ -24,8 +24,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findByIdWithDetails(@Param("postId") Long postId);
 
     @Query("SELECT DISTINCT p FROM Post p " +
-            "LEFT JOIN FETCH p.user " +
-            "LEFT JOIN FETCH p.mediaList " +
+            "JOIN FETCH p.user " +
             "WHERE p.beaconId = :beaconId " +
             "AND ( " +
             "   (p.user.id = :myUserId AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED')) " +
