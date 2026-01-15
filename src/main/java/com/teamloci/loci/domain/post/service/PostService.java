@@ -276,11 +276,17 @@ public class PostService {
         return PostDto.PostDetailResponse.from(findPostById(post.getId()));
     }
 
-    public List<PostDto.PostDetailResponse> getPostsByBeaconId(String beaconId, Long myUserId) {
-        if (beaconId == null || beaconId.isBlank()) return List.of();
+    public PostDto.FeedResponse getPostsByBeaconId(String beaconId, Long myUserId, Long cursorId, int size) {
+        if (beaconId == null || beaconId.isBlank()) {
+            return PostDto.FeedResponse.builder()
+                    .posts(List.of())
+                    .hasNext(false)
+                    .build();
+        }
 
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
-        List<Long> friendIds = friends.stream().map(User::getId).collect(Collectors.toList());
+        List<Long> friendIds = new ArrayList<>(friends.stream().map(User::getId).toList());
+
         List<Long> blockedIds = userBlockService.getBlockedUserIds(myUserId);
         friendIds.removeAll(blockedIds);
 
@@ -288,14 +294,11 @@ public class PostService {
             friendIds.add(-1L);
         }
 
-        List<Post> posts = postRepository.findTimelinePosts(beaconId, myUserId, friendIds);
+        Pageable pageable = PageRequest.of(0, size + 1); // 다음 페이지 확인용 +1
 
-        List<PostDto.PostDetailResponse> responses = posts.stream()
-                .map(PostDto.PostDetailResponse::from)
-                .collect(Collectors.toList());
+        List<Post> posts = postRepository.findTimelinePostsWithCursor(beaconId, myUserId, friendIds, cursorId, pageable);
 
-        enrichPostUserData(responses, myUserId);
-        return responses;
+        return makeFeedResponse(posts, size, myUserId);
     }
 
     public List<PostDto.MapMarkerResponse> getMapMarkers(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {

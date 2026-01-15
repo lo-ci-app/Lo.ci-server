@@ -24,18 +24,20 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findByIdWithDetails(@Param("postId") Long postId);
 
     @Query("SELECT DISTINCT p FROM Post p " +
-            "LEFT JOIN FETCH p.user " +
-            "LEFT JOIN FETCH p.mediaList " +
+            "JOIN FETCH p.user " +
             "WHERE p.beaconId = :beaconId " +
             "AND ( " +
             "   (p.user.id = :myUserId AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED')) " +
             "   OR " +
             "   (p.user.id IN :friendIds AND p.status = 'ACTIVE') " +
             ") " +
+            "AND (:cursorId IS NULL OR p.id < :cursorId) " +
             "ORDER BY p.id DESC")
-    List<Post> findTimelinePosts(@Param("beaconId") String beaconId,
-                                 @Param("myUserId") Long myUserId,
-                                 @Param("friendIds") List<Long> friendIds);
+    List<Post> findTimelinePostsWithCursor(@Param("beaconId") String beaconId,
+                                           @Param("myUserId") Long myUserId,
+                                           @Param("friendIds") List<Long> friendIds,
+                                           @Param("cursorId") Long cursorId,
+                                           Pageable pageable);
 
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
@@ -235,4 +237,5 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("timeOffset") String timeOffset);
 
     void deleteByUser(User user);
+
 }
