@@ -58,6 +58,8 @@ public class AuthService {
                 .orElseGet(() -> new AuthResponse(null, null, true));
     }
 
+    // AuthService.java
+
     @Transactional
     public TokenResponse reissue(RefreshTokenRequest request) {
         String refreshToken = request.getRefreshToken();
@@ -69,7 +71,7 @@ public class AuthService {
         String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
         String redisKey = REFRESH_TOKEN_PREFIX + userId;
 
-        String storedToken = redisTemplate.opsForValue().getAndDelete(redisKey);
+        String storedToken = redisTemplate.opsForValue().get(redisKey);
 
         if (storedToken == null || !storedToken.equals(refreshToken)) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -79,11 +81,14 @@ public class AuthService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String newAccessToken = jwtTokenProvider.createAccessToken(user);
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-        storeRefreshToken(user.getId(), newRefreshToken);
+        redisTemplate.expire(
+                redisKey,
+                jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
+                TimeUnit.MILLISECONDS
+        );
 
-        return new TokenResponse(newAccessToken, newRefreshToken);
+        return new TokenResponse(newAccessToken, refreshToken);
     }
 
     private void storeRefreshToken(Long userId, String refreshToken) {
