@@ -6,11 +6,12 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum IntimacyType {
-    FRIEND_MADE(50, "친구 맺기"), // 최초 1회
-    REACTION(5, "반응 남기기"),    // 일 1회
-    COMMENT(10, "댓글 달기"),     // 일 1회
-    VISIT(30, "발자취 방문"),     // 장소당 주 1회
-    COLLABORATOR(50, "공동 작업"); // 일 1회
+    FRIEND_MADE(50, "친구 맺기"),
+    REACTION(5, "반응 남기기"),
+    COMMENT(10, "댓글 달기"),
+    VISIT(30, "발자취 방문"),
+    COLLABORATOR(50, "공동 작업"),
+    NUDGE(1, "콕 찌르기");
 
     private final int point;
     private final String description;

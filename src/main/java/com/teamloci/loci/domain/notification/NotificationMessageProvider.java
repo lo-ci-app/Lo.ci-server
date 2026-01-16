@@ -26,7 +26,8 @@ public class NotificationMessageProvider {
                     Map.entry(NotificationType.COMMENT_LIKE, new String[]{"공감 꾹! 👍", "%s님이 회원님의 댓글에 공감했어요."}),
                     Map.entry(NotificationType.NUDGE, new String[]{"똑똑! 사진이 보고 싶어요 👀", "%s님이 회원님의 새로운 소식을 기다리고 있어요. 사진을 올려보세요!"}),
                     Map.entry(NotificationType.LOCI_TIME, new String[]{"It's Loci Time! ⚡️", "지금 바로 친구들과 시공간을 넘어 연결되어 보세요."}),
-                    Map.entry(NotificationType.INTIMACY_LEVEL_UP, new String[]{"우리 더 친해졌어요! 🎉", "%s님과의 친밀도가 Lv.%s이 되었어요! 특별한 사이가 되어가고 있네요."})
+                    Map.entry(NotificationType.INTIMACY_LEVEL_UP, new String[]{"우리 더 친해졌어요! 🎉", "%s님과의 친밀도가 Lv.%s이 되었어요! 특별한 사이가 되어가고 있네요."}),
+                    Map.entry(NotificationType.BADGE_ACQUIRED, new String[]{"새로운 배지 획득! 🏆", "%s"})
             ),
 
             "US", Map.ofEntries(
@@ -41,7 +42,8 @@ public class NotificationMessageProvider {
                     Map.entry(NotificationType.COMMENT_LIKE, new String[]{"Thumbs up! 👍", "%s liked your comment."}),
                     Map.entry(NotificationType.NUDGE, new String[]{"Knock knock! Miss you 👀", "%s is waiting for your update. Share a photo!"}),
                     Map.entry(NotificationType.LOCI_TIME, new String[]{"It's Loci Time! ⚡️", "Connect with your friends across time and space right now."}),
-                    Map.entry(NotificationType.INTIMACY_LEVEL_UP, new String[]{"Level Up! 🎉", "Intimacy with %s reached Lv.%s! You're getting closer."})
+                    Map.entry(NotificationType.INTIMACY_LEVEL_UP, new String[]{"Level Up! 🎉", "Intimacy with %s reached Lv.%s! You're getting closer."}),
+                    Map.entry(NotificationType.BADGE_ACQUIRED, new String[]{"New Badge Unlocked! 🏆", "%s"})
             )
     );
 

@@ -133,19 +133,16 @@ public class PostController {
         return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByUser(myUserId, userId, cursor, size)));
     }
 
-    @Operation(summary = "타임라인 (비콘별 조회)",
-            description = """
-                    지도 마커 클릭 시 해당 구역(Beacon)의 포스트를 조회합니다.
-                    작성자가 친구가 아니더라도 조회될 수 있으며, `relationStatus`로 구분 가능합니다.
-                    """)
-    @GetMapping("/timeline")
-    public ResponseEntity<CustomResponse<List<PostDto.PostDetailResponse>>> getTimeline(
+    @Operation(summary = "비콘(장소) 타임라인 조회", description = "특정 비콘의 게시글 목록을 조회합니다. (친구 공개 + 내 글) - 커서 기반 페이지네이션")
+    @GetMapping("/beacon/{beaconId}")
+    public ResponseEntity<CustomResponse<PostDto.FeedResponse>> getPostsByBeaconId(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @Parameter(description = "조회할 비콘 ID (H3 Index)", required = true, example = "89283082807ffff")
-            @RequestParam String beaconId
+            @Parameter(description = "비콘 ID", required = true) @PathVariable String beaconId,
+            @Parameter(description = "마지막으로 조회한 게시글 ID (첫 조회 시 null)") @RequestParam(required = false) Long cursorId,
+            @Parameter(description = "조회할 개수 (기본 10)") @RequestParam(defaultValue = "10") int size
     ) {
-        Long myUserId = getUserId(user);
-        return ResponseEntity.ok(CustomResponse.ok(postService.getPostsByBeaconId(beaconId, myUserId)));
+        PostDto.FeedResponse response = postService.getPostsByBeaconId(beaconId, user.getUserId(), cursorId, size);
+        return ResponseEntity.ok(CustomResponse.ok(response));
     }
 
     @Operation(summary = "지도 마커 (범위 조회)",

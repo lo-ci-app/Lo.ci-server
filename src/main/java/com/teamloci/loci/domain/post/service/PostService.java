@@ -9,7 +9,6 @@ import com.teamloci.loci.domain.intimacy.service.IntimacyService;
 import com.teamloci.loci.domain.post.dto.PostDto;
 import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.post.event.PostCreatedEvent;
-import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.domain.stat.repository.UserBeaconStatsRepository;
@@ -274,8 +273,13 @@ public class PostService {
         return PostDto.PostDetailResponse.from(findPostById(post.getId()));
     }
 
-    public List<PostDto.PostDetailResponse> getPostsByBeaconId(String beaconId, Long myUserId) {
-        if (beaconId == null || beaconId.isBlank()) return List.of();
+    public PostDto.FeedResponse getPostsByBeaconId(String beaconId, Long myUserId, Long cursorId, int size) {
+        if (beaconId == null || beaconId.isBlank()) {
+            return PostDto.FeedResponse.builder()
+                    .posts(List.of())
+                    .hasNext(false)
+                    .build();
+        }
 
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
         List<Long> friendIds = new ArrayList<>(friends.stream().map(User::getId).toList());
@@ -287,14 +291,11 @@ public class PostService {
             friendIds.add(-1L);
         }
 
-        List<Post> posts = postRepository.findTimelinePosts(beaconId, myUserId, friendIds);
+        Pageable pageable = PageRequest.of(0, size + 1);
 
-        List<PostDto.PostDetailResponse> responses = posts.stream()
-                .map(PostDto.PostDetailResponse::from)
-                .collect(Collectors.toList());
+        List<Post> posts = postRepository.findTimelinePostsWithCursor(beaconId, myUserId, friendIds, cursorId, pageable);
 
-        enrichPostUserData(responses, myUserId);
-        return responses;
+        return makeFeedResponse(posts, size, myUserId);
     }
 
     public List<PostDto.MapMarkerResponse> getMapMarkers(Double minLat, Double maxLat, Double minLon, Double maxLon, Long myUserId) {
@@ -548,6 +549,7 @@ public class PostService {
         boolean isVisitedByMe = postRepository.existsByBeaconIdInAndUserId(targetBeaconIds, myUserId);
 
         List<User> friends = friendshipRepository.findActiveFriendsByUserId(myUserId);
+
         if (friends.isEmpty()) {
             return PostDto.FriendVisitResponse.builder()
                     .isVisitedByMe(isVisitedByMe)

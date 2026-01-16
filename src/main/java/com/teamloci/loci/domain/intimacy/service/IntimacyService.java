@@ -8,6 +8,7 @@ import com.teamloci.loci.domain.intimacy.entity.IntimacyLevel;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyLog;
 import com.teamloci.loci.domain.intimacy.entity.IntimacyType;
 import com.teamloci.loci.domain.intimacy.event.IntimacyLevelUpEvent;
+import com.teamloci.loci.domain.intimacy.event.NudgeEvent;
 import com.teamloci.loci.domain.intimacy.repository.FriendshipIntimacyRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLevelRepository;
 import com.teamloci.loci.domain.intimacy.repository.IntimacyLogRepository;
@@ -81,6 +82,12 @@ public class IntimacyService {
                 .earnedPoint(point)
                 .relatedBeaconId(relatedBeaconId)
                 .build());
+
+        if (type == IntimacyType.NUDGE) {
+            User actor = userRepository.findById(actorId).orElseThrow();
+            User target = userRepository.findById(targetId).orElseThrow();
+            eventPublisher.publishEvent(new NudgeEvent(actor, target));
+        }
     }
 
     @Transactional(readOnly = true)

@@ -28,7 +28,7 @@ public class NotificationDto {
         @Schema(description = "알림 썸네일 이미지 URL")
         private String thumbnailUrl;
 
-        @Schema(description = "썸네일 타입 (POST_IMAGE: 사각형, APP_LOGO: 앱 로고, USER_PROFILE: 원형)", example = "POST_IMAGE")
+        @Schema(description = "썸네일 타입 (POST_IMAGE: 사각형, APP_LOGO: 앱 로고, BADGE_IMAGE: 배지, USER_PROFILE: 원형)", example = "POST_IMAGE")
         private String thumbnailType;
 
         public static Response from(Notification notification) {
@@ -50,6 +50,8 @@ public class NotificationDto {
                 case NEW_POST, POST_TAGGED, POST_REACTION, COMMENT_LIKE -> "POST_IMAGE";
 
                 case LOCI_TIME -> "APP_LOGO";
+
+                case BADGE_ACQUIRED -> "BADGE_IMAGE";
 
                 default -> "USER_PROFILE";
             };

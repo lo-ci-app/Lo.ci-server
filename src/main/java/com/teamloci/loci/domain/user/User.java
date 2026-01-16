@@ -1,5 +1,6 @@
 package com.teamloci.loci.domain.user;
 
+import com.teamloci.loci.domain.badge.Badge;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -93,6 +94,14 @@ public class User {
 
     @Column(name = "bluetooth_token", length = 8, unique = true, nullable = false)
     private String bluetoothToken;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "main_badge_id")
+    private Badge mainBadge;
+
+    public void updateMainBadge(Badge badge) {
+        this.mainBadge = badge;
+    }
 
     @Builder
     public User(String handle, String nickname, String profileUrl, String phoneEncrypted, String phoneSearchHash, String countryCode) {

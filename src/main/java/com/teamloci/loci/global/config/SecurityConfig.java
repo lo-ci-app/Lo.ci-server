@@ -131,9 +131,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/health",
                                 "/api/v1/auth/**",
-                                "/login_test.html",
                                 "/api/v1/users/check-handle",
-                                "/api/v1/versions/**"
+                                "/api/v1/versions/**",
+                                "/api/v1/admin/**"
                         ).permitAll()
                         .anyRequest().authenticated());
         http

@@ -3,6 +3,7 @@ package com.teamloci.loci.domain.auth;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
+import com.teamloci.loci.domain.auth.event.UserLoginEvent;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserRepository;
 import com.teamloci.loci.global.auth.JwtTokenProvider;
@@ -11,6 +12,7 @@ import com.teamloci.loci.global.error.ErrorCode;
 import com.teamloci.loci.global.util.AesUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final AesUtil aesUtil;
     private final StringRedisTemplate redisTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final SecureRandom secureRandom = new SecureRandom();
     private static final HexFormat hexFormat = HexFormat.of();
@@ -47,6 +50,8 @@ public class AuthService {
                     String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
                     storeRefreshToken(user.getId(), refreshToken);
+
+                    eventPublisher.publishEvent(new UserLoginEvent(user));
 
                     return new AuthResponse(accessToken, refreshToken, false);
                 })
@@ -112,6 +117,8 @@ public class AuthService {
 
         userRepository.save(newUser);
         log.info(">>> [회원가입 완료] User ID: {}, Handle: {}", newUser.getId(), newUser.getHandle());
+
+        eventPublisher.publishEvent(new UserLoginEvent(newUser));
     }
 
     private void validateSignUpRequest(PhoneLoginRequest request) {

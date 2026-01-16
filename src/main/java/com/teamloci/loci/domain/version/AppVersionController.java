@@ -1,7 +1,7 @@
 package com.teamloci.loci.domain.version;
 
+import com.teamloci.loci.global.common.CustomResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -12,11 +12,12 @@ public class AppVersionController {
     private final AppVersionService appVersionService;
 
     @GetMapping
-    public ResponseEntity<VersionCheckResponse> checkVersion(
+    public CustomResponse<VersionCheckResponse> checkVersion(
             @RequestParam OsType osType,
             @RequestParam String version) {
 
         VersionCheckResponse response = appVersionService.checkVersion(osType, version);
-        return ResponseEntity.ok(response);
+
+        return CustomResponse.ok(response);
     }
 }

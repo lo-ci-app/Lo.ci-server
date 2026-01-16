@@ -1,6 +1,7 @@
 package com.teamloci.loci.domain.post.repository;
 
 import com.teamloci.loci.domain.post.entity.PostComment;
+import com.teamloci.loci.domain.user.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -25,4 +26,8 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
 
     @Query("SELECT c.post.id, COUNT(c) FROM PostComment c WHERE c.post.id IN :postIds GROUP BY c.post.id")
     List<Object[]> countByPostIdIn(@Param("postIds") List<Long> postIds);
+
+    long countByUser(User user);
+
+    void deleteByUser(User user);
 }

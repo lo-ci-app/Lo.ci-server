@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -41,6 +42,7 @@ public class PostEventListener {
     private final UserActivityService userActivityService;
 
     @Async
+    @Order(1)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostBusinessLogic(PostCreatedEvent event) {
         Post post = event.getPost();

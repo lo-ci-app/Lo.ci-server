@@ -24,18 +24,20 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findByIdWithDetails(@Param("postId") Long postId);
 
     @Query("SELECT DISTINCT p FROM Post p " +
-            "LEFT JOIN FETCH p.user " +
-            "LEFT JOIN FETCH p.mediaList " +
+            "JOIN FETCH p.user " +
             "WHERE p.beaconId = :beaconId " +
             "AND ( " +
             "   (p.user.id = :myUserId AND (p.status = 'ACTIVE' OR p.status = 'ARCHIVED')) " +
             "   OR " +
             "   (p.user.id IN :friendIds AND p.status = 'ACTIVE') " +
             ") " +
+            "AND (:cursorId IS NULL OR p.id < :cursorId) " +
             "ORDER BY p.id DESC")
-    List<Post> findTimelinePosts(@Param("beaconId") String beaconId,
-                                 @Param("myUserId") Long myUserId,
-                                 @Param("friendIds") List<Long> friendIds);
+    List<Post> findTimelinePostsWithCursor(@Param("beaconId") String beaconId,
+                                           @Param("myUserId") Long myUserId,
+                                           @Param("friendIds") List<Long> friendIds,
+                                           @Param("cursorId") Long cursorId,
+                                           Pageable pageable);
 
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user " +
@@ -79,7 +81,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "       UNION " +
             "       SELECT f.requester_id FROM friendships f WHERE f.receiver_id = :myUserId AND f.status = 'FRIENDSHIP'" +
             "   )) " +
-            "   AND p2.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " + // 👈 [추가] 차단 필터링
+            "   AND p2.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " +
             "   ORDER BY p2.id DESC " +
             "   LIMIT 1" +
             ") as thumbnail_url, " +
@@ -93,7 +95,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "   UNION " +
             "   SELECT f.requester_id FROM friendships f WHERE f.receiver_id = :myUserId AND f.status = 'FRIENDSHIP'" +
             ")) " +
-            "AND p.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " + // 👈 [추가] 차단 필터링
+            "AND p.user_id NOT IN (SELECT blocked_id FROM user_block WHERE blocker_id = :myUserId) " +
             "GROUP BY p.beacon_id", nativeQuery = true)
     List<Object[]> findMapMarkers(
             @Param("minLat") Double minLat, @Param("maxLat") Double maxLat,
@@ -122,7 +124,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 ROW_NUMBER() OVER (
                     PARTITION BY p.beacon_id 
                     ORDER BY 
-                        -- [수정] 유효한 장소명을 우선순위로 두기 위한 정렬 로직 추가
                         CASE 
                             WHEN p.location_name IN ('Somewhere', 'Unknown') THEN 1 
                             ELSE 0 
@@ -222,4 +223,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findTopByUserIdAndBeaconIdOrderByIdDesc(Long userId, String beaconId);
 
     Optional<Post> findTopByUserIdOrderByIdDesc(Long userId);
+
+    @Query(value = "SELECT COUNT(*) FROM post p " +
+            "WHERE p.user_id = :userId " +
+            "AND HOUR(CONVERT_TZ(p.created_at, '+00:00', :timeOffset)) >= :startHour " +
+            "AND HOUR(CONVERT_TZ(p.created_at, '+00:00', :timeOffset)) < :endHour",
+            nativeQuery = true)
+    long countByUserAndCreatedHourBetween(
+            @Param("userId") Long userId,
+            @Param("startHour") int startHour,
+            @Param("endHour") int endHour,
+            @Param("timeOffset") String timeOffset);
+
+    void deleteByUser(User user);
 }

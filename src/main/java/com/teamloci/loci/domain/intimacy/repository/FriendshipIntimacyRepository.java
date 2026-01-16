@@ -1,6 +1,7 @@
 package com.teamloci.loci.domain.intimacy.repository;
 
 import com.teamloci.loci.domain.intimacy.entity.FriendshipIntimacy;
+import com.teamloci.loci.domain.user.User;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -42,4 +43,6 @@ public interface FriendshipIntimacyRepository extends JpaRepository<FriendshipIn
             @Param("myUserId") Long myUserId,
             @Param("targetUserIds") List<Long> targetUserIds
     );
+
+    void deleteByUserAIdOrUserBId(Long userAId, Long userBId);
 }
