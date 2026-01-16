@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
         name = "user_block",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_user_block_blocker_blocked",
+                        name = "uk_user_block_blocker_blocked", // 제약조건 이름 명시
                         columnNames = {"blocker_id", "blocked_id"}
                 )
         }

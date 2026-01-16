@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
 
+    // develop 브랜치의 메서드 유지
     boolean existsByBlockerAndBlocked(User blocker, User blocked);
 
     Optional<UserBlock> findByBlockerAndBlocked(User blocker, User blocked);
