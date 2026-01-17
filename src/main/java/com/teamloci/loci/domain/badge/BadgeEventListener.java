@@ -72,6 +72,10 @@ public class BadgeEventListener {
 
         if (event.getPost().getCollaborators() != null && !event.getPost().getCollaborators().isEmpty()) {
             badgeService.awardBadge(user, BadgeType.FIRST_ENCOUNTER);
+
+            event.getPost().getCollaborators().forEach(collaborator -> {
+                badgeService.awardBadge(collaborator.getUser(), BadgeType.FIRST_ENCOUNTER);
+            });
         }
 
         String beaconId = event.getPost().getBeaconId();
