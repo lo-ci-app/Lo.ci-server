@@ -133,7 +133,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/users/check-handle",
                                 "/api/v1/versions/**",
-                                "/api/v1/admin/**"
+                                "/api/v1/admin/**",
+                                "/test/scheduler/run"
                         ).permitAll()
                         .anyRequest().authenticated());
         http
