@@ -50,6 +50,8 @@ public class PostService {
     private final ApplicationEventPublisher eventPublisher;
     private final UserBeaconStatsRepository userBeaconStatsRepository;
 
+    private static final int MAP_MARKER_LIMIT = 20;
+
     @Value("${feature.use-new-map-marker:true}")
     private boolean useNewMapMarker;
 
@@ -318,7 +320,7 @@ public class PostService {
         friendIds.add(myUserId);
 
         List<Object[]> results = userBeaconStatsRepository.findMarkersByFriendsInArea(
-                friendIds, minLat, maxLat, minLon, maxLon
+                friendIds, minLat, maxLat, minLon, maxLon, MAP_MARKER_LIMIT
         );
 
         return mapToMarkerResponse(results);

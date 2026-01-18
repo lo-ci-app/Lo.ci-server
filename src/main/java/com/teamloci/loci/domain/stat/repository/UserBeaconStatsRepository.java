@@ -33,10 +33,13 @@ public interface UserBeaconStatsRepository extends JpaRepository<UserBeaconStats
         AND s.latitude BETWEEN :minLat AND :maxLat
         AND s.longitude BETWEEN :minLon AND :maxLon
         GROUP BY s.beacon_id
+        ORDER BY latest_posted_at DESC  
+        LIMIT :limit                    
     """, nativeQuery = true)
     List<Object[]> findMarkersByFriendsInArea(
             @Param("friendIds") List<Long> friendIds,
             @Param("minLat") Double minLat, @Param("maxLat") Double maxLat,
-            @Param("minLon") Double minLon, @Param("maxLon") Double maxLon
+            @Param("minLon") Double minLon, @Param("maxLon") Double maxLon,
+            @Param("limit") int limit
     );
 }
