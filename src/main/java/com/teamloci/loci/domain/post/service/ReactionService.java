@@ -9,7 +9,6 @@ import com.teamloci.loci.domain.notification.NotificationService;
 import com.teamloci.loci.domain.notification.NotificationType;
 import com.teamloci.loci.domain.post.dto.ReactionDto;
 import com.teamloci.loci.domain.post.entity.*;
-import com.teamloci.loci.domain.post.repository.CommentLikeRepository;
 import com.teamloci.loci.domain.post.repository.PostCommentRepository;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
@@ -36,9 +35,7 @@ import java.util.stream.Collectors;
 public class ReactionService {
 
     private final PostReactionRepository postReactionRepository;
-    private final CommentLikeRepository commentLikeRepository;
     private final PostRepository postRepository;
-    private final PostCommentRepository commentRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
     private final NotificationService notificationService;
@@ -204,32 +201,5 @@ public class ReactionService {
                 .hasNext(hasNext)
                 .nextCursor(nextCursor)
                 .build();
-    }
-
-    public void toggleCommentLike(Long userId, Long commentId) {
-        User user = findUser(userId);
-        PostComment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
-
-        Optional<CommentLike> existing = commentLikeRepository.findByCommentIdAndUserId(commentId, userId);
-
-        if (existing.isPresent()) {
-            commentLikeRepository.delete(existing.get());
-        } else {
-            commentLikeRepository.save(CommentLike.builder()
-                    .comment(comment)
-                    .user(user)
-                    .build());
-
-            if (!comment.getUser().getId().equals(userId) && comment.getUser().getStatus() == UserStatus.ACTIVE) {
-                notificationService.send(
-                        comment.getUser(),
-                        NotificationType.COMMENT_LIKE,
-                        comment.getPost().getId(),
-                        comment.getPost().getThumbnailUrl(),
-                        user.getNickname()
-                );
-            }
-        }
     }
 }
