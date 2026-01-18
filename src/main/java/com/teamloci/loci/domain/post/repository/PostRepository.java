@@ -243,4 +243,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findTopByUserIdAndBeaconIdAndStatusOrderByIdDesc(Long userId, String beaconId, PostStatus status);
 
     Optional<Post> findTopByUserIdAndStatusOrderByIdDesc(Long userId, PostStatus status);
+
+    @Query("SELECT p.user.id, p.beaconId FROM Post p " +
+            "WHERE p.status = 'ACTIVE' " +
+            "AND p.createdAt < :expiryDate")
+    List<Object[]> findTargetsToArchive(@Param("expiryDate") LocalDateTime expiryDate);
+
 }

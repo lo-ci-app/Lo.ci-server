@@ -149,16 +149,4 @@ public class CommentController {
         commentService.deleteComment(getUserId(user), postId, commentId);
         return ResponseEntity.ok(CustomResponse.ok(null));
     }
-
-    @Operation(summary = "댓글 좋아요 토글",
-            description = "댓글에 좋아요를 누르거나 취소합니다.")
-    @PostMapping("/{commentId}/like")
-    public ResponseEntity<CustomResponse<Void>> toggleLike(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @PathVariable Long postId,
-            @PathVariable Long commentId
-    ) {
-        reactionService.toggleCommentLike(getUserId(user), commentId);
-        return ResponseEntity.ok(CustomResponse.ok(null));
-    }
 }

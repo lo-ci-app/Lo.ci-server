@@ -11,6 +11,7 @@ import com.teamloci.loci.domain.post.entity.*;
 import com.teamloci.loci.domain.post.event.PostCreatedEvent;
 import com.teamloci.loci.domain.post.repository.PostReactionRepository;
 import com.teamloci.loci.domain.post.repository.PostRepository;
+import com.teamloci.loci.domain.stat.entity.UserBeaconStats;
 import com.teamloci.loci.domain.stat.repository.UserBeaconStatsRepository;
 import com.teamloci.loci.domain.user.User;
 import com.teamloci.loci.domain.user.UserDto;
@@ -636,5 +637,43 @@ public class PostService {
         enrichPostUserData(List.of(response), userId);
 
         return response;
+    }
+
+    @Transactional
+    public void recalculateBeaconStats(Long userId, String beaconId) {
+        long activeCount = postRepository.countByUserIdAndBeaconIdAndStatus(userId, beaconId, PostStatus.ACTIVE);
+
+        userBeaconStatsRepository.findByUserIdAndBeaconId(userId, beaconId)
+                .ifPresentOrElse(stats -> {
+                    if (activeCount <= 0) {
+                        userBeaconStatsRepository.delete(stats);
+                    } else {
+                        postRepository.findTopByUserIdAndBeaconIdAndStatusOrderByIdDesc(userId, beaconId, PostStatus.ACTIVE)
+                                .ifPresent(latestPost -> {
+                                    stats.sync(activeCount, latestPost.getThumbnailUrl(), latestPost.getCreatedAt());
+                                });
+                    }
+                }, () -> {
+                    if (activeCount > 0) {
+                        postRepository.findTopByUserIdAndBeaconIdAndStatusOrderByIdDesc(userId, beaconId, PostStatus.ACTIVE)
+                                .ifPresent(latestPost -> {
+                                    GeoUtils.Pair<Double, Double> latLng = geoUtils.beaconIdToLatLng(beaconId);
+
+                                    if (latLng != null) {
+                                        UserBeaconStats newStats = UserBeaconStats.builder()
+                                                .userId(userId)
+                                                .beaconId(beaconId)
+                                                .latitude(latLng.lat)
+                                                .longitude(latLng.lng)
+                                                .postCount(activeCount)
+                                                .latestThumbnailUrl(latestPost.getThumbnailUrl())
+                                                .latestPostedAt(latestPost.getCreatedAt())
+                                                .build();
+
+                                        userBeaconStatsRepository.save(newStats);
+                                    }
+                                });
+                    }
+                });
     }
 }

@@ -34,9 +34,6 @@ public class PostComment extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isBlinded = false;
 
-    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CommentLike> likes = new ArrayList<>();
-
     @Column(nullable = false, length = 500)
     private String content;
 
