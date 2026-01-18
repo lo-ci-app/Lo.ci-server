@@ -199,11 +199,10 @@ public class PostService {
         postRepository.delete(post);
         postRepository.flush();
 
-        long remainingPosts = postRepository.countByUserIdAndBeaconId(userId, beaconId);
+        long activeCount = postRepository.countByUserIdAndBeaconIdAndStatus(userId, beaconId, PostStatus.ACTIVE);
 
-        userActivityService.decreaseUserStats(userId, remainingPosts);
-
-        syncUserBeaconStats(userId, beaconId, remainingPosts);
+        userActivityService.decreaseUserStats(userId, activeCount);
+        syncUserBeaconStats(userId, beaconId, activeCount);
     }
 
     @Transactional
@@ -213,6 +212,14 @@ public class PostService {
             throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
         }
         post.archive();
+
+        String beaconId = post.getBeaconId();
+
+        long activeCount = postRepository.countByUserIdAndBeaconIdAndStatus(userId, beaconId, PostStatus.ACTIVE);
+
+        userActivityService.decreaseUserStats(userId, activeCount);
+
+        syncUserBeaconStats(userId, beaconId, activeCount);
     }
 
     @Transactional
@@ -222,6 +229,14 @@ public class PostService {
             throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
         }
         post.restore();
+
+        String beaconId = post.getBeaconId();
+
+        long activeCount = postRepository.countByUserIdAndBeaconIdAndStatus(userId, beaconId, PostStatus.ACTIVE);
+
+        userActivityService.restoreUserStats(userId, beaconId);
+
+        syncUserBeaconStats(userId, beaconId, activeCount);
     }
 
     @Transactional
@@ -593,16 +608,15 @@ public class PostService {
                 .build();
     }
 
-    private void syncUserBeaconStats(Long userId, String beaconId, long count) {
-
+    private void syncUserBeaconStats(Long userId, String beaconId, long activeCount) {
         userBeaconStatsRepository.findByUserIdAndBeaconId(userId, beaconId)
                 .ifPresent(stats -> {
-                    if (count <= 0) {
+                    if (activeCount <= 0) {
                         userBeaconStatsRepository.delete(stats);
                     } else {
-                        postRepository.findTopByUserIdAndBeaconIdOrderByIdDesc(userId, beaconId)
+                        postRepository.findTopByUserIdAndBeaconIdAndStatusOrderByIdDesc(userId, beaconId, PostStatus.ACTIVE)
                                 .ifPresent(latestPost -> {
-                                    stats.sync(count, latestPost.getThumbnailUrl(), latestPost.getCreatedAt());
+                                    stats.sync(activeCount, latestPost.getThumbnailUrl(), latestPost.getCreatedAt());
                                 });
                     }
                 });

@@ -1,6 +1,7 @@
 package com.teamloci.loci.domain.user;
 
 import com.teamloci.loci.domain.post.entity.Post;
+import com.teamloci.loci.domain.post.entity.PostStatus;
 import com.teamloci.loci.domain.post.repository.PostRepository;
 import com.teamloci.loci.global.error.CustomException;
 import com.teamloci.loci.global.error.ErrorCode;
@@ -109,7 +110,7 @@ public class UserActivityService {
                 user.updateStreakInfo(1L, today);
             }
 
-            long existingPostsInBeacon = postRepository.countByUserIdAndBeaconId(userId, beaconId);
+            long existingPostsInBeacon = postRepository.countByUserIdAndBeaconIdAndStatus(userId, beaconId, PostStatus.ACTIVE);
             if (existingPostsInBeacon == 1) {
                 user.increaseVisitedPlaceCount();
             }
@@ -118,6 +119,22 @@ public class UserActivityService {
             log.error("유저 통계 업데이트 실패: {}", e.getMessage());
             throw e;
         }
+    }
+
+    @Transactional
+    @CacheEvict(value = "userStats", key = "#userId")
+    public void restoreUserStats(Long userId, String beaconId) {
+        User user = userRepository.findByIdWithLock(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.increasePostCount();
+
+        long activeCount = postRepository.countByUserIdAndBeaconIdAndStatus(userId, beaconId, PostStatus.ACTIVE);
+        if (activeCount == 1) {
+            user.increaseVisitedPlaceCount();
+        }
+
+        updateStreakAfterDeletion(user);
     }
 
     @Transactional
@@ -136,7 +153,7 @@ public class UserActivityService {
     }
 
     private void updateStreakAfterDeletion(User user) {
-        Post latestPost = postRepository.findTopByUserIdOrderByIdDesc(user.getId())
+        Post latestPost = postRepository.findTopByUserIdAndStatusOrderByIdDesc(user.getId(), PostStatus.ACTIVE)
                 .orElse(null);
 
         if (latestPost == null) {

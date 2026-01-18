@@ -226,6 +226,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query(value = "SELECT COUNT(*) FROM post p " +
             "WHERE p.user_id = :userId " +
+            "AND p.status = 'ACTIVE' " +
             "AND HOUR(CONVERT_TZ(p.created_at, '+00:00', :timeOffset)) >= :startHour " +
             "AND HOUR(CONVERT_TZ(p.created_at, '+00:00', :timeOffset)) < :endHour",
             nativeQuery = true)
@@ -236,4 +237,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("timeOffset") String timeOffset);
 
     void deleteByUser(User user);
+
+    long countByUserIdAndBeaconIdAndStatus(Long userId, String beaconId, PostStatus status);
+
+    Optional<Post> findTopByUserIdAndBeaconIdAndStatusOrderByIdDesc(Long userId, String beaconId, PostStatus status);
+
+    Optional<Post> findTopByUserIdAndStatusOrderByIdDesc(Long userId, PostStatus status);
 }
